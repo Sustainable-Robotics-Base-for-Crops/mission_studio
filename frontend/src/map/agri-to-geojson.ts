@@ -122,11 +122,23 @@ export function agriToGeoJSON(
     const result = emptyMission();
     let bounds: MissionGeoJSON['bounds'] = null;
 
+    const workOrdinalBySection = new Map<number, number>();
+    let nextWorkOrdinal = 0;
     const pushLine = (kind: LineKind, coords: [number, number][], sectionIndex: number) => {
         if (coords.length < 2) {
             return;
         }
-        const feature = lineFeature(coords, { kind, sectionIndex });
+        const properties: Record<string, string | number | boolean> = { kind, sectionIndex };
+        if (kind === 'work') {
+            let ordinal = workOrdinalBySection.get(sectionIndex);
+            if (ordinal === undefined) {
+                nextWorkOrdinal += 1;
+                ordinal = nextWorkOrdinal;
+                workOrdinalBySection.set(sectionIndex, ordinal);
+            }
+            properties.label = ordinal;
+        }
+        const feature = lineFeature(coords, properties);
         result[kind].features.push(feature);
         for (const [lng, lat] of coords) {
             bounds = extendBounds(bounds, lng, lat);

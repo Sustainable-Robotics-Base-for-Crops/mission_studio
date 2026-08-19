@@ -1,4 +1,5 @@
 import type { CoverageStrategy } from '../coverage/api';
+import type { CropPackId } from '../domain/crop-pack';
 import type { GeoJSONPolygon } from '../fields/types';
 import type { LatLng } from '../domain/geometry';
 import type { TurnKind } from '../domain/turns';
@@ -40,6 +41,7 @@ export interface MissionBrief {
     transit_note: string;
     service_node_id: string;
     weather_note: string;
+    crop_pack: CropPackId;
 }
 
 export type BriefGate = 'field' | 'combination' | 'working_width' | 'overlap' | 'window';
@@ -76,6 +78,7 @@ export function defaultMissionBrief(now = new Date()): MissionBrief {
         transit_note: '',
         service_node_id: '',
         weather_note: '',
+        crop_pack: 'open_field',
     };
 }
 
@@ -146,6 +149,7 @@ export function briefToMetadata(brief: MissionBrief): Record<string, unknown> {
         transit_note: brief.transit_note || null,
         service_node_id: brief.service_node_id || null,
         weather_note: brief.weather_note || null,
+        crop_pack: brief.crop_pack,
     };
 }
 
@@ -155,6 +159,7 @@ export interface MissionContext {
     field_id: string | null;
     combination_id: string | null;
     working_width_m: number | null;
+    weather_note: string;
 }
 
 export function readMissionContext(document: unknown): MissionContext | null {
@@ -180,5 +185,6 @@ export function readMissionContext(document: unknown): MissionContext | null {
                 ? record.combination_id
                 : null,
         working_width_m: Number.isFinite(width) && width > 0 ? width : null,
+        weather_note: typeof record.weather_note === 'string' ? record.weather_note : '',
     };
 }

@@ -64,7 +64,7 @@ function combinationKinematics(
     return vehicles.find((item) => item.id === combination.vehicle_id)?.kinematics ?? null;
 }
 
-function coveragePlanPayload(
+export function coveragePlanPayload(
     brief: MissionBrief,
     ring: Array<{ lat: number; lng: number }>,
     vehicleWidthM: number | null,
@@ -298,11 +298,13 @@ export function useMissionAssistant({
                 return;
             }
             const nextPlan = await planCoverage(payload);
+            const combination = combinations.find((item) => item.id === brief.combination_id);
             const composed = composeGeneratedMission({
                 ring,
                 plan: nextPlan,
                 brief,
                 equipment: equipmentSnapshot,
+                odd: combination?.odd ?? null,
                 strategy: brief.strategy,
                 connectTurns: brief.connect_turns,
                 turnType: brief.turn_type,
@@ -331,7 +333,16 @@ export function useMissionAssistant({
         } finally {
             setBusy(false);
         }
-    }, [brief, equipmentSnapshot, gates.length, geofenceMarginM, onApply, ring, vehicleWidthM]);
+    }, [
+        brief,
+        combinations,
+        equipmentSnapshot,
+        gates.length,
+        geofenceMarginM,
+        onApply,
+        ring,
+        vehicleWidthM,
+    ]);
 
     return {
         open,

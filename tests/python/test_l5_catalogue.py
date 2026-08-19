@@ -66,6 +66,13 @@ def test_french_zone_alias_is_canonicalized(tmp_path):
     assert zone["kind"] == "autonomy"
 
 
+def test_gnss_degraded_zone_kind(tmp_path):
+    repo = _repo(tmp_path)
+    field = repo.create_field("Nord", SQUARE)
+    zone = repo.add_zone(field["id"], "gnss dégradé", SQUARE, name="Coulée")
+    assert zone["kind"] == "gnss_degraded"
+
+
 def test_unknown_zone_kind_is_rejected(tmp_path):
     repo = _repo(tmp_path)
     field = repo.create_field("Nord", SQUARE)

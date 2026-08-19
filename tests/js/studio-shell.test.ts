@@ -157,6 +157,29 @@ describe('studio routes', () => {
         const shell = readFileSync(resolve(ROOT, 'frontend/src/app/AppShell.tsx'), 'utf8');
         expect(shell).toContain('app.compare');
         expect(shell).toContain('readMissionContext');
+        expect(shell).toContain('simulateMission');
+        expect(shell).toContain('oddContext');
+        expect(shell).toContain('gnssDegradedRings');
+        expect(shell).toContain('rowLabelMode');
+        const drawer = readFileSync(
+            resolve(ROOT, 'frontend/src/simulation/SimulationDrawer.tsx'),
+            'utf8',
+        );
+        expect(drawer).toContain('playbackIndexAtTime');
+        expect(drawer).toContain('elapsed +=');
+        expect(drawer).toContain('sim.footprintHint');
+        expect(shell).toContain('CompareDialog');
+        expect(shell).toContain('PublishDialog');
+        expect(shell).toContain('ReportsPanel');
+        expect(shell).toContain("current.id === 'reports'");
+        expect(shell).toContain('workingWidthM');
+        expect(shell).toContain('app.save');
+        expect(shell).toContain('saveNow');
+        expect(shell).toContain('hasWorkingDocument');
+        expect(shell).toContain('autoSimKeyRef');
+        expect(shell).toContain("module.id === 'simulation'");
+        expect(shell).toContain('onRun={runSimulation}');
+        expect(shell).toContain('app.blockers');
         expect(shell).toContain('metrics.strip');
         expect(shell).toContain('buildMissionTree');
         expect(shell).toContain('Accordion');
@@ -166,6 +189,9 @@ describe('studio routes', () => {
             'utf8',
         );
         expect(assistant).toContain('MissionTree');
+        expect(assistant).toContain('PacksPanel');
+        expect(assistant).toContain('TeachRepeatDialog');
+        expect(assistant).toContain('map.draftNotListed');
         const editor = readFileSync(resolve(ROOT, 'frontend/src/map/useMissionEditor.ts'), 'utf8');
         expect(editor).toContain('selectIndices');
         expect(editor).toContain('reorderSelected');
@@ -180,6 +206,9 @@ describe('studio routes', () => {
         expect(treeUi).toContain('EyeOff');
         expect(treeUi).toContain('LockOpen');
         expect(css).toContain('.studio-metrics-strip');
+        expect(css).toContain('.studio-row-label');
+        expect(css).toContain('.studio-packs');
+        expect(css).toContain('.studio-sim-empty');
         expect(css).toContain('.studio-place-search-toolbar');
         const search = readFileSync(resolve(ROOT, 'frontend/src/map/PlaceSearch.tsx'), 'utf8');
         expect(search).toContain('studio-metrics-strip');

@@ -58,6 +58,7 @@ describe('agriToGeoJSON', () => {
         const geometry = geojson.work.features[0]?.geometry;
         expect(geometry?.type).toBe('LineString');
         expect(geometry?.coordinates).toHaveLength(3);
+        expect(geojson.work.features[0]?.properties.label).toBe(1);
     });
 
     it('copies selected section features into the selection halo collection', () => {
@@ -354,6 +355,8 @@ describe('MAP_STYLE (CdCF §5.2)', () => {
         expect(CATALOGUE_KIND_PAINT.autonomy.fill).toBe('#0E7490');
         expect(CATALOGUE_KIND_PAINT.forbidden.fill).toBe('#B91C1C');
         expect(CATALOGUE_KIND_PAINT.headland.fill).toBe('#B45309');
+        expect(CATALOGUE_KIND_PAINT.gnss_degraded.hatch).toBe(true);
+        expect(CATALOGUE_KIND_PAINT.gnss_degraded.dash).toEqual([4, 3]);
         expect(CATALOGUE_KIND_PAINT.forbidden.hatch).toBe(true);
         expect(CATALOGUE_KIND_PAINT.traversable.dash).toEqual([2, 2]);
         expect(CATALOGUE_KIND_PAINT.field.fill).toBe(COLOR.primary800);

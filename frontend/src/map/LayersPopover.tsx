@@ -63,7 +63,7 @@ export function LayersPopover({
                     <h3>{t('map.overlays')}</h3>
                     <ul>
                         {LAYER_CATALOG.map((layer) => {
-                            const enabled = layer.lot === null;
+                            const enabled = layer.lot === null || layer.lot === 'L10';
                             const visible = overlays[layer.id] !== false;
                             return (
                                 <li key={layer.id}>

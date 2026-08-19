@@ -123,6 +123,37 @@ en `row_line`. Moteur : `fields2cover` | `parallel_fallback` | `row_set`.
 stratégie, notes logistique. **Indicatif** (pré-remplissage tablette). Le
 robot n’en lit rien.
 
+### 5.1d ODD (L10c)
+
+`metadata.srbc_odd` : copie du domaine d’emploi **déclaré** de la combinaison
+au moment de la génération / simulation (approbation, pente max, météo,
+visibilité, culture, localisation). **Indicatif.** Pas de flux météo live,
+pas de MNT. Le robot n’en lit rien. Source de vérité édition = SQLite
+`combinations.odd`.
+
+### 5.1e Publication (L11)
+
+`metadata.srbc_publication` : tampon `{ id, version, checksum, published_at,
+expires_at }` posé après `POST /api/v1/publications`. L’empreinte SHA-256
+porte le JSON Agri **sans** ce tampon. Le snapshot immuable vit dans SQLite
+`publications`. Les états mobile (reçu / prévol / activée) ne sont **pas**
+écrits par le Web.
+
+### 5.1f Rapports (L12a)
+
+Pas de champ Agri. Le rapport **prévu** est calculé sur le document ouvert +
+la dernière simulation. Le rapport **autorisé** lit `publications.simulation`
+(JSON SQLite, pas le schéma v3). **Exécuté** n’est pas simulé.
+
+### 5.1g Packs et teach-and-repeat (L12b)
+
+`metadata.srbc_crop_pack` : `'open_field' | 'vineyard' | 'market_garden'`.
+Aussi recopié dans `metadata.srbc_mission_brief.crop_pack`. **Indicatif** —
+le robot n’en lit rien.
+
+`metadata.srbc_teach_repeat` : `{ source_points, simplified_points, epsilon_m }`
+sur une mission importée (une section `row_path`). **Indicatif.**
+
 ### 5.2 Vérins
 
 - **Exécuté** : `working_zone` 0/1 (butee haute / basse), inchangé.

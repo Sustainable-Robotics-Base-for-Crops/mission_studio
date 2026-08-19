@@ -63,7 +63,9 @@ describe('i18n adapter', () => {
         expect(translate('tool.selectPolygon', {}, 'en')).toContain('area');
         expect(translate('tool.deleteZone', {}, 'en')).toContain('Cut');
         expect(translate('tool.saving', {}, 'fr')).toBe('Enregistrement…');
-        expect(translate('tool.saved', {}, 'fr')).toBe('Enregistré');
+        expect(translate('pack.vineyard', {}, 'fr')).toBe('Vigne');
+        expect(translate('teach.open', {}, 'en')).toBe('Teach-and-repeat');
+        expect(translate('fields.kind.gnss_degraded', {}, 'fr')).toContain('GNSS');
     });
 
     it('never returns a blank string for a missing key', () => {

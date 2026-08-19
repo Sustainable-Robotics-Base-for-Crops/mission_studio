@@ -101,6 +101,7 @@ describe('mission brief', () => {
         });
         expect(metadata.field_id).toBe('grave');
         expect(metadata.combination_id).toBe('srbc-hoe');
+        expect(metadata.crop_pack).toBe('open_field');
         expect(metadata.window).toEqual({ from: null, to: null });
     });
 
@@ -124,6 +125,7 @@ describe('mission brief', () => {
             field_id: 'grave',
             combination_id: 'srbc-hoe',
             working_width_m: 1.2,
+            weather_note: '',
         });
         expect(readMissionContext({ points: [] })).toBeNull();
     });
@@ -159,6 +161,7 @@ describe('composeGeneratedMission', () => {
             srbc_mission_brief: { field_id: 'f1' },
             srbc_equipment: { vehicle: { id: 'srbc' } },
             srbc_coverage: { engine: 'parallel_fallback' },
+            srbc_crop_pack: 'open_field',
         });
     });
 

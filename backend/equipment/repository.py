@@ -8,6 +8,7 @@ from typing import Any
 
 from backend.db import Database, utc_now
 from backend.equipment.envelope import combination_envelope, project_srbc_equipment
+from backend.equipment.odd import default_odd, parse_odd
 from backend.equipment.seed import seed_oem_if_empty
 
 KINEMATICS = ("skid_steer", "ackermann")
@@ -133,12 +134,14 @@ def _implement_row(row: Any) -> dict[str, Any]:
 
 
 def _combination_row(row: Any) -> dict[str, Any]:
+    raw_odd = row["odd"] if "odd" in row.keys() else None
     return {
         "id": row["id"],
         "name": row["name"],
         "vehicle_id": row["vehicle_id"],
         "implement_id": row["implement_id"],
         "origin": row["origin"],
+        "odd": parse_odd(_load(raw_odd, {})),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -437,13 +440,14 @@ class EquipmentRepository:
             implement_id = None
         combination_id = str(payload.get("id") or uuid.uuid4())
         now = utc_now()
+        odd = parse_odd(payload.get("odd") if payload.get("odd") is not None else default_odd())
         self._db.execute(
             """
             INSERT INTO combinations (
-                id, name, vehicle_id, implement_id, origin, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, 'local', ?, ?)
+                id, name, vehicle_id, implement_id, origin, odd, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, 'local', ?, ?, ?)
             """,
-            (combination_id, name, vehicle_id, implement_id, now, now),
+            (combination_id, name, vehicle_id, implement_id, _dump(odd), now, now),
         )
         created = self.get_combination(combination_id)
         if created is None:
@@ -457,6 +461,7 @@ class EquipmentRepository:
         name = current["name"]
         vehicle_id = current["vehicle_id"]
         implement_id = current["implement_id"]
+        odd = current["odd"]
         if "name" in payload and str(payload["name"]).strip():
             name = str(payload["name"]).strip()
         if "vehicle_id" in payload:
@@ -471,12 +476,14 @@ class EquipmentRepository:
                     raise ValueError("implement not found")
             else:
                 implement_id = None
+        if "odd" in payload:
+            odd = parse_odd(payload["odd"])
         self._db.execute(
             """
-            UPDATE combinations SET name=?, vehicle_id=?, implement_id=?, updated_at=?
+            UPDATE combinations SET name=?, vehicle_id=?, implement_id=?, odd=?, updated_at=?
             WHERE id=?
             """,
-            (name, vehicle_id, implement_id, utc_now(), combination_id),
+            (name, vehicle_id, implement_id, _dump(odd), utc_now(), combination_id),
         )
         return self.get_combination(combination_id)
 
@@ -506,4 +513,5 @@ class EquipmentRepository:
             "implement": implement,
             "envelope": envelope,
             "srbc_equipment": project_srbc_equipment(vehicle, implement),
+            "srbc_odd": combination["odd"],
         }

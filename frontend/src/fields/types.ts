@@ -5,6 +5,7 @@ export const ZONE_KINDS = [
     'forbidden',
     'autonomy',
     'headland',
+    'gnss_degraded',
 ] as const;
 
 export type ZoneKind = (typeof ZONE_KINDS)[number];

@@ -9,6 +9,7 @@ ZONE_KINDS = (
     "forbidden",
     "autonomy",
     "headland",
+    "gnss_degraded",
 )
 
 ZONE_ALIASES = {
@@ -25,6 +26,10 @@ ZONE_ALIASES = {
     "tournier": "headland",
     "tourniere": "headland",
     "tournière": "headland",
+    "gnss_degraded": "gnss_degraded",
+    "gnss_degrade": "gnss_degraded",
+    "gnss degrade": "gnss_degraded",
+    "gnss dégradé": "gnss_degraded",
 }
 
 FEATURE_KINDS = (

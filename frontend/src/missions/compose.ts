@@ -1,7 +1,9 @@
 import type { CoveragePlanResult, CoverageStrategy } from '../coverage/api';
 import { appendConnectedCoverage, createEmptyDocument, setDrawnGeofence } from '../domain/draft';
 import type { AgriDocument } from '../domain/agri';
+import { writeCropPack } from '../domain/crop-pack';
 import type { LatLng } from '../domain/geometry';
+import type { OddProfile } from '../domain/odd';
 import { DEFAULT_CONNECT_TURNS, type TurnKind } from '../domain/turns';
 import { briefToMetadata, type MissionBrief } from './brief';
 
@@ -10,6 +12,7 @@ export interface ComposeGeneratedMissionInput {
     plan: CoveragePlanResult;
     brief: MissionBrief;
     equipment: Record<string, unknown> | null;
+    odd?: OddProfile | null;
     strategy: CoverageStrategy;
     connectTurns: boolean;
     turnType: TurnKind;
@@ -79,10 +82,14 @@ export function composeGeneratedMission(
     if (input.equipment) {
         metadata.srbc_equipment = input.equipment;
     }
+    if (input.odd) {
+        metadata.srbc_odd = { ...input.odd };
+    }
     metadata.srbc_mission_brief = briefToMetadata(input.brief);
+    const document = writeCropPack({ ...next.document, metadata }, input.brief.crop_pack);
     return {
         ok: true,
-        document: { ...next.document, metadata },
+        document,
         rows: next.rows,
         points: next.points,
         turns: next.turns,

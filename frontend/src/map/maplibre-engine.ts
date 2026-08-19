@@ -25,7 +25,7 @@ import {
     catalogueOverlayForKind,
     catalogueOverlayRank,
 } from './catalogue-style';
-import type { MapEngine } from './engine';
+import type { MapEngine, RowLabelMode } from './engine';
 import {
     BASEMAPS,
     DEFAULT_CENTER,
@@ -122,6 +122,13 @@ function createCaptionElement(text: string): HTMLDivElement {
     const element = document.createElement('div');
     element.className = 'studio-ruler-label';
     element.textContent = text;
+    return element;
+}
+
+function createPoseElement(): HTMLDivElement {
+    const element = document.createElement('div');
+    element.className = 'studio-sim-pose';
+    element.setAttribute('aria-hidden', 'true');
     return element;
 }
 
@@ -401,7 +408,11 @@ export function createMapLibreEngine(): MapEngine {
         work: MissionGeoJSON['work'];
         headlands: MissionGeoJSON['work'];
     } | null = null;
+    let lastSweptEnvelope: MissionGeoJSON['geofence'] | null = null;
+    let lastPoseFootprint: MissionGeoJSON['geofence'] | null = null;
+    let lastPose: [number, number] | null = null;
     let pin: Marker | null = null;
+    let poseMarker: Marker | null = null;
     let pinTimer: number | null = null;
     let drawTool: 'none' | 'draw_line' | 'draw_polygon' = 'none';
     const draftMarkers: Marker[] = [];
@@ -419,7 +430,10 @@ export function createMapLibreEngine(): MapEngine {
         rows: true,
         traffic: true,
         labels: true,
+        envelopes: true,
+        simulation: true,
     };
+    let rowLabelMode: RowLabelMode = 'off';
 
     const applyBasemap = () => {
         if (!map) {
@@ -497,6 +511,17 @@ export function createMapLibreEngine(): MapEngine {
             anchor: 'bottom',
         })
             .setLngLat([(start[0] + end[0]) / 2, (start[1] + end[1]) / 2])
+            .addTo(map);
+    };
+
+    const syncPoseMarker = () => {
+        poseMarker?.remove();
+        poseMarker = null;
+        if (!map || !lastPose || overlayVisible.simulation === false) {
+            return;
+        }
+        poseMarker = new Marker({ element: createPoseElement(), anchor: 'center' })
+            .setLngLat(lastPose)
             .addTo(map);
     };
 
@@ -780,6 +805,47 @@ export function createMapLibreEngine(): MapEngine {
         removeSvgPathsByPrefix(overlay, 'svg-cat-', kept);
     };
 
+    const paintRowLabels = () => {
+        const svg = overlay;
+        if (!svg) {
+            return;
+        }
+        const kept = new Set<string>();
+        const zoom = map?.getZoom() ?? 0;
+        const minZoom = rowLabelMode === 'large' ? 15 : 17;
+        const show =
+            rowLabelMode !== 'off' &&
+            overlayVisible.trajectories !== false &&
+            zoom >= minZoom &&
+            lastMission !== null;
+        if (show && lastMission) {
+            const seen = new Set<number>();
+            lastMission.work.features.forEach((feature) => {
+                const label = String(feature.properties.label ?? '').trim();
+                const sectionIndex = Number(feature.properties.sectionIndex);
+                if (!label || !Number.isFinite(sectionIndex) || seen.has(sectionIndex)) {
+                    return;
+                }
+                seen.add(sectionIndex);
+                const anchor = labelAnchorLngLat(feature.geometry);
+                if (!anchor) {
+                    return;
+                }
+                const projected = projectLngLat(anchor[0], anchor[1]);
+                if (!projected) {
+                    return;
+                }
+                const id = `svg-row-${sectionIndex}`;
+                kept.add(id);
+                upsertSvgText(svg, id, label, projected.x, projected.y, {
+                    class:
+                        rowLabelMode === 'large' ? 'studio-row-label is-large' : 'studio-row-label',
+                });
+            });
+        }
+        removeSvgPathsByPrefix(svg, 'svg-row-', kept);
+    };
+
     const syncOverlay = () => {
         if (!map || !overlay) {
             return;
@@ -885,6 +951,49 @@ export function createMapLibreEngine(): MapEngine {
             '4 4',
             halo,
         );
+        const envelopeOn = overlayVisible.envelopes !== false;
+        const swept =
+            envelopeOn && lastSweptEnvelope
+                ? polygonFeaturesToSvgPath(lastSweptEnvelope.features, projectLngLat)
+                : '';
+        paintSvgPolygon('svg-swept', swept, MAP_STYLE.envelopeLine, {
+            halo,
+            fill: MAP_STYLE.envelopeFill,
+            fillOpacity: MAP_STYLE.envelopeFillOpacity,
+            strokeWidth: MAP_STYLE.envelopeWidth,
+        });
+        const simOn = overlayVisible.simulation !== false;
+        const poseVehicle =
+            simOn && lastPoseFootprint
+                ? polygonFeaturesToSvgPath(
+                      lastPoseFootprint.features.filter(
+                          (feature) => feature.properties.kind === 'vehicle',
+                      ),
+                      projectLngLat,
+                  )
+                : '';
+        const poseImplement =
+            simOn && lastPoseFootprint
+                ? polygonFeaturesToSvgPath(
+                      lastPoseFootprint.features.filter(
+                          (feature) => feature.properties.kind === 'implement',
+                      ),
+                      projectLngLat,
+                  )
+                : '';
+        paintSvgPolygon('svg-pose-vehicle', poseVehicle, MAP_STYLE.poseVehicleLine, {
+            halo,
+            fill: MAP_STYLE.poseVehicleFill,
+            fillOpacity: MAP_STYLE.poseFootprintFillOpacity,
+            strokeWidth: MAP_STYLE.poseFootprintWidth,
+        });
+        paintSvgPolygon('svg-pose-implement', poseImplement, MAP_STYLE.poseImplementLine, {
+            halo,
+            fill: MAP_STYLE.poseImplementFill,
+            fillOpacity: MAP_STYLE.poseFootprintFillOpacity,
+            strokeWidth: MAP_STYLE.poseFootprintWidth,
+        });
+        paintRowLabels();
     };
 
     const mountOverlay = () => {
@@ -955,6 +1064,8 @@ export function createMapLibreEngine(): MapEngine {
             }
             pin?.remove();
             pin = null;
+            poseMarker?.remove();
+            poseMarker = null;
             overlay?.remove();
             overlay = null;
             clearDraftMarkers();
@@ -980,6 +1091,11 @@ export function createMapLibreEngine(): MapEngine {
         setOverlayVisible(id: OverlayId, visible: boolean) {
             overlayVisible[id] = visible;
             applyOverlays();
+            syncOverlay();
+            syncPoseMarker();
+        },
+        setRowLabelMode(mode: RowLabelMode) {
+            rowLabelMode = mode;
             syncOverlay();
         },
         renderMission(geojson: MissionGeoJSON) {
@@ -1169,6 +1285,18 @@ export function createMapLibreEngine(): MapEngine {
         setCoveragePreview(preview) {
             lastCoveragePreview = preview;
             syncOverlay();
+        },
+        setSweptEnvelope(collection) {
+            lastSweptEnvelope = collection;
+            syncOverlay();
+        },
+        setPoseFootprint(collection) {
+            lastPoseFootprint = collection;
+            syncOverlay();
+        },
+        setPoseMarker(lngLat) {
+            lastPose = lngLat;
+            syncPoseMarker();
         },
         setDraftCaption(caption) {
             draftCaption = caption && caption.trim() !== '' ? caption : null;

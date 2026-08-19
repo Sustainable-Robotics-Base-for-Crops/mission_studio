@@ -5,7 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { boundsForFeatureId } from '../fields/geojson';
 import type { CoveragePreview } from '../coverage/api';
 import { agriToGeoJSON, type PolygonFeatureCollection } from './agri-to-geojson';
-import type { MapEngine } from './engine';
+import type { MapEngine, RowLabelMode } from './engine';
 import { createMapLibreEngine } from './maplibre-engine';
 import { PlaceSearch } from './PlaceSearch';
 import { GEOLOCATION_ZOOM, SEARCH_ZOOM, type BasemapId, type OverlayId } from './styles';
@@ -37,6 +37,11 @@ interface MapCanvasProps {
     hitSelectedSection?: (lngLat: [number, number]) => boolean;
     metricsCaption?: string | null;
     hiddenIndices?: number[];
+    sweptEnvelope?: PolygonFeatureCollection | null;
+    poseFootprint?: PolygonFeatureCollection | null;
+    poseLngLat?: [number, number] | null;
+    poseFlyKey?: number;
+    rowLabelMode?: RowLabelMode;
 }
 
 export function MapCanvas({
@@ -63,6 +68,11 @@ export function MapCanvas({
     hitSelectedSection,
     metricsCaption = null,
     hiddenIndices = [],
+    sweptEnvelope = null,
+    poseFootprint = null,
+    poseLngLat = null,
+    poseFlyKey = 0,
+    rowLabelMode = 'off',
 }: MapCanvasProps): ReactElement {
     const { t } = useI18n();
     const hostRef = useRef<HTMLDivElement>(null);
@@ -184,6 +194,10 @@ export function MapCanvas({
     }, [overlays]);
 
     useEffect(() => {
+        engineRef.current?.setRowLabelMode(rowLabelMode);
+    }, [rowLabelMode]);
+
+    useEffect(() => {
         const engine = engineRef.current;
         if (!engine) {
             return;
@@ -243,6 +257,25 @@ export function MapCanvas({
             headlands: agriToGeoJSON({ origin, points: coveragePreview.headlands }).work,
         });
     }, [coveragePreview]);
+
+    useEffect(() => {
+        engineRef.current?.setSweptEnvelope(sweptEnvelope);
+    }, [sweptEnvelope]);
+
+    useEffect(() => {
+        engineRef.current?.setPoseFootprint(poseFootprint ?? null);
+    }, [poseFootprint]);
+
+    useEffect(() => {
+        engineRef.current?.setPoseMarker(poseLngLat);
+    }, [poseLngLat]);
+
+    useEffect(() => {
+        if (!poseLngLat || poseFlyKey <= 0) {
+            return;
+        }
+        engineRef.current?.flyTo(poseLngLat, 18);
+    }, [poseFlyKey, poseLngLat]);
 
     const clickEnabled = tool !== 'none' || Boolean(onMapClick);
     useEffect(() => {

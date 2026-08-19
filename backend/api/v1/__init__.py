@@ -9,6 +9,7 @@ from backend.api.v1.coverage import build_coverage_router
 from backend.api.v1.equipment import build_equipment_router
 from backend.api.v1.fields import build_fields_router
 from backend.api.v1.jobs import build_jobs_router
+from backend.api.v1.publications import build_publications_router
 from backend.coverage.service import engine_status
 from backend.runtime import EditorRuntime
 
@@ -32,4 +33,5 @@ def build_v1_router(runtime: EditorRuntime) -> APIRouter:
     router.include_router(build_fields_router(runtime))
     router.include_router(build_equipment_router(runtime))
     router.include_router(build_coverage_router(runtime))
+    router.include_router(build_publications_router(runtime))
     return router

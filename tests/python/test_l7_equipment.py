@@ -122,3 +122,32 @@ def test_equipment_http_surface():
         assert len(trailers) == 1
         assert trailers[0]["kind"] == "trailer"
         assert trailers[0]["drawbar_length_m"] == 1.5
+
+
+def test_oem_odd_approved_and_patchable(tmp_path):
+    repo = _repo(tmp_path)
+    combo = repo.get_combination(OEM_COMBINATION_ID)
+    assert combo is not None
+    assert combo["odd"]["approved"] is True
+    assert combo["odd"]["localization"] == "rtk_required"
+    assert combo["odd"]["weather"] == "any"
+    patched = repo.patch_combination(
+        OEM_COMBINATION_ID, {"odd": {**combo["odd"], "weather": "no_rain", "approved": True}}
+    )
+    assert patched is not None
+    assert patched["odd"]["weather"] == "no_rain"
+    local = repo.create_combination(
+        {"name": "Local", "vehicle_id": OEM_VEHICLE_ID, "implement_id": None}
+    )
+    assert local["odd"]["approved"] is False
+
+
+def test_oem_odd_backfill_on_empty_json(tmp_path):
+    repo = _repo(tmp_path)
+    repo._db.execute("UPDATE combinations SET odd = '{}' WHERE id = ?", (OEM_COMBINATION_ID,))
+    from backend.equipment.seed import seed_oem_if_empty
+
+    seed_oem_if_empty(repo._db)
+    combo = repo.get_combination(OEM_COMBINATION_ID)
+    assert combo is not None
+    assert combo["odd"]["approved"] is True

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchMissionDocument, fetchMissionList, type MissionRef } from './missions-api';
 
@@ -8,11 +8,16 @@ export function useStudioMissions(): {
     document: unknown;
     error: string | null;
     select: (path: string) => void;
+    adopt: (path: string, payload?: unknown) => void;
+    refresh: () => Promise<void>;
 } {
     const [list, setList] = useState<MissionRef[]>([]);
     const [activePath, setActivePath] = useState<string | null>(null);
     const [document, setDocument] = useState<unknown>(null);
     const [error, setError] = useState<string | null>(null);
+    const skipLoadRef = useRef(false);
+    const activePathLiveRef = useRef<string | null>(null);
+    activePathLiveRef.current = activePath;
 
     useEffect(() => {
         let cancelled = false;
@@ -22,10 +27,6 @@ export function useStudioMissions(): {
                     return;
                 }
                 setList(missions);
-                const first = missions[0];
-                if (first) {
-                    setActivePath(first.path);
-                }
             })
             .catch((cause: unknown) => {
                 if (!cancelled) {
@@ -40,6 +41,10 @@ export function useStudioMissions(): {
     useEffect(() => {
         if (!activePath) {
             setDocument(null);
+            return;
+        }
+        if (skipLoadRef.current) {
+            skipLoadRef.current = false;
             return;
         }
         let cancelled = false;
@@ -65,5 +70,23 @@ export function useStudioMissions(): {
         setActivePath(path);
     }, []);
 
-    return { list, activePath, document, error, select };
+    const adopt = useCallback((path: string, payload?: unknown) => {
+        if (payload !== undefined) {
+            setDocument(payload);
+            if (activePathLiveRef.current !== path) {
+                skipLoadRef.current = true;
+            }
+        }
+        setActivePath(path);
+    }, []);
+
+    const refresh = useCallback(async () => {
+        try {
+            setList(await fetchMissionList());
+        } catch (cause: unknown) {
+            setError(cause instanceof Error ? cause.message : 'list failed');
+        }
+    }, []);
+
+    return { list, activePath, document, error, select, adopt, refresh };
 }

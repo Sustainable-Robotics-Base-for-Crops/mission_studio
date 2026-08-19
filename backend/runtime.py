@@ -19,6 +19,7 @@ from backend.core.extension_points import AppContext
 from backend.db import Database
 from backend.equipment import EquipmentRepository
 from backend.fields import FieldRepository
+from backend.publications import PublicationRepository
 from backend.jobs import JobQueue
 from backend.middleware.auth_middleware import AuthMiddleware
 from backend.middleware.rate_limit_middleware import RateLimitMiddleware
@@ -44,6 +45,7 @@ class EditorRuntime:
     job_queue: JobQueue | None = None
     fields: FieldRepository | None = None
     equipment: EquipmentRepository | None = None
+    publications: PublicationRepository | None = None
 
     @classmethod
     def build(cls, sqlite_path: str | None = None) -> EditorRuntime:
@@ -74,11 +76,13 @@ class EditorRuntime:
         job_queue = None
         fields = None
         equipment = None
+        publications = None
         if sqlite_path:
             database = Database(sqlite_path)
             job_queue = JobQueue(database)
             fields = FieldRepository(database)
             equipment = EquipmentRepository(database)
+            publications = PublicationRepository(database)
         return cls(
             context=context,
             trajectory_controller=trajectory_controller,
@@ -90,4 +94,5 @@ class EditorRuntime:
             job_queue=job_queue,
             fields=fields,
             equipment=equipment,
+            publications=publications,
         )

@@ -7,7 +7,7 @@ import sqlite3
 import threading
 from datetime import UTC, datetime
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 7
 
 _MIGRATION_1 = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -197,8 +197,32 @@ CREATE TABLE IF NOT EXISTS combinations (
     vehicle_id TEXT NOT NULL REFERENCES vehicles(id),
     implement_id TEXT REFERENCES implements(id),
     origin TEXT NOT NULL DEFAULT 'local',
+    odd TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+"""
+
+_MIGRATION_5 = """
+CREATE TABLE IF NOT EXISTS publications (
+    id TEXT PRIMARY KEY,
+    source_path TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    checksum TEXT NOT NULL,
+    byte_size INTEGER NOT NULL,
+    snapshot TEXT NOT NULL,
+    simulation TEXT NOT NULL DEFAULT '{}',
+    packet TEXT NOT NULL DEFAULT '{}',
+    published_at TEXT NOT NULL,
+    expires_at TEXT,
+    approver TEXT NOT NULL DEFAULT 'local',
+    synced_at TEXT,
+    downloaded_at TEXT,
+    received_at TEXT,
+    preflight_at TEXT,
+    activated_at TEXT,
+    UNIQUE (source_path, version)
 );
 """
 
@@ -225,6 +249,7 @@ class Database:
             self._conn.executescript(_MIGRATION_2)
             self._conn.executescript(_MIGRATION_3)
             self._conn.executescript(_MIGRATION_4)
+            self._conn.executescript(_MIGRATION_5)
             columns = {
                 row[1]
                 for row in self._conn.execute("PRAGMA table_info(implements)").fetchall()
@@ -232,6 +257,14 @@ class Database:
             if "drawbar_length_m" not in columns:
                 self._conn.execute(
                     "ALTER TABLE implements ADD COLUMN drawbar_length_m REAL"
+                )
+            combo_columns = {
+                row[1]
+                for row in self._conn.execute("PRAGMA table_info(combinations)").fetchall()
+            }
+            if "odd" not in combo_columns:
+                self._conn.execute(
+                    "ALTER TABLE combinations ADD COLUMN odd TEXT NOT NULL DEFAULT '{}'"
                 )
             row = self._conn.execute(
                 "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"

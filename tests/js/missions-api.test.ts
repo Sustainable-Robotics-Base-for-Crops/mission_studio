@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     storageIdentityFromPath,
+    suggestedMissionPath,
     toAgriDocument,
     toSaveRequest,
 } from '../../frontend/src/map/missions-api';
@@ -23,6 +24,21 @@ describe('storageIdentityFromPath', () => {
     it('rejects paths that cannot identify a storage key', () => {
         expect(storageIdentityFromPath('demo.json')).toBeNull();
         expect(storageIdentityFromPath('')).toBeNull();
+    });
+});
+
+describe('suggestedMissionPath', () => {
+    it('builds file_type/vehicle/field-timestamp.json from the brief', () => {
+        expect(
+            suggestedMissionPath(
+                {
+                    file_type: 'mission_order',
+                    vehicle_id: 'v1',
+                    metadata: { srbc_mission_brief: { field_id: 'Sabi Expe' } },
+                },
+                new Date('2026-08-19T17:02:00'),
+            ),
+        ).toBe('mission_order/v1/sabi-expe-20260819-1702.json');
     });
 });
 

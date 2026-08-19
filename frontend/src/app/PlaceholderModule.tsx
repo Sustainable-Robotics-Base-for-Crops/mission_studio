@@ -10,6 +10,7 @@ interface ContextPanelProps {
     t: (key: string, params?: Record<string, string | number>) => string;
     missions?: MissionRef[];
     activePath?: string | null;
+    hasWorkingDocument?: boolean;
     onSelectMission?: (path: string) => void;
     overlay?: boolean;
 }
@@ -19,6 +20,7 @@ export function ContextPanel({
     t,
     missions = [],
     activePath,
+    hasWorkingDocument = false,
     onSelectMission,
     overlay = false,
 }: ContextPanelProps): ReactElement {
@@ -55,7 +57,9 @@ export function ContextPanel({
                 <div className="studio-mission-list">
                     <h3>{t('map.loaded')}</h3>
                     {missions.length === 0 ? (
-                        <p className="studio-muted">{t('map.empty')}</p>
+                        <p className="studio-muted">
+                            {hasWorkingDocument ? t('map.draftNotListed') : t('map.empty')}
+                        </p>
                     ) : (
                         <ul>
                             {missions.map((mission) => (
@@ -110,16 +114,7 @@ export function InspectorPanel({
     );
 }
 
-export function SimulationDrawer({ t }: { t: (key: string) => string }): ReactElement {
-    return (
-        <section className="studio-simulation" aria-label={t('simulation.title')}>
-            <header className="studio-panel-header">
-                <h2>{t('simulation.title')}</h2>
-            </header>
-            <p className="studio-muted">{t('simulation.body')}</p>
-        </section>
-    );
-}
+export { SimulationDrawer } from '../simulation/SimulationDrawer';
 
 export function PlaceholderModule({
     module,

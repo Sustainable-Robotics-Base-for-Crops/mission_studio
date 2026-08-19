@@ -6,6 +6,7 @@ import type {
     Kinematics,
     VehicleTwin,
 } from '../domain/equipment';
+import { parseOddProfile } from '../domain/odd';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -63,7 +64,12 @@ export async function fetchCatalogue(): Promise<{
     return {
         vehicles: Array.isArray(body.vehicles) ? body.vehicles : [],
         implements: Array.isArray(body.implements) ? body.implements : [],
-        combinations: Array.isArray(body.combinations) ? body.combinations : [],
+        combinations: Array.isArray(body.combinations)
+            ? body.combinations.map((item) => ({
+                  ...item,
+                  odd: parseOddProfile(item.odd),
+              }))
+            : [],
     };
 }
 
@@ -120,14 +126,22 @@ export async function deleteImplement(id: string): Promise<void> {
     await request(`/api/v1/equipment/implements/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+function asCombination(raw: CombinationTwin): CombinationTwin {
+    return { ...raw, odd: parseOddProfile(raw.odd) };
+}
+
 export async function patchCombination(
     id: string,
     payload: Record<string, unknown>,
 ): Promise<CombinationTwin> {
-    return request<CombinationTwin>(`/api/v1/equipment/combinations/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-    });
+    const next = await request<CombinationTwin>(
+        `/api/v1/equipment/combinations/${encodeURIComponent(id)}`,
+        {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+        },
+    );
+    return asCombination(next);
 }
 
 export async function createCombination(payload: {
@@ -135,10 +149,11 @@ export async function createCombination(payload: {
     vehicle_id: string;
     implement_id?: string | null;
 }): Promise<CombinationTwin> {
-    return request<CombinationTwin>('/api/v1/equipment/combinations', {
+    const next = await request<CombinationTwin>('/api/v1/equipment/combinations', {
         method: 'POST',
         body: JSON.stringify(payload),
     });
+    return asCombination(next);
 }
 
 export async function deleteCombination(id: string): Promise<void> {

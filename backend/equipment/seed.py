@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from backend.db import Database, utc_now
+from backend.equipment.odd import oem_odd
 
 # Verified production footprint: srbc_config/config/nav/geofencing.yaml
 OEM_VEHICLE_ID = "srbc-001"
@@ -57,6 +58,7 @@ def seed_oem_if_empty(database: Database) -> None:
     row = database.execute("SELECT COUNT(*) AS n FROM vehicles").fetchone()
     if row is not None and int(row["n"]) > 0:
         ensure_oem_trailer(database)
+        ensure_oem_odd(database)
         return
     now = utc_now()
     database.execute(
@@ -93,12 +95,21 @@ def seed_oem_if_empty(database: Database) -> None:
     database.execute(
         """
         INSERT INTO combinations (
-            id, name, vehicle_id, implement_id, origin, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, 'oem', ?, ?)
+            id, name, vehicle_id, implement_id, origin, odd, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'oem', ?, ?, ?)
         """,
-        (OEM_COMBINATION_ID, "SRBC + binage", OEM_VEHICLE_ID, OEM_IMPLEMENT_ID, now, now),
+        (
+            OEM_COMBINATION_ID,
+            "SRBC + binage",
+            OEM_VEHICLE_ID,
+            OEM_IMPLEMENT_ID,
+            json.dumps(oem_odd(), ensure_ascii=False),
+            now,
+            now,
+        ),
     )
     ensure_oem_trailer(database)
+    ensure_oem_odd(database)
 
 
 def ensure_oem_trailer(database: Database) -> None:
@@ -134,15 +145,34 @@ def ensure_oem_trailer(database: Database) -> None:
     database.execute(
         """
         INSERT INTO combinations (
-            id, name, vehicle_id, implement_id, origin, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, 'oem', ?, ?)
+            id, name, vehicle_id, implement_id, origin, odd, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'oem', ?, ?, ?)
         """,
         (
             OEM_TRAILER_COMBINATION_ID,
             "SRBC + remorque",
             OEM_VEHICLE_ID,
             OEM_TRAILER_ID,
+            json.dumps(oem_odd(), ensure_ascii=False),
             now,
             now,
         ),
     )
+
+
+def ensure_oem_odd(database: Database) -> None:
+    payload = json.dumps(oem_odd(), ensure_ascii=False)
+    for combination_id in (OEM_COMBINATION_ID, OEM_TRAILER_COMBINATION_ID):
+        row = database.execute(
+            "SELECT odd, origin FROM combinations WHERE id = ?", (combination_id,)
+        ).fetchone()
+        if row is None:
+            continue
+        raw = row["odd"] if "odd" in row.keys() else ""
+        if raw and raw not in ("{}", "null"):
+            continue
+        if row["origin"] != "oem":
+            continue
+        database.execute(
+            "UPDATE combinations SET odd = ? WHERE id = ?", (payload, combination_id)
+        )

@@ -11,6 +11,7 @@ export type CatalogueKind =
     | 'autonomy'
     | 'forbidden'
     | 'headland'
+    | 'gnss_degraded'
     | 'obstacle'
     | 'guidance_line'
     | 'row'
@@ -84,6 +85,14 @@ export const CATALOGUE_KIND_PAINT: Record<CatalogueKind, CatalogueKindPaint> = {
         lineWidth: 1.5,
         dash: null,
         hatch: false,
+    },
+    gnss_degraded: {
+        fill: COLOR.warning,
+        fillOpacity: 0.12,
+        line: COLOR.warning,
+        lineWidth: 2,
+        dash: [4, 3],
+        hatch: true,
     },
     obstacle: {
         fill: '#7F1D1D',
@@ -216,4 +225,5 @@ export const CATALOGUE_ZONE_KINDS: CatalogueKind[] = [
     'autonomy',
     'forbidden',
     'headland',
+    'gnss_degraded',
 ];

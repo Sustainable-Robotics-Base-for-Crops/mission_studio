@@ -27,6 +27,16 @@ export const MAP_STYLE = {
     satelliteHaloExtra: 2,
     fillWorkable: COLOR.valid,
     fillOpacity: 0.12,
+    envelopeFill: COLOR.autonomy,
+    envelopeLine: COLOR.autonomy,
+    envelopeWidth: 1,
+    envelopeFillOpacity: 0.12,
+    poseVehicleFill: COLOR.primary100,
+    poseVehicleLine: COLOR.primary700,
+    poseImplementFill: '#CFFAFE',
+    poseImplementLine: COLOR.autonomy,
+    poseFootprintWidth: 2,
+    poseFootprintFillOpacity: 0.55,
 } as const;
 
 export type BasemapId = 'plan' | 'satellite' | 'terrain';

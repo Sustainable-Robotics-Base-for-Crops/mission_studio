@@ -8,6 +8,7 @@ import {
     type ImplementTwin,
     type VehicleTwin,
 } from '../domain/equipment';
+import { parseOddProfile } from '../domain/odd';
 import {
     createCombination,
     createImplement,
@@ -162,6 +163,20 @@ export function useEquipmentCatalogue() {
                 return;
             }
             void run(async () => {
+                setCombinations((current) =>
+                    current.map((item) =>
+                        item.id === selectedCombinationId
+                            ? ({
+                                  ...item,
+                                  ...patch,
+                                  odd:
+                                      patch.odd !== undefined
+                                          ? parseOddProfile(patch.odd)
+                                          : item.odd,
+                              } as CombinationTwin)
+                            : item,
+                    ),
+                );
                 const next = await patchCombination(selectedCombinationId, patch);
                 setCombinations((current) =>
                     current.map((item) => (item.id === next.id ? next : item)),

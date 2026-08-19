@@ -1,4 +1,5 @@
 import {
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -16,6 +17,7 @@ import {
     Clock3,
     Cloud,
     GitCompare,
+    Grape,
     House,
     LandPlot,
     LoaderCircle,
@@ -29,9 +31,16 @@ import {
     Search,
     Send,
     Settings,
+    Sprout,
     TriangleAlert,
+    Wheat,
 } from 'lucide-react';
 
+import { CompareDialog } from '../simulation/CompareDialog';
+import { PublishDialog } from '../publication/PublishDialog';
+import { PublicationPanel } from '../publication/PublicationPanel';
+import { usePublications } from '../publication/usePublications';
+import { ReportsPanel } from '../reports/ReportsPanel';
 import { CommandPalette } from './CommandPalette';
 import { breakpointFromWidth, LAYOUT, shellTracks, type Breakpoint } from './layout';
 import { MODULES, moduleByPath, type LucideIconName } from './modules';
@@ -39,6 +48,7 @@ import { ContextPanel, InspectorPanel, SimulationDrawer } from './PlaceholderMod
 import { FieldInspector } from '../fields/FieldInspector';
 import { FieldsContextPanel } from '../fields/FieldsContextPanel';
 import { FieldsToolbar } from '../fields/FieldsToolbar';
+import { DEFAULT_BED_COUNT, DEFAULT_BED_PATH_M, DEFAULT_BED_WIDTH_M } from '../fields/rows';
 import { fieldsCanvasTool, fieldsDrawKind, fieldsDrawTarget } from '../fields/draw-target';
 import { fieldsToCollection } from '../fields/geojson';
 import { useFieldCatalogue } from '../fields/useFieldCatalogue';
@@ -47,6 +57,26 @@ import { EquipmentInspector } from '../equipment/EquipmentInspector';
 import { EquipmentTwinView } from '../equipment/EquipmentTwinView';
 import { useEquipmentCatalogue } from '../equipment/useEquipmentCatalogue';
 import { geofenceMarginM } from '../domain/equipment';
+import { documentOrigin } from '../domain/draft';
+import { readCropPack } from '../domain/crop-pack';
+import { localToLngLat } from '../domain/geometry';
+import { geojsonRingToLocal, readOddFromDocument, type OddContext } from '../domain/odd';
+import { splitDurations } from '../domain/report';
+import {
+    missionLifecycle,
+    publishBlockReason,
+    readPublicationStamp,
+    type SimAttestation,
+} from '../domain/publication';
+import {
+    geofenceRing,
+    hullToLngLatRing,
+    poseFootprintRings,
+    simulateMission,
+    simulationFingerprint,
+    type PoseSample,
+    type SimulationReport,
+} from '../domain/simulation';
 import { MissionAssistant } from '../missions/MissionAssistant';
 import { useMissionAssistant } from '../missions/useMissionAssistant';
 import { readMissionContext } from '../missions/brief';
@@ -67,6 +97,7 @@ import { MapCanvas } from '../map/MapCanvas';
 import type { PolygonFeatureCollection } from '../map/agri-to-geojson';
 import type { BasemapId, OverlayId } from '../map/styles';
 import { useMissionEditor, type SaveState } from '../map/useMissionEditor';
+import { suggestedMissionPath } from '../map/missions-api';
 import { useI18n } from '../i18n/useI18n';
 import { SUPPORTED_LANGUAGES } from '../i18n/adapter';
 import { PluginHeaderHost } from '../plugins/PluginHeaderHost';
@@ -179,12 +210,17 @@ export function AppShell(): ReactElement {
         rows: true,
         traffic: true,
         labels: true,
+        envelopes: true,
+        simulation: true,
     });
     const onDesignSystem = location.pathname.replace(/\/+$/, '') === DESIGN_SYSTEM_PATH;
     const current = useMemo(() => moduleByPath(location.pathname), [location.pathname]);
     const onFields = current.id === 'fields' && !onDesignSystem;
     const onEquipment = current.id === 'equipment' && !onDesignSystem;
     const onMissions = current.id === 'missions' && !onDesignSystem;
+    const onSimulation = current.id === 'simulation' && !onDesignSystem;
+    const onPublication = current.id === 'publication' && !onDesignSystem;
+    const onReports = current.id === 'reports' && !onDesignSystem;
     const missionTree = useMemo(() => buildMissionTree(editor.document), [editor.document]);
     const missionContext = useMemo(() => readMissionContext(editor.document), [editor.document]);
     const selectionLocked = indexListIntersects(editor.selectedIndices, editor.lockedIndices);
@@ -196,6 +232,7 @@ export function AppShell(): ReactElement {
         ? (equipment.combinations.find((item) => item.id === missionContext.combination_id)?.name ??
           missionContext.combination_id)
         : null;
+    const cropPack = readCropPack(editor.document);
     const selectedSpeedMps = useMemo(() => {
         const leaves = missionTree.leaves.filter((leaf) =>
             editor.selectedIndices.includes(leaf.index),
@@ -274,6 +311,217 @@ export function AppShell(): ReactElement {
         return initial === 'full' || initial === 'compact';
     });
     const [simOpen, setSimOpen] = useState(false);
+    const [simReport, setSimReport] = useState<SimulationReport | null>(null);
+    const [simFingerprint, setSimFingerprint] = useState<string | null>(null);
+    const [poseSample, setPoseSample] = useState<PoseSample | null>(null);
+    const [poseFlyKey, setPoseFlyKey] = useState(0);
+    const autoSimKeyRef = useRef<string | null>(null);
+    const onSimCursor = useCallback((sample: PoseSample | null) => {
+        setPoseSample(sample);
+    }, []);
+    const [compareOpen, setCompareOpen] = useState(false);
+    const [publishOpen, setPublishOpen] = useState(false);
+    const [simSeekIndex, setSimSeekIndex] = useState<number | null>(null);
+    const publications = usePublications(editor.activePath);
+    const workingWidthM = equipment.preview.implement?.working_width_m ?? null;
+    const oddContext = useMemo((): OddContext => {
+        const combo = missionContext?.combination_id
+            ? (equipment.combinations.find((item) => item.id === missionContext.combination_id) ??
+              null)
+            : equipment.selectedCombination;
+        const profile = combo?.odd ?? readOddFromDocument(editor.document);
+        const fieldId = missionContext?.field_id;
+        const field = fieldId ? (fields.fields.find((item) => item.id === fieldId) ?? null) : null;
+        const children =
+            fieldId && fields.selected?.id === fieldId
+                ? fields.selected
+                : fieldId
+                  ? fields.childrenByField[fieldId]
+                  : undefined;
+        const origin = documentOrigin(editor.document);
+        const zones = children?.zones ?? [];
+        const autonomyRings = origin
+            ? zones
+                  .filter((zone) => zone.kind === 'autonomy')
+                  .map((zone) => geojsonRingToLocal(zone.geometry, origin))
+                  .filter((ring) => ring.length >= 3)
+            : [];
+        const forbiddenRings = origin
+            ? zones
+                  .filter((zone) => zone.kind === 'forbidden')
+                  .map((zone) => geojsonRingToLocal(zone.geometry, origin))
+                  .filter((ring) => ring.length >= 3)
+            : [];
+        const gnssDegradedRings = origin
+            ? zones
+                  .filter((zone) => zone.kind === 'gnss_degraded')
+                  .map((zone) => geojsonRingToLocal(zone.geometry, origin))
+                  .filter((ring) => ring.length >= 3)
+            : [];
+        const slopeRaw = field?.provenance?.slope_pct;
+        const declaredSlopePct = Number(slopeRaw);
+        return {
+            profile,
+            fieldQualified: field ? field.qualified_for_autonomy : null,
+            declaredSlopePct: Number.isFinite(declaredSlopePct) ? declaredSlopePct : null,
+            weatherNote: missionContext?.weather_note ?? '',
+            operation: missionContext?.operation ?? null,
+            autonomyRings,
+            forbiddenRings,
+            gnssDegradedRings,
+        };
+    }, [
+        editor.document,
+        equipment.combinations,
+        equipment.selectedCombination,
+        fields.childrenByField,
+        fields.fields,
+        fields.selected,
+        missionContext,
+    ]);
+    const liveSimFingerprint = simulationFingerprint(
+        editor.document,
+        equipment.envelope,
+        workingWidthM,
+        oddContext,
+    );
+    const simStale = Boolean(simReport && simFingerprint && simFingerprint !== liveSimFingerprint);
+    const durationSplit = splitDurations(editor.document);
+    const simAttestation: SimAttestation | null = simReport
+        ? {
+              passCount: simReport.passCount,
+              warnCount: simReport.warnCount,
+              blockCount: simReport.blockCount,
+              length_m: simReport.length_m,
+              duration_s: simReport.duration_s,
+              fingerprint: simFingerprint ?? liveSimFingerprint,
+              coveragePct: simReport.coverage
+                  ? Number(simReport.coverage.coveragePct.toFixed(1))
+                  : null,
+              gapPct: simReport.coverage ? Number(simReport.coverage.gapPct.toFixed(1)) : null,
+              overlapPct: simReport.coverage
+                  ? Number(simReport.coverage.overlapPct.toFixed(1))
+                  : null,
+              work_s: durationSplit.work_s,
+              maneuver_s: durationSplit.maneuver_s,
+              transit_s: durationSplit.transit_s,
+          }
+        : null;
+    const publicationStamp = readPublicationStamp(editor.document);
+    const publishReason = publishBlockReason({
+        hasDocument: Boolean(editor.document),
+        sectionCount: editor.sectionCount,
+        hasBackend: publications.available,
+        sim: simAttestation,
+        stale: simStale,
+    });
+    const lifecycle = missionLifecycle({
+        hasDocument: Boolean(editor.document),
+        sectionCount: editor.sectionCount,
+        sim: simAttestation,
+        stale: simStale,
+        stamp: publicationStamp,
+        dirty: editor.dirty,
+    });
+    const nextPublishVersion =
+        Math.max(
+            0,
+            publicationStamp?.version ?? 0,
+            ...publications.items.map((item) => item.version),
+        ) + 1;
+    const missionOrigin = documentOrigin(editor.document);
+    const sweptEnvelope = useMemo(() => {
+        if (!simReport || !missionOrigin || simReport.sweptHull.length < 3) {
+            return null;
+        }
+        const ring = hullToLngLatRing(simReport.sweptHull, missionOrigin);
+        if (ring.length < 4) {
+            return null;
+        }
+        return {
+            type: 'FeatureCollection' as const,
+            features: [
+                {
+                    type: 'Feature' as const,
+                    properties: { kind: 'swept' },
+                    geometry: { type: 'Polygon' as const, coordinates: [ring] },
+                },
+            ],
+        };
+    }, [missionOrigin, simReport]);
+    const poseLngLat =
+        poseSample && missionOrigin
+            ? localToLngLat(poseSample.x, poseSample.y, missionOrigin)
+            : null;
+    const poseFootprint = useMemo(() => {
+        if (!poseSample || !missionOrigin || !equipment.envelope) {
+            return null;
+        }
+        const features = poseFootprintRings(equipment.envelope, poseSample)
+            .map((item) => {
+                const ring = hullToLngLatRing(item.ring, missionOrigin);
+                if (ring.length < 4) {
+                    return null;
+                }
+                return {
+                    type: 'Feature' as const,
+                    properties: { kind: item.kind },
+                    geometry: { type: 'Polygon' as const, coordinates: [ring] },
+                };
+            })
+            .filter((feature): feature is NonNullable<typeof feature> => feature !== null);
+        if (features.length === 0) {
+            return null;
+        }
+        return { type: 'FeatureCollection' as const, features };
+    }, [equipment.envelope, missionOrigin, poseSample]);
+    const runSimulation = useCallback(() => {
+        setSimOpen(true);
+        setOverlays((current) => ({ ...current, envelopes: true, simulation: true }));
+        if (!editor.document || editor.sectionCount === 0) {
+            return;
+        }
+        const report = simulateMission({
+            document: editor.document,
+            envelope: equipment.envelope,
+            maxSpeedMps: equipment.preview.vehicle?.max_speed_mps ?? null,
+            workingWidthM,
+            odd: oddContext,
+        });
+        setSimReport(report);
+        setSimFingerprint(
+            simulationFingerprint(editor.document, equipment.envelope, workingWidthM, oddContext),
+        );
+    }, [
+        editor.document,
+        editor.sectionCount,
+        equipment.envelope,
+        equipment.preview.vehicle?.max_speed_mps,
+        oddContext,
+        workingWidthM,
+    ]);
+
+    useEffect(() => {
+        if (!onSimulation) {
+            autoSimKeyRef.current = null;
+            return;
+        }
+        setSimOpen(true);
+        if (!editor.document || editor.sectionCount === 0) {
+            return;
+        }
+        const key = simulationFingerprint(
+            editor.document,
+            equipment.envelope,
+            workingWidthM,
+            oddContext,
+        );
+        if (autoSimKeyRef.current === key) {
+            return;
+        }
+        autoSimKeyRef.current = key;
+        runSimulation();
+    }, [onSimulation, editor.document, editor.sectionCount, equipment.envelope, runSimulation]);
     const [leftWidth, setLeftWidth] = useState<number>(LAYOUT.contextDefault);
     const [rightWidth, setRightWidth] = useState<number>(LAYOUT.inspectorDefault);
 
@@ -385,12 +633,48 @@ export function AppShell(): ReactElement {
                     <span>{t('app.breadcrumb')}</span>
                     <span aria-hidden="true">/</span>
                     <span>{onDesignSystem ? t('ds.nav') : t(current.labelKey)}</span>
-                    <Chip icon={GitCompare}>{t('app.missionDraft')}</Chip>
+                    <Chip icon={lifecycle === 'published' ? Send : GitCompare}>
+                        {publicationStamp
+                            ? lifecycle === 'obsolete'
+                                ? `${t('pub.version', { version: publicationStamp.version })} · ${t('pub.status.obsolete')}`
+                                : t('pub.version', { version: publicationStamp.version })
+                            : t('app.missionDraft')}
+                    </Chip>
                     {fieldLabel ? <Chip icon={LandPlot}>{fieldLabel}</Chip> : null}
                     {comboLabel ? <Chip icon={Machine}>{comboLabel}</Chip> : null}
+                    <Chip
+                        icon={
+                            cropPack === 'vineyard'
+                                ? Grape
+                                : cropPack === 'market_garden'
+                                  ? Sprout
+                                  : Wheat
+                        }
+                    >
+                        {t(`pack.${cropPack}`)}
+                    </Chip>
                     {missionContext?.operation ? (
                         <Chip icon={RouteIcon}>
                             {t(`assist.operation.${missionContext.operation}`)}
+                        </Chip>
+                    ) : null}
+                    {simReport ? (
+                        <Chip
+                            tone={
+                                simStale
+                                    ? 'warning'
+                                    : simReport.blockCount > 0
+                                      ? 'danger'
+                                      : simReport.warnCount > 0
+                                        ? 'warning'
+                                        : 'valid'
+                            }
+                            icon={simReport.blockCount > 0 ? TriangleAlert : CircleCheck}
+                        >
+                            {t('app.blockers', {
+                                blocks: simReport.blockCount,
+                                warns: simReport.warnCount,
+                            })}
                         </Chip>
                     ) : null}
                     <Chip tone={statusChip.tone} icon={statusChip.icon}>
@@ -398,13 +682,48 @@ export function AppShell(): ReactElement {
                     </Chip>
                 </nav>
                 <div className="studio-appbar-actions">
-                    <Button variant="secondary" disabled title={t('app.compareHint')}>
+                    <Button
+                        variant="secondary"
+                        disabled={!editor.document || geofenceRing(editor.document).length < 3}
+                        title={
+                            !editor.document || geofenceRing(editor.document).length < 3
+                                ? t('compare.needField')
+                                : t('app.compareHint')
+                        }
+                        onClick={() => setCompareOpen(true)}
+                    >
                         {t('app.compare')}
                     </Button>
-                    <Button variant="secondary" disabled title={t('app.simulateHint')}>
+                    <Button
+                        variant="secondary"
+                        disabled={!editor.document || editor.sectionCount === 0}
+                        title={
+                            !editor.document || editor.sectionCount === 0
+                                ? t('sim.needMission')
+                                : t('app.simulateHint')
+                        }
+                        onClick={runSimulation}
+                    >
                         {t('app.simulate')}
                     </Button>
-                    <Button variant="primary" disabled title={t('app.publishHint')}>
+                    <Button
+                        variant="secondary"
+                        disabled={!editor.document || editor.saveState === 'saving'}
+                        title={t('app.saveHint')}
+                        onClick={() => {
+                            void editor.saveNow();
+                        }}
+                    >
+                        {t('app.save')}
+                    </Button>
+                    <Button
+                        variant="primary"
+                        disabled={publishReason !== null}
+                        title={
+                            publishReason ? t(`pub.block.${publishReason}`) : t('app.publishHint')
+                        }
+                        onClick={() => setPublishOpen(true)}
+                    >
                         {t('app.publish')}
                     </Button>
                     <NativeSelect
@@ -438,7 +757,12 @@ export function AppShell(): ReactElement {
                                             isActive ? 'is-active' : undefined
                                         }
                                         end={module.path === '/'}
-                                        onClick={() => setLeftOpen(true)}
+                                        onClick={() => {
+                                            setLeftOpen(true);
+                                            if (module.id === 'simulation') {
+                                                runSimulation();
+                                            }
+                                        }}
                                     >
                                         <Icon
                                             size={ICON_SIZE.menu}
@@ -495,6 +819,7 @@ export function AppShell(): ReactElement {
                         implements={equipment.implements}
                         missions={editor.list}
                         activePath={editor.activePath}
+                        hasWorkingDocument={Boolean(editor.document)}
                         onSelectMission={editor.select}
                         tree={missionTree}
                         selectedIndices={editor.selectedIndices}
@@ -508,6 +833,56 @@ export function AppShell(): ReactElement {
                         onToggleHidden={editor.toggleHidden}
                         onToggleLocked={editor.toggleLocked}
                         onReverseSelected={editor.reverseSelected}
+                        document={editor.document}
+                        envelope={equipment.envelope}
+                        equipmentSnapshot={
+                            equipment.srbcEquipment
+                                ? (equipment.srbcEquipment as unknown as Record<string, unknown>)
+                                : null
+                        }
+                        odd={oddContext.profile}
+                        vehicleWidthM={equipment.preview.vehicle?.width_m ?? null}
+                        geofenceMarginM={keepoutM}
+                        canGenerateBeds={Boolean(fields.selected?.guidance_lines[0])}
+                        onGenerate18Beds={() => {
+                            const axis = fields.selected?.guidance_lines[0];
+                            if (!axis) {
+                                navigate('/parcellaire');
+                                return;
+                            }
+                            void fields.generateRowSet({
+                                axisLineId: axis.id,
+                                kind: 'beds',
+                                widthM: DEFAULT_BED_WIDTH_M,
+                                pathM: DEFAULT_BED_PATH_M,
+                                count: DEFAULT_BED_COUNT,
+                            });
+                        }}
+                        onApplyDocument={(document) => {
+                            editor.applyGeneratedDocument(document, {
+                                key: 'pack.applied',
+                                params: {},
+                            });
+                        }}
+                    />
+                ) : onPublication ? (
+                    <PublicationPanel t={t} catalogue={publications} overlay={overlayLeft} />
+                ) : onReports ? (
+                    <ReportsPanel
+                        t={t}
+                        document={editor.document}
+                        sim={simReport}
+                        publications={publications.items}
+                        overlay={overlayLeft}
+                        onLocate={(sample) => {
+                            setSimOpen(true);
+                            setPoseSample(sample);
+                            setPoseFlyKey((value) => value + 1);
+                            const index = simReport?.samples.indexOf(sample) ?? -1;
+                            if (index >= 0) {
+                                setSimSeekIndex(index);
+                            }
+                        }}
                     />
                 ) : (
                     <ContextPanel
@@ -515,6 +890,7 @@ export function AppShell(): ReactElement {
                         t={t}
                         missions={editor.list}
                         activePath={editor.activePath}
+                        hasWorkingDocument={Boolean(editor.document)}
                         onSelectMission={editor.select}
                         overlay={overlayLeft}
                     />
@@ -563,7 +939,13 @@ export function AppShell(): ReactElement {
                     <IconButton
                         label={t('app.toggleSimulation')}
                         aria-pressed={simOpen}
-                        onClick={() => setSimOpen((value) => !value)}
+                        onClick={() => {
+                            if (simOpen) {
+                                setSimOpen(false);
+                                return;
+                            }
+                            runSimulation();
+                        }}
                     >
                         <CirclePlay size={ICON_SIZE.button} strokeWidth={STROKE} />
                     </IconButton>
@@ -663,6 +1045,17 @@ export function AppShell(): ReactElement {
                             hitSelectedSection={onFields ? undefined : editor.hitSelectedSection}
                             metricsCaption={metricsCaption}
                             hiddenIndices={onFields ? [] : editor.hiddenIndices}
+                            sweptEnvelope={onFields ? null : sweptEnvelope}
+                            poseFootprint={onFields ? null : poseFootprint}
+                            poseLngLat={onFields ? null : poseLngLat}
+                            poseFlyKey={onFields ? 0 : poseFlyKey}
+                            rowLabelMode={
+                                cropPack === 'vineyard'
+                                    ? 'large'
+                                    : overlays.labels !== false
+                                      ? 'normal'
+                                      : 'off'
+                            }
                         />
                         {onFields ? (
                             <FieldsToolbar
@@ -984,7 +1377,101 @@ export function AppShell(): ReactElement {
                 )
             ) : null}
 
-            {simOpen && breakpoint !== 'review' ? <SimulationDrawer t={t} /> : null}
+            {simOpen && breakpoint !== 'review' ? (
+                <SimulationDrawer
+                    t={t}
+                    report={simReport}
+                    stale={simStale}
+                    seekIndex={simSeekIndex}
+                    onRun={runSimulation}
+                    onCursor={onSimCursor}
+                    onLocate={(sample) => {
+                        setPoseSample(sample);
+                        setPoseFlyKey((value) => value + 1);
+                    }}
+                />
+            ) : null}
+
+            <CompareDialog
+                open={compareOpen}
+                document={editor.document}
+                envelope={equipment.envelope}
+                workingWidthM={workingWidthM}
+                vehicleWidthM={equipment.preview.vehicle?.width_m ?? null}
+                geofenceMarginM={keepoutM}
+                currentReport={simReport}
+                odd={oddContext}
+                onOpenChange={setCompareOpen}
+                onApply={(sections) => {
+                    if (!editor.document) {
+                        return;
+                    }
+                    editor.applyGeneratedDocument(
+                        { ...editor.document, points: sections },
+                        { key: 'compare.applied', params: {} },
+                    );
+                    setCompareOpen(false);
+                }}
+                t={t}
+            />
+
+            <PublishDialog
+                open={publishOpen}
+                document={editor.document}
+                sourcePath={editor.activePath}
+                nextVersion={nextPublishVersion}
+                simulation={simAttestation}
+                onOpenChange={setPublishOpen}
+                t={t}
+                onConfirm={async ({ approver, expires_at }) => {
+                    if (!editor.document || !simAttestation) {
+                        return;
+                    }
+                    const sourcePath =
+                        editor.activePath ??
+                        suggestedMissionPath(editor.document as unknown as Record<string, unknown>);
+                    if (!editor.activePath) {
+                        await editor.saveNow();
+                    }
+                    const created = await publications.publish({
+                        source_path: sourcePath,
+                        document: editor.document,
+                        simulation: simAttestation,
+                        stale: simStale,
+                        approver,
+                        expires_at,
+                        vehicle_id:
+                            typeof editor.document.vehicle_id === 'string'
+                                ? editor.document.vehicle_id
+                                : null,
+                        field_id: missionContext?.field_id ?? null,
+                        combination_id: missionContext?.combination_id ?? null,
+                    });
+                    const stamp = {
+                        id: created.id,
+                        version: created.version,
+                        checksum: created.checksum,
+                        published_at: created.published_at,
+                        expires_at: created.expires_at,
+                    };
+                    const metadata =
+                        editor.document.metadata !== null &&
+                        typeof editor.document.metadata === 'object'
+                            ? { ...(editor.document.metadata as Record<string, unknown>) }
+                            : {};
+                    editor.applyGeneratedDocument(
+                        {
+                            ...editor.document,
+                            metadata: { ...metadata, srbc_publication: stamp },
+                        },
+                        {
+                            key: 'pub.applied',
+                            params: { version: created.version },
+                        },
+                    );
+                    setPublishOpen(false);
+                }}
+            />
 
             <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} t={t} />
         </div>

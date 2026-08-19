@@ -1,5 +1,7 @@
 /** Digital twin of a vehicle–implement pair (lot L7a). Pure geometry, no DOM. */
 
+import type { OddProfile } from './odd';
+
 export type Kinematics = 'skid_steer' | 'ackermann';
 export type ImplementKind = 'tool' | 'trailer';
 export type HitchMode = 'mounted' | 'trailed';
@@ -63,6 +65,8 @@ export interface CombinationTwin {
     vehicle_id: string;
     implement_id: string | null;
     origin: FieldSource;
+    /** Declared ODD (lot L10c). Stored in SQLite, copied to metadata.srbc_odd. */
+    odd: OddProfile;
 }
 
 export interface CombinationEnvelope {

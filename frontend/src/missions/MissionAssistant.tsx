@@ -1,10 +1,16 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 
 import { Button } from '../design-system/Button';
 import { Input, Select } from '../design-system/Field';
-import type { CombinationTwin, ImplementTwin } from '../domain/equipment';
+import type { AgriDocument } from '../domain/agri';
+import { readCropPack, workSectionIndices, writeCropPack } from '../domain/crop-pack';
+import type { CombinationEnvelope, CombinationTwin, ImplementTwin } from '../domain/equipment';
+import type { OddProfile } from '../domain/odd';
 import type { FieldDetail, FieldSummary } from '../fields/types';
 import type { MissionRef } from '../map/missions-api';
+import { ApplyToFieldsDialog } from '../packs/ApplyToFieldsDialog';
+import { PacksPanel } from '../packs/PacksPanel';
+import { TeachRepeatDialog } from '../packs/TeachRepeatDialog';
 import {
     ASSISTANT_STEPS,
     OPERATIONS,
@@ -29,6 +35,7 @@ interface MissionAssistantProps {
     implements: ImplementTwin[];
     missions: MissionRef[];
     activePath: string | null;
+    hasWorkingDocument?: boolean;
     onSelectMission: (path: string) => void;
     tree?: MissionTreeModel;
     selectedIndices?: number[];
@@ -40,6 +47,15 @@ interface MissionAssistantProps {
     onToggleHidden?: (index: number) => void;
     onToggleLocked?: (index: number) => void;
     onReverseSelected?: () => void;
+    document?: AgriDocument | null;
+    envelope?: CombinationEnvelope | null;
+    equipmentSnapshot?: Record<string, unknown> | null;
+    odd?: OddProfile | null;
+    vehicleWidthM?: number | null;
+    geofenceMarginM?: number | null;
+    canGenerateBeds?: boolean;
+    onGenerate18Beds?: () => void;
+    onApplyDocument?: (document: AgriDocument) => void;
 }
 
 const STRATEGIES = ['boustrophedon', 'perpendicular', 'best_nswath'] as const;
@@ -331,6 +347,7 @@ export function MissionAssistant({
     implements: implementsList,
     missions,
     activePath,
+    hasWorkingDocument = false,
     onSelectMission,
     tree,
     selectedIndices = [],
@@ -342,7 +359,25 @@ export function MissionAssistant({
     onToggleHidden,
     onToggleLocked,
     onReverseSelected,
+    document = null,
+    envelope = null,
+    equipmentSnapshot = null,
+    odd = null,
+    vehicleWidthM = null,
+    geofenceMarginM = null,
+    canGenerateBeds = false,
+    onGenerate18Beds,
+    onApplyDocument,
 }: MissionAssistantProps): ReactElement {
+    const [teachOpen, setTeachOpen] = useState(false);
+    const [applyFieldsOpen, setApplyFieldsOpen] = useState(false);
+    const [skipN, setSkipN] = useState('1');
+    const pack = document ? readCropPack(document) : assistant.brief.crop_pack;
+    const workCount = document ? workSectionIndices(document).length : 0;
+    const mutate = (next: AgriDocument) => {
+        onApplyDocument?.(next);
+    };
+    const skipEveryN = Math.max(0, Math.floor(Number(skipN)) || 0);
     return (
         <aside
             className={overlay ? 'studio-context is-overlay' : 'studio-context'}
@@ -460,10 +495,52 @@ export function MissionAssistant({
             ) : (
                 <p className="studio-muted">{t('assist.intro')}</p>
             )}
+            <PacksPanel
+                t={t}
+                pack={pack}
+                workCount={workCount}
+                hasDocument={Boolean(document)}
+                canGenerateBeds={canGenerateBeds}
+                document={document}
+                skipN={skipN}
+                onSkipNChange={setSkipN}
+                onPackChange={(next) => {
+                    assistant.patch({ crop_pack: next });
+                    if (document) {
+                        mutate(writeCropPack(document, next));
+                    }
+                }}
+                onMutate={mutate}
+                onOpenTeach={() => setTeachOpen(true)}
+                onOpenApplyFields={() => setApplyFieldsOpen(true)}
+                onGenerate18Beds={() => onGenerate18Beds?.()}
+            />
+            <TeachRepeatDialog
+                open={teachOpen}
+                envelope={envelope}
+                onOpenChange={setTeachOpen}
+                onApply={(next) => mutate(next)}
+                t={t}
+            />
+            <ApplyToFieldsDialog
+                open={applyFieldsOpen}
+                fields={fields}
+                currentFieldId={assistant.brief.field_id || selectedField?.id || ''}
+                brief={{ ...assistant.brief, crop_pack: pack }}
+                equipment={equipmentSnapshot}
+                odd={odd}
+                vehicleWidthM={vehicleWidthM}
+                geofenceMarginM={geofenceMarginM}
+                skipEveryN={skipEveryN}
+                onOpenChange={setApplyFieldsOpen}
+                t={t}
+            />
             <div className="studio-mission-list">
                 <h3>{t('map.loaded')}</h3>
                 {missions.length === 0 ? (
-                    <p className="studio-muted">{t('map.empty')}</p>
+                    <p className="studio-muted">
+                        {hasWorkingDocument ? t('map.draftNotListed') : t('map.empty')}
+                    </p>
                 ) : (
                     <ul>
                         {missions.map((mission) => (

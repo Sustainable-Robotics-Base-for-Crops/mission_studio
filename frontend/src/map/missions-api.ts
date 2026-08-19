@@ -144,6 +144,29 @@ async function readError(response: Response, fallback: string): Promise<string> 
     return `${fallback} (${response.status})`;
 }
 
+export function suggestedMissionPath(document: Record<string, unknown>, now = new Date()): string {
+    const fileType =
+        String(document.file_type ?? 'mission_order').replace(/[^\w-]+/g, '') || 'mission_order';
+    const vehicleId = String(document.vehicle_id ?? 'v1').replace(/[^\w.-]+/g, '') || 'v1';
+    const metadata = asRecord(document.metadata);
+    const brief = asRecord(metadata?.srbc_mission_brief);
+    const field = String(brief?.field_id || 'mission')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40);
+    const stamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+        '-',
+        String(now.getHours()).padStart(2, '0'),
+        String(now.getMinutes()).padStart(2, '0'),
+    ].join('');
+    const stem = field || 'mission';
+    return `${fileType}/${vehicleId}/${stem}-${stamp}.json`;
+}
+
 export async function saveMissionDocument(
     document: Record<string, unknown>,
     path: string,

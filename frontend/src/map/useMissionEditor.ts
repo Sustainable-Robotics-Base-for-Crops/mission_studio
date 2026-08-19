@@ -50,7 +50,6 @@ import {
 } from '../domain/selection';
 import { applySpeedToAllPoints, getCurrentTrajectorySpeed } from '../domain/speed';
 import { insertDraftVertex, moveDraftVertex } from './draft-hit';
-import { saveMissionDocument } from './missions-api';
 import {
     planCoverage,
     type CoveragePreview,
@@ -61,6 +60,7 @@ import type { DuplicateSide, ExtendDirection } from './SectionEditPanel';
 import { CommandStack, createAutosave } from '../store/commands';
 import { useStudioMissions } from './useStudioMissions';
 import { remapIndexList, remapIndexListAfterDelete, indexListIntersects } from '../missions/tree';
+import { saveMissionDocument, suggestedMissionPath } from './missions-api';
 import type { Kinematics } from '../domain/equipment';
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error' | 'blocked';
@@ -208,6 +208,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     const appliedPathRef = useRef<string | null>(null);
     const activePathRef = useRef<string | null>(null);
     const lastSavedRef = useRef<string>(snapshotDocument(null));
+    const savingRef = useRef(false);
     workingRef.current = working;
     draftRef.current = draft;
     toolRef.current = tool;
@@ -244,10 +245,18 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         if (!pathChanged && dirtyRef.current) {
             return;
         }
-        appliedPathRef.current = missions.activePath;
         const parsed = parseAgriDocument(missions.document);
+        const incoming = snapshotDocument(parsed);
+        if (
+            incoming === lastSavedRef.current &&
+            incoming === snapshotDocument(workingRef.current)
+        ) {
+            appliedPathRef.current = missions.activePath;
+            return;
+        }
+        appliedPathRef.current = missions.activePath;
         setWorking(parsed);
-        lastSavedRef.current = snapshotDocument(parsed);
+        lastSavedRef.current = incoming;
         setDirty(false);
         setSaveState('idle');
         setTool('none');
@@ -1259,6 +1268,42 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         openFillParcelDialog,
     ]);
 
+    const saveNow = useCallback(
+        async (document?: AgriDocument | null) => {
+            const current = document ?? workingRef.current;
+            if (!current) {
+                return;
+            }
+            const path = activePathRef.current ?? suggestedMissionPath(current);
+            savingRef.current = true;
+            setSaveState('saving');
+            try {
+                const savedPath = await saveMissionDocument(
+                    current as unknown as Record<string, unknown>,
+                    path,
+                );
+                lastSavedRef.current = snapshotDocument(current);
+                setDirty(false);
+                setSaveState('saved');
+                setNoticeKey('tool.savedToDisk');
+                setNoticeParams({ path: savedPath });
+                if (activePathRef.current !== savedPath) {
+                    missions.adopt(savedPath, current);
+                }
+                await missions.refresh();
+            } catch (cause: unknown) {
+                setSaveState('error');
+                setNoticeKey('tool.saveFailed');
+                setNoticeParams({
+                    error: cause instanceof Error ? cause.message : 'save failed',
+                });
+            } finally {
+                savingRef.current = false;
+            }
+        },
+        [missions],
+    );
+
     const applyGeneratedDocument = useCallback(
         (
             document: AgriDocument,
@@ -1281,8 +1326,9 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
                 setNoticeParams({});
             }
             syncButtons();
+            void saveNow(document);
         },
-        [syncButtons],
+        [saveNow, syncButtons],
     );
 
     const undo = useCallback(() => {
@@ -1443,7 +1489,9 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             return;
         }
         if (!missions.activePath) {
-            setSaveState('blocked');
+            if (!savingRef.current) {
+                setSaveState('blocked');
+            }
             return;
         }
         setSaveState('saving');
@@ -1533,6 +1581,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         startOffset,
         finishOffset,
         applyGeneratedDocument,
+        saveNow,
         cancelTool,
         undo,
         redo,
