@@ -1,0 +1,102 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Agri",
+    "type": "object",
+    "properties": {
+        "version": {
+            "type": "string"
+        },
+        "file_type": {
+            "type": "string"
+        },
+        "vehicle_id": {
+            "type": "string"
+        },
+        "origin": {
+            "$ref": "#/$defs/origin"
+        },
+        "points": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/section"
+            }
+        },
+        "geofencing": {
+            "$ref": "#/$defs/section"
+        },
+        "metadata": {
+            "type": "object"
+        }
+    },
+    "required": [
+        "version",
+        "file_type",
+        "vehicle_id",
+        "origin",
+        "points"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+        "origin": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "coordinates": {
+                    "$ref": "#/$defs/coordinates"
+                }
+            },
+            "required": [
+                "type",
+                "coordinates"
+            ],
+            "additionalProperties": false
+        },
+        "coordinates": {
+            "type": "object",
+            "properties": {
+                "lat": {
+                    "type": "number"
+                },
+                "lon": {
+                    "type": "number"
+                },
+                "alt": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "lat",
+                "lon",
+                "alt"
+            ],
+            "additionalProperties": false
+        },
+        "section": {
+            "type": "object",
+            "properties": {
+                "section_type": {
+                    "type": "string"
+                },
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "type": "array"
+                    }
+                }
+            },
+            "required": [
+                "columns",
+                "values"
+            ],
+            "additionalProperties": false
+        }
+    }
+}

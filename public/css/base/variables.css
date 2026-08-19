@@ -1,0 +1,13 @@
+/* CSS Variables for Trajectory Editor (exactly as in the Android app) */
+:root {
+    --trajectory-dark-gray: #2B2B2B;
+    --trajectory-gray: #424242;
+    --trajectory-light-brown: #A1887F;
+    --trajectory-primary: #D49154; /* Volcam Orange */
+    --trajectory-green: #4CAF50;
+    --trajectory-blue: #2196F3;
+    --trajectory-orange: #FF9800;
+    --trajectory-red: #F44336;
+    --trajectory-text: #ECF0F1;
+    --trajectory-text-secondary: #BDC3C7;
+}

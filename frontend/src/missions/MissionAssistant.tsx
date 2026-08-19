@@ -1,0 +1,515 @@
+import type { ReactElement } from 'react';
+
+import { Button } from '../design-system/Button';
+import { Input, Select } from '../design-system/Field';
+import type { CombinationTwin, ImplementTwin } from '../domain/equipment';
+import type { FieldDetail, FieldSummary } from '../fields/types';
+import type { MissionRef } from '../map/missions-api';
+import {
+    ASSISTANT_STEPS,
+    OPERATIONS,
+    PRIORITIES,
+    type AssistantStep,
+    type MissionBrief,
+} from './brief';
+import { MissionTree } from './MissionTree';
+import type { MissionTreeModel } from './tree';
+import type { useMissionAssistant } from './useMissionAssistant';
+
+type Assistant = ReturnType<typeof useMissionAssistant>;
+
+interface MissionAssistantProps {
+    t: (key: string, params?: Record<string, string | number>) => string;
+    overlay?: boolean;
+    assistant: Assistant;
+    fields: FieldSummary[];
+    selectedField: FieldDetail | null;
+    fieldsAvailable: boolean;
+    combinations: CombinationTwin[];
+    implements: ImplementTwin[];
+    missions: MissionRef[];
+    activePath: string | null;
+    onSelectMission: (path: string) => void;
+    tree?: MissionTreeModel;
+    selectedIndices?: number[];
+    hiddenIndices?: number[];
+    lockedIndices?: number[];
+    onSelectSection?: (index: number, additive: boolean) => void;
+    onReorderSelected?: (delta: -1 | 1) => void;
+    onReorderTo?: (fromIndex: number, toIndex: number) => void;
+    onToggleHidden?: (index: number) => void;
+    onToggleLocked?: (index: number) => void;
+    onReverseSelected?: () => void;
+}
+
+const STRATEGIES = ['boustrophedon', 'perpendicular', 'best_nswath'] as const;
+
+function StepFields({
+    step,
+    brief,
+    patch,
+    t,
+    fields,
+    selectedField,
+    fieldsAvailable,
+    combinations,
+    implements: implementsList,
+}: {
+    step: AssistantStep;
+    brief: MissionBrief;
+    patch: (partial: Partial<MissionBrief>) => void;
+    t: MissionAssistantProps['t'];
+    fields: FieldSummary[];
+    selectedField: FieldDetail | null;
+    fieldsAvailable: boolean;
+    combinations: CombinationTwin[];
+    implements: ImplementTwin[];
+}): ReactElement {
+    if (step === 'objective') {
+        return (
+            <>
+                <Select
+                    id="assist-operation"
+                    label={t('assist.field.operation')}
+                    value={brief.operation}
+                    onValueChange={(value) =>
+                        patch({ operation: value as MissionBrief['operation'] })
+                    }
+                    options={OPERATIONS.map((item) => ({
+                        value: item,
+                        label: t(`assist.operation.${item}`),
+                    }))}
+                    help={t('assist.help.operation')}
+                />
+                <Input
+                    id="assist-campaign"
+                    label={t('assist.field.campaign')}
+                    value={brief.campaign}
+                    onChange={(event) => patch({ campaign: event.target.value })}
+                />
+                <Input
+                    id="assist-from"
+                    label={t('assist.field.windowFrom')}
+                    type="date"
+                    value={brief.window_from}
+                    onChange={(event) => patch({ window_from: event.target.value })}
+                />
+                <Input
+                    id="assist-to"
+                    label={t('assist.field.windowTo')}
+                    type="date"
+                    value={brief.window_to}
+                    onChange={(event) => patch({ window_to: event.target.value })}
+                />
+                <Select
+                    id="assist-priority"
+                    label={t('assist.field.priority')}
+                    value={brief.priority}
+                    onValueChange={(value) =>
+                        patch({ priority: value as MissionBrief['priority'] })
+                    }
+                    options={PRIORITIES.map((item) => ({
+                        value: item,
+                        label: t(`assist.priority.${item}`),
+                    }))}
+                />
+            </>
+        );
+    }
+    if (step === 'parcel') {
+        return (
+            <>
+                {!fieldsAvailable ? (
+                    <p className="studio-muted">{t('fields.unavailable')}</p>
+                ) : null}
+                <Select
+                    id="assist-field"
+                    label={t('assist.field.parcel')}
+                    value={brief.field_id}
+                    onValueChange={(value) => patch({ field_id: value, row_set_id: '' })}
+                    options={[
+                        { value: '', label: t('assist.choose') },
+                        ...fields.map((item) => ({ value: item.id, label: item.name })),
+                    ]}
+                    help={t('assist.help.parcel')}
+                />
+                {selectedField ? (
+                    <p className="studio-muted">
+                        {selectedField.qualified_for_autonomy
+                            ? t('assist.autonomyOk')
+                            : t('assist.autonomyWarn')}
+                    </p>
+                ) : null}
+                <Select
+                    id="assist-rows"
+                    label={t('assist.field.rowSet')}
+                    value={brief.row_set_id}
+                    onValueChange={(value) => patch({ row_set_id: value })}
+                    options={[
+                        { value: '', label: t('assist.rowSetNone') },
+                        ...(selectedField?.row_sets ?? []).map((item) => ({
+                            value: item.id,
+                            label: item.name || item.id,
+                        })),
+                    ]}
+                    help={t('assist.help.rowSet')}
+                />
+            </>
+        );
+    }
+    if (step === 'machine') {
+        return (
+            <Select
+                id="assist-combo"
+                label={t('assist.field.combination')}
+                value={brief.combination_id}
+                onValueChange={(value) => patch({ combination_id: value })}
+                options={[
+                    { value: '', label: t('assist.choose') },
+                    ...combinations.map((item) => ({ value: item.id, label: item.name })),
+                ]}
+                help={t('assist.help.combination')}
+            />
+        );
+    }
+    if (step === 'recipe') {
+        const tool = combinations.find((item) => item.id === brief.combination_id)?.implement_id
+            ? implementsList.find(
+                  (item) =>
+                      item.id ===
+                      combinations.find((combo) => combo.id === brief.combination_id)?.implement_id,
+              )
+            : null;
+        return (
+            <>
+                <Input
+                    id="assist-width"
+                    label={t('tool.rowSpacing')}
+                    unit="m"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    source={
+                        tool
+                            ? t('tool.rowSpacingSourceEquipment', {
+                                  width: tool.working_width_m,
+                                  name: tool.name,
+                              })
+                            : undefined
+                    }
+                    value={String(brief.working_width_m)}
+                    onChange={(event) => patch({ working_width_m: Number(event.target.value) })}
+                    help={t('assist.help.recipe')}
+                />
+                <Input
+                    id="assist-overlap"
+                    label={t('assist.field.overlap')}
+                    unit="m"
+                    type="number"
+                    step="0.05"
+                    min="0"
+                    value={String(brief.overlap_m)}
+                    onChange={(event) => patch({ overlap_m: Number(event.target.value) })}
+                />
+                <Input
+                    id="assist-speed"
+                    label={t('tool.rowSpeed')}
+                    unit="m/s"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    max="50"
+                    value={String(brief.speed_mps)}
+                    onChange={(event) => patch({ speed_mps: Number(event.target.value) })}
+                />
+                <Input
+                    id="assist-recipe-note"
+                    label={t('assist.field.recipeNote')}
+                    value={brief.recipe_note}
+                    onChange={(event) => patch({ recipe_note: event.target.value })}
+                    help={t('assist.help.recipeNote')}
+                />
+            </>
+        );
+    }
+    if (step === 'strategy') {
+        return (
+            <>
+                <Select
+                    id="assist-strategy"
+                    label={t('tool.coverageStrategy')}
+                    value={brief.strategy}
+                    onValueChange={(value) =>
+                        patch({ strategy: value as MissionBrief['strategy'] })
+                    }
+                    options={STRATEGIES.map((item) => ({
+                        value: item,
+                        label: t(`tool.coverageStrategy.${item}`),
+                    }))}
+                    help={t('tool.coverageStrategyHelp')}
+                />
+                <Input
+                    id="assist-headland"
+                    label={t('tool.headlandWidth')}
+                    unit="m"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={String(brief.headland_width_m)}
+                    onChange={(event) => patch({ headland_width_m: Number(event.target.value) })}
+                    help={t('tool.headlandWidthHelp')}
+                />
+                <Select
+                    id="assist-turn"
+                    label={t('tool.turnType')}
+                    value={brief.turn_type}
+                    onValueChange={(value) =>
+                        patch({ turn_type: value as MissionBrief['turn_type'] })
+                    }
+                    options={[
+                        { value: 'square', label: t('tool.turnTypeSquare') },
+                        { value: 'u_turn', label: t('tool.turnTypeUTurn') },
+                    ]}
+                />
+                <label className="studio-turns-loop" htmlFor="assist-connect">
+                    <input
+                        id="assist-connect"
+                        type="checkbox"
+                        checked={brief.connect_turns}
+                        onChange={(event) => patch({ connect_turns: event.target.checked })}
+                    />
+                    {t('tool.fillConnectTurns')}
+                </label>
+            </>
+        );
+    }
+    if (step === 'logistics') {
+        const nodes = selectedField?.traffic_nodes ?? [];
+        return (
+            <>
+                <Input
+                    id="assist-transit"
+                    label={t('assist.field.transit')}
+                    value={brief.transit_note}
+                    onChange={(event) => patch({ transit_note: event.target.value })}
+                    help={t('assist.help.transit')}
+                />
+                <Select
+                    id="assist-service"
+                    label={t('assist.field.service')}
+                    value={brief.service_node_id}
+                    onValueChange={(value) => patch({ service_node_id: value })}
+                    options={[
+                        { value: '', label: t('assist.none') },
+                        ...nodes.map((item) => ({
+                            value: item.id,
+                            label: item.name || `${item.kind} ${item.id.slice(0, 6)}`,
+                        })),
+                    ]}
+                />
+                <Input
+                    id="assist-weather"
+                    label={t('assist.field.weather')}
+                    value={brief.weather_note}
+                    onChange={(event) => patch({ weather_note: event.target.value })}
+                    help={t('assist.help.weather')}
+                />
+            </>
+        );
+    }
+    return <p className="studio-muted">{t('assist.generateHint')}</p>;
+}
+
+export function MissionAssistant({
+    t,
+    overlay = false,
+    assistant,
+    fields,
+    selectedField,
+    fieldsAvailable,
+    combinations,
+    implements: implementsList,
+    missions,
+    activePath,
+    onSelectMission,
+    tree,
+    selectedIndices = [],
+    hiddenIndices = [],
+    lockedIndices = [],
+    onSelectSection,
+    onReorderSelected,
+    onReorderTo,
+    onToggleHidden,
+    onToggleLocked,
+    onReverseSelected,
+}: MissionAssistantProps): ReactElement {
+    return (
+        <aside
+            className={overlay ? 'studio-context is-overlay' : 'studio-context'}
+            aria-label={t('nav.missions')}
+        >
+            <header className="studio-panel-header">
+                <h2>{t('nav.missions')}</h2>
+            </header>
+            <div className="studio-assist-toolbar">
+                <Button type="button" variant="primary" onClick={assistant.start}>
+                    {t('assist.new')}
+                </Button>
+                {assistant.open ? (
+                    <Button type="button" variant="secondary" onClick={assistant.close}>
+                        {t('assist.close')}
+                    </Button>
+                ) : null}
+            </div>
+            {assistant.open ? (
+                <div className="studio-assist">
+                    <ol className="studio-assist-steps" aria-label={t('assist.title')}>
+                        {ASSISTANT_STEPS.map((item, index) => {
+                            const current = item === assistant.step;
+                            const done = index < assistant.stepIndex;
+                            return (
+                                <li key={item}>
+                                    <button
+                                        type="button"
+                                        className={
+                                            current
+                                                ? 'studio-assist-step is-current'
+                                                : done
+                                                  ? 'studio-assist-step is-done'
+                                                  : 'studio-assist-step'
+                                        }
+                                        aria-current={current ? 'step' : undefined}
+                                        onClick={() => assistant.setStep(item)}
+                                    >
+                                        <span className="studio-assist-index">{index + 1}</span>
+                                        <span>{t(`assist.step.${item}`)}</span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ol>
+                    <div className="studio-assist-body">
+                        <h3>{t(`assist.step.${assistant.step}`)}</h3>
+                        <StepFields
+                            step={assistant.step}
+                            brief={assistant.brief}
+                            patch={assistant.patch}
+                            t={t}
+                            fields={fields}
+                            selectedField={selectedField}
+                            fieldsAvailable={fieldsAvailable}
+                            combinations={combinations}
+                            implements={implementsList}
+                        />
+                        {assistant.step === 'generate' ? (
+                            <>
+                                {assistant.gates.length > 0 ? (
+                                    <ul className="studio-assist-gates">
+                                        {assistant.gates.map((gate) => (
+                                            <li key={gate}>{t(`assist.gate.${gate}`)}</li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="studio-muted">{t('assist.ready')}</p>
+                                )}
+                                {assistant.error ? (
+                                    <p className="ds-field-error" role="alert">
+                                        {assistant.error.startsWith('assist.')
+                                            ? t(assistant.error)
+                                            : assistant.error}
+                                    </p>
+                                ) : null}
+                                {assistant.summary ? (
+                                    <p className="studio-assist-summary">
+                                        {t('assist.summary', {
+                                            rows: assistant.summary.rows,
+                                            turns: assistant.summary.turns,
+                                            length: Math.round(assistant.summary.length_m),
+                                            engine: assistant.summary.engine,
+                                        })}
+                                    </p>
+                                ) : null}
+                            </>
+                        ) : null}
+                        <div className="studio-assist-nav">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={assistant.goBack}
+                                disabled={assistant.stepIndex === 0}
+                            >
+                                {t('assist.back')}
+                            </Button>
+                            {assistant.step === 'generate' ? (
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    onClick={() => void assistant.generate()}
+                                    disabled={!assistant.canGenerate || assistant.busy}
+                                >
+                                    {assistant.busy ? t('assist.generating') : t('assist.generate')}
+                                </Button>
+                            ) : (
+                                <Button type="button" variant="primary" onClick={assistant.goNext}>
+                                    {t('assist.next')}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <p className="studio-muted">{t('assist.intro')}</p>
+            )}
+            <div className="studio-mission-list">
+                <h3>{t('map.loaded')}</h3>
+                {missions.length === 0 ? (
+                    <p className="studio-muted">{t('map.empty')}</p>
+                ) : (
+                    <ul>
+                        {missions.map((mission) => (
+                            <li key={mission.path}>
+                                <button
+                                    type="button"
+                                    className={
+                                        mission.path === activePath ? 'is-active' : undefined
+                                    }
+                                    onClick={() => onSelectMission(mission.path)}
+                                >
+                                    <span>{mission.name}</span>
+                                    <span className="studio-muted">
+                                        {mission.type}/{mission.vehicle}
+                                    </span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+            {tree &&
+            tree.leaves.length > 0 &&
+            onSelectSection &&
+            onReorderSelected &&
+            onReorderTo &&
+            onToggleHidden &&
+            onToggleLocked &&
+            onReverseSelected ? (
+                <div className="studio-tree-panel">
+                    <h3>{t('tree.title')}</h3>
+                    <MissionTree
+                        t={t}
+                        tree={tree}
+                        selectedIndices={selectedIndices}
+                        hiddenIndices={hiddenIndices}
+                        lockedIndices={lockedIndices}
+                        onSelect={onSelectSection}
+                        onMove={onReorderSelected}
+                        onReorderTo={onReorderTo}
+                        onToggleHidden={onToggleHidden}
+                        onToggleLocked={onToggleLocked}
+                        onReverse={onReverseSelected}
+                    />
+                </div>
+            ) : null}
+        </aside>
+    );
+}

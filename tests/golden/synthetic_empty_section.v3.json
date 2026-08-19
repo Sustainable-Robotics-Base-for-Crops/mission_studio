@@ -1,0 +1,27 @@
+{
+  "file_type": "draft",
+  "metadata": {},
+  "origin": {
+    "coordinates": {
+      "alt": 317.5,
+      "lat": 45.85,
+      "lon": 3.17
+    },
+    "type": "WGS84"
+  },
+  "points": [
+    {
+      "columns": [
+        "x",
+        "y",
+        "speed",
+        "working_zone",
+        "punctual"
+      ],
+      "section_type": "row_path",
+      "values": []
+    }
+  ],
+  "vehicle_id": "v1",
+  "version": "3"
+}

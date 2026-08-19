@@ -1,0 +1,244 @@
+/* Styles for Leaflet - Modern zoom controls */
+.leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    background: transparent !important;
+}
+
+.leaflet-control-zoom a {
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.95), rgba(43, 43, 43, 0.95)) !important;
+    border: 1px solid rgba(212, 145, 84, 0.3) !important;
+    color: var(--trajectory-text) !important;
+    width: 40px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    font-size: 20px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.leaflet-control-zoom a::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(212, 145, 84, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s, height 0.4s;
+}
+
+.leaflet-control-zoom a:hover::before {
+    width: 100px;
+    height: 100px;
+}
+
+.leaflet-control-zoom a:hover {
+    background: linear-gradient(135deg, rgba(212, 145, 84, 0.2), rgba(66, 66, 66, 0.95)) !important;
+    border-color: var(--trajectory-primary) !important;
+    color: var(--trajectory-primary) !important;
+    box-shadow: 0 6px 20px rgba(212, 145, 84, 0.3) !important;
+}
+
+.leaflet-control-zoom a:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    background: linear-gradient(135deg, rgba(212, 145, 84, 0.15), rgba(66, 66, 66, 0.95)) !important;
+}
+
+.leaflet-control-zoom a:focus {
+    outline: none !important;
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.95), rgba(43, 43, 43, 0.95)) !important;
+    border-color: rgba(212, 145, 84, 0.3) !important;
+    color: var(--trajectory-text) !important;
+    transform: none !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+.leaflet-control-zoom a:focus:not(:active) {
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.95), rgba(43, 43, 43, 0.95)) !important;
+}
+
+.leaflet-control-zoom-in {
+    border-bottom: 1px solid rgba(212, 145, 84, 0.2) !important;
+    border-radius: 12px 12px 0 0 !important;
+}
+
+.leaflet-control-zoom-out {
+    border-radius: 0 0 12px 12px !important;
+}
+
+.leaflet-control-zoom a.leaflet-disabled {
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.5), rgba(43, 43, 43, 0.5)) !important;
+    color: rgba(189, 195, 199, 0.3) !important;
+    border-color: rgba(161, 136, 127, 0.2) !important;
+    cursor: not-allowed !important;
+    opacity: 0.5;
+}
+
+.leaflet-control-zoom a.leaflet-disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.5), rgba(43, 43, 43, 0.5)) !important;
+}
+
+/* Styles for Leaflet */
+.leaflet-popup-content-wrapper {
+    background-color: #34495e;
+    color: #ecf0f1;
+    border-radius: 8px;
+}
+
+.leaflet-popup-tip {
+    background-color: #34495e;
+}
+
+.leaflet-popup-content {
+    margin: 12px;
+}
+
+.leaflet-control-container .leaflet-control {
+    background-color: rgba(44, 62, 80, 0.9);
+    border: 1px solid #465c71;
+}
+
+.leaflet-control-container .leaflet-control a {
+    color: #ecf0f1;
+}
+
+/* Movable parcel/geofence points */
+.parcel-point-marker {
+    background: none !important;
+    border: none !important;
+}
+
+.parcel-point-marker .parcel-point-marker-inner {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--trajectory-blue);
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    cursor: grab;
+    transition: transform 0.15s ease;
+}
+
+.parcel-point-marker.leaflet-draggable-dragging .parcel-point-marker-inner,
+.parcel-point-marker:hover .parcel-point-marker-inner {
+    cursor: grabbing;
+    transform: scale(1.15);
+}
+
+.parcel-point-marker.geofence-point-marker .parcel-point-marker-inner {
+    background: var(--trajectory-orange);
+}
+
+/* Distance labels on polygon sides */
+.edge-distance-label {
+    background: none !important;
+    border: none !important;
+}
+
+.edge-distance-label span {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(33, 150, 243, 0.95);
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    pointer-events: none;
+}
+
+.edge-distance-label-geofence span {
+    background: rgba(255, 152, 0, 0.95);
+}
+
+.edge-distance-label-wz span {
+    background: rgba(255, 152, 0, 0.95);
+}
+
+.parcel-point-marker.wz-point-marker .parcel-point-marker-inner {
+    background: #FF9800;
+}
+
+.edge-distance-label-delete span {
+    background: rgba(244, 67, 54, 0.95);
+}
+
+.parcel-point-marker.delete-point-marker .parcel-point-marker-inner {
+    background: #F44336;
+}
+
+/* Ruler on the map (outside trajectory) */
+.ruler-distance-label {
+    background: none !important;
+    border: none !important;
+}
+
+.ruler-distance-label span {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(156, 39, 176, 0.95);
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    pointer-events: none;
+}
+
+.extend-distance-label {
+    background: none !important;
+    border: none !important;
+}
+
+.extend-distance-label span {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(255, 152, 0, 0.95);
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+.ruler-point-marker {
+    background: none !important;
+    border: none !important;
+}
+
+.ruler-point-marker .ruler-point-marker-inner {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #9C27B0;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    cursor: grab;
+    transition: transform 0.15s ease;
+}
+
+.ruler-point-marker.leaflet-draggable-dragging .ruler-point-marker-inner,
+.ruler-point-marker:hover .ruler-point-marker-inner {
+    cursor: grabbing;
+    transform: scale(1.2);
+}

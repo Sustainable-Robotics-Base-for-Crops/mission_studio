@@ -1,0 +1,181 @@
+/* Storage options */
+.storage-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.storage-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.storage-option:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.storage-option input[type="radio"] {
+    margin: 0;
+}
+
+.storage-label {
+    color: white;
+    font-size: 13px;
+}
+
+
+/* Storage indicators in the list */
+.storage-indicator {
+    font-size: 14px;
+    opacity: 0.8;
+    margin-left: 8px;
+}
+
+/* Modern styles for hierarchical folders */
+.trajectory-type-folder {
+    border: 1px solid rgba(161, 136, 127, 0.2);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.4), rgba(43, 43, 43, 0.6));
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.trajectory-type-folder:hover {
+    border-color: rgba(212, 145, 84, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.type-folder-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    cursor: pointer;
+    background: linear-gradient(135deg, rgba(212, 145, 84, 0.1), rgba(161, 136, 127, 0.05));
+    transition: all 0.25s ease;
+    user-select: none;
+}
+
+.type-folder-header:hover {
+    background: linear-gradient(135deg, rgba(212, 145, 84, 0.2), rgba(161, 136, 127, 0.1));
+}
+
+.type-folder-header .material-icons {
+    margin-right: 12px;
+    color: var(--trajectory-primary);
+    font-size: 24px;
+    transition: transform 0.3s ease;
+}
+
+.type-folder-header:hover .material-icons {
+    transform: scale(1.1);
+}
+
+.folder-name {
+    font-weight: 600;
+    color: var(--trajectory-text);
+    flex-grow: 1;
+    font-size: 15px;
+    text-transform: capitalize;
+    letter-spacing: 0.5px;
+}
+
+.folder-count {
+    color: var(--trajectory-text-secondary);
+    font-size: 13px;
+    margin-right: 12px;
+    background: rgba(212, 145, 84, 0.15);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.expand-icon {
+    color: var(--trajectory-text-secondary);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 20px;
+}
+
+.type-folder-header[aria-expanded="true"] .expand-icon {
+    transform: rotate(180deg);
+}
+
+.type-folder-content {
+    padding: 12px 16px;
+    background: rgba(43, 43, 43, 0.3);
+    border-top: 1px solid rgba(161, 136, 127, 0.1);
+}
+
+/* Styles for vehicle folders */
+.trajectory-vehicle-folder {
+    margin-bottom: 10px;
+    margin-left: 20px;
+    border-left: 2px solid rgba(212, 145, 84, 0.2);
+    padding-left: 16px;
+    transition: all 0.3s ease;
+}
+
+.trajectory-vehicle-folder:hover {
+    border-left-color: var(--trajectory-primary);
+}
+
+.vehicle-folder-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.08), rgba(66, 66, 66, 0.4));
+    border-radius: 8px;
+    transition: all 0.25s ease;
+    user-select: none;
+    border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.vehicle-folder-header:hover {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15), rgba(66, 66, 66, 0.5));
+    border-color: rgba(76, 175, 80, 0.4);
+    transform: translateX(4px);
+}
+
+.vehicle-folder-header .material-icons {
+    margin-right: 10px;
+    color: var(--trajectory-green);
+    font-size: 20px;
+    transition: transform 0.3s ease;
+}
+
+.vehicle-folder-header:hover .material-icons {
+    transform: scale(1.1);
+}
+
+.vehicle-folder-header .folder-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--trajectory-text);
+}
+
+.vehicle-folder-header .folder-count {
+    background: rgba(76, 175, 80, 0.15);
+    color: var(--trajectory-green);
+}
+
+.vehicle-folder-content {
+    padding: 8px 0 8px 24px;
+    margin-top: 8px;
+    border-left: 2px solid rgba(76, 175, 80, 0.15);
+}
+
+.vehicle-folder-content .trajectory-item {
+    margin-bottom: 8px;
+    margin-left: 0;
+    border-left: 3px solid transparent;
+}
+
+.vehicle-folder-content:hover {
+    border-left-color: var(--trajectory-green);
+}

@@ -1,0 +1,26 @@
+# Opt-in git hooks. Not installed automatically; enable them with:
+#   .venv/bin/pip install pre-commit && .venv/bin/pre-commit install
+#
+# The hooks mirror scripts/check.sh but only on the files being committed.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(public/js/|backend/|server\.py|start\.py|.*\.md$)
+      - id: end-of-file-fixer
+        exclude: ^(public/js/|backend/|server\.py|start\.py)
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^tests/golden/
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+      - id: ruff-format
+        files: ^(tests|scripts)/

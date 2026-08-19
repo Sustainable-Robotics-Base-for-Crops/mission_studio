@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Studio SRBC</title>
+    {% if app_logo_url %}
+    <link rel="icon" type="image/png" href="{{ app_logo_url }}">
+    <link rel="apple-touch-icon" href="{{ app_logo_url }}">
+    {% endif %}
+
+    <!-- Same i18n source of truth as the legacy editor (ADR-08, native window.setLanguage). -->
+    <script src="/js/core/i18n.js"></script>
+
+    <!-- Plugin registry must exist before private plugin scripts run. -->
+    <script src="/js/core/plugins.js"></script>
+
+    {% block plugin_head_scripts %}
+    {% for partial in plugin_head_partials %}
+    {% include partial %}
+    {% endfor %}
+    {% endblock %}
+
+    <script type="application/json" id="trajectoryEditorMapConfig">
+        {{ map_config_json | safe }}
+    </script>
+    <script>
+        window.TRAJECTORY_EDITOR_MAP_CONFIG = JSON.parse(
+            document.getElementById('trajectoryEditorMapConfig').textContent
+        );
+    </script>
+
+    <script type="application/json" id="trajectoryEditorUiConfig">
+        {{ ui_config_json | safe }}
+    </script>
+    <script>
+        window.TRAJECTORY_EDITOR_UI_CONFIG = JSON.parse(
+            document.getElementById('trajectoryEditorUiConfig').textContent
+        );
+    </script>
+
+    <script type="application/json" id="srbcFeatureFlags">
+        {{ feature_flags_json | safe }}
+    </script>
+    <script>
+        window.__SRBC_FLAGS__ = JSON.parse(
+            document.getElementById('srbcFeatureFlags').textContent
+        );
+    </script>
+
+    <link rel="stylesheet" href="/studio/assets/studio.css">
+</head>
+<body>
+    {% block plugin_body_pre %}
+    {% for partial in plugin_body_pre_partials %}
+    {% include partial %}
+    {% endfor %}
+    {% endblock %}
+
+    <div id="root"></div>
+
+    <!--
+      Plugin DOM contract: the id must exist before plugin body scripts run.
+      React relocates this node into the app bar on mount so injected buttons stay.
+    -->
+    <span id="pluginHeaderActions" class="plugin-header-actions">
+        {% for partial in plugin_header_extra_partials %}
+        {% include partial %}
+        {% endfor %}
+    </span>
+
+    <script type="module" src="/studio/assets/studio.js"></script>
+
+    <script>
+        window.setLanguage = function(lang) {
+            if (!window.i18n) {
+                console.error('[NATIVE] window.i18n n\'est pas disponible');
+                return false;
+            }
+            if (!window.i18n.translations[lang]) {
+                console.error('[NATIVE] Langue non supportée:', lang);
+                return false;
+            }
+            window.i18n.setLanguage(lang);
+            var langSelect = document.getElementById('languageSelect');
+            if (langSelect) {
+                langSelect.value = lang;
+            }
+            return true;
+        };
+    </script>
+
+    {% block plugin_body_scripts %}
+    {% for partial in plugin_body_script_partials %}
+    {% include partial %}
+    {% endfor %}
+    {% endblock %}
+</body>
+</html>

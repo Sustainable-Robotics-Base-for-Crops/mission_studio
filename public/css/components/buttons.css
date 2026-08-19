@@ -1,0 +1,131 @@
+/* Buttons */
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    text-decoration: none;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--trajectory-primary), var(--trajectory-orange));
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--trajectory-orange), var(--trajectory-primary));
+    box-shadow: 0 4px 16px rgba(212, 145, 84, 0.4);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, var(--trajectory-gray), rgba(66, 66, 66, 0.8));
+    color: var(--trajectory-text);
+    border: 1px solid rgba(161, 136, 127, 0.3);
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.9), var(--trajectory-gray));
+    border-color: rgba(161, 136, 127, 0.5);
+    color: var(--trajectory-text);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--trajectory-green), #66BB6A);
+    color: white;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #66BB6A, var(--trajectory-green));
+    box-shadow: 0 4px 16px rgba(76, 175, 80, 0.4);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--trajectory-red), #EF5350);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #EF5350, var(--trajectory-red));
+    box-shadow: 0 4px 16px rgba(244, 67, 54, 0.4);
+}
+
+#clearRulerBtn {
+    background: #9C27B0 !important;
+}
+
+#DeleteSelectionBtn {
+    width: 100%;
+    margin-top: 8px;
+}
+
+/* Outline buttons */
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid var(--trajectory-light-brown);
+    color: var(--trajectory-text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    margin: 2px;
+}
+
+.btn-outline:hover {
+    background-color: var(--trajectory-light-brown);
+    border-color: var(--trajectory-primary);
+}
+
+.btn-outline.active {
+    background-color: var(--trajectory-primary);
+    border-color: var(--trajectory-primary);
+    color: white;
+}
+
+/* Button groups */
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+}

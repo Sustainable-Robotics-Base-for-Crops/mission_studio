@@ -1,0 +1,70 @@
+# Tooling configuration only. The editor is run as a script (server.py), not
+# installed as a package, so there is deliberately no [build-system] section.
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests/python"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers --strict-config"
+filterwarnings = ["error::DeprecationWarning"]
+
+[tool.coverage.run]
+branch = true
+source = ["backend"]
+omit = ["backend/uploads/*"]
+
+[tool.coverage.report]
+skip_empty = true
+# Ratchet, not a target. The global figure is low because HTTP plumbing
+# (controllers, middleware, storage) is covered by scripts/smoke_server.py
+# rather than by unit tests. The modules that carry the robot contract are
+# well covered as of 2026-08-17:
+#   backend/models/trajectory.py              91 %
+#   backend/repositories/trajectory_repository.py  80 %
+#   backend/services/validation_service.py    78 %
+# Raise this floor as each lot adds tests; never lower it.
+fail_under = 30
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "pragma: no cover",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "backend/uploads", "public/js"]
+
+[tool.ruff.lint]
+# Deliberately narrow rule set: real defects only.
+#
+# L0 must not modify a single line of the existing application, so the cosmetic
+# and modernisation families are left out for now:
+#   W  (whitespace)          104 findings, purely cosmetic
+#   UP (pyupgrade)           150 findings, Dict/Optional -> dict/| rewrites
+#   C4 (comprehensions)
+# They are enabled together with the domain refactor in L4, when the files are
+# being rewritten anyway and the diff is reviewed as part of that work.
+select = ["E4", "E7", "E9", "F", "B"]
+ignore = [
+    "B008",  # function call in default argument, used intentionally in handlers
+]
+
+# `ruff format` is applied to new code only (see scripts/check.sh and the CI
+# workflow, which pass explicit paths). Reformatting the 21 pre-existing files
+# would bury the L0 diff under a cosmetic rewrite.
+
+[tool.ruff.lint.per-file-ignores]
+# Inherited findings in the pre-existing application, audited on 2026-08-17 and
+# left in place so that L0 adds files without touching any. All are harmless:
+#   F401 dead imports, B904 exception chaining metadata.
+# Scheduled for removal in L4 (domain refactor), where these files are rewritten.
+"backend/controllers/trajectory_controller.py" = ["F401"]
+"backend/core/extension_points.py" = ["F401"]
+"backend/middleware/rate_limit_middleware.py" = ["F401"]
+"backend/middleware/validation_middleware.py" = ["F401"]
+"backend/services/validation_service.py" = ["B904"]
+
+# Tests reach into private helpers on purpose to pin their behaviour, and import
+# backend modules inside test bodies so the schema-cache fixture controls order.
+"tests/**" = ["E402"]

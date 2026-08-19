@@ -1,0 +1,38 @@
+/*
+ * Main stylesheet file - Imports all CSS modules
+ * Modular organization for better maintainability
+ */
+
+/* Base */
+@import url('base/variables.css');
+@import url('base/reset.css');
+
+/* Layout */
+@import url('layout/header.css');
+@import url('layout/panel.css');
+@import url('layout/map.css');
+
+/* Components */
+@import url('components/notifications.css');
+@import url('components/buttons.css');
+@import url('components/dialogs.css');
+@import url('components/trajectories-list.css');
+@import url('components/sections.css');
+@import url('components/leaflet.css');
+@import url('components/storage.css');
+@import url('components/search.css');
+@import url('components/link-button.css');
+/* Login/password sheets: provided by an external authentication plugin if necessary. */
+@import url('components/error-message.css');
+@import url('components/loading-spinner.css');
+@import url('components/particles.css');
+@import url('components/validation-buttons.css');
+@import url('components/confirm-dialog.css');
+@import url('components/language-selector-small.css');
+@import url('components/hidden-input.css');
+@import url('components/dialog-icons.css');
+@import url('components/load-progress.css');
+@import url('components/progress-overlay.css');
+
+/* Responsive */
+@import url('responsive.css');

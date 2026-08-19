@@ -1,0 +1,99 @@
+/**
+ * Styles for MapView - Display on the map
+ */
+
+/* Custom markers */
+.triangle-marker {
+    background: transparent;
+    border: none;
+}
+
+.cross-marker {
+    background: transparent;
+    border: none;
+}
+
+/* Distance labels */
+.edge-distance-label {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.edge-distance-label-geofence {
+    background: rgba(255, 152, 0, 0.9);
+    color: white;
+    border-color: rgba(255, 152, 0, 0.5);
+}
+
+.edge-distance-label-wz {
+    background: rgba(255, 152, 0, 0.9);
+    color: white;
+    border-color: rgba(255, 152, 0, 0.5);
+}
+
+.edge-distance-label-delete {
+    background: rgba(244, 67, 54, 0.9);
+    color: white;
+    border-color: rgba(244, 67, 54, 0.5);
+}
+
+/* Parcel point markers */
+.parcel-point-marker {
+    background: transparent;
+    border: none;
+}
+
+.parcel-point-marker-inner {
+    width: 16px;
+    height: 16px;
+    background: #2196F3;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.geofence-point-marker .parcel-point-marker-inner {
+    background: #FF9800;
+}
+
+.wz-point-marker .parcel-point-marker-inner {
+    background: #FF9800;
+}
+
+.delete-point-marker .parcel-point-marker-inner {
+    background: #F44336;
+}
+
+/* Ruler */
+.ruler-distance-label {
+    background: rgba(156, 39, 176, 0.9);
+    color: white;
+    border: 1px solid rgba(156, 39, 176, 0.5);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.ruler-point-marker {
+    background: transparent;
+    border: none;
+}
+
+.ruler-point-marker-inner {
+    width: 18px;
+    height: 18px;
+    background: #9C27B0;
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}

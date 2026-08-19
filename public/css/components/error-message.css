@@ -1,0 +1,24 @@
+/* Error messages */
+
+.error-message {
+    background: rgba(244, 67, 54, 0.1);
+    color: var(--trajectory-red);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 15px;
+    border: 1px solid var(--trajectory-red);
+    display: none;
+    font-size: 14px;
+}
+
+/* Success messages */
+.success-message {
+    background: rgba(76, 175, 80, 0.1);
+    color: var(--trajectory-green);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 15px;
+    border: 1px solid var(--trajectory-green);
+    font-size: 14px;
+    text-align: center;
+}

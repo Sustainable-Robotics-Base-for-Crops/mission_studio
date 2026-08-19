@@ -1,0 +1,60 @@
+{
+  "fileType": {
+    "value": "mission_order"
+  },
+  "metadata": {},
+  "origin": {
+    "coordinates": {
+      "alt": 317.5,
+      "lat": 45.85,
+      "lon": 3.17
+    },
+    "type": "WGS84"
+  },
+  "sections": [
+    {
+      "columns": [
+        "x",
+        "y",
+        "speed",
+        "working_zone",
+        "punctual"
+      ],
+      "points": [
+        {
+          "speed": {
+            "value": 0.5
+          },
+          "working_zone": {
+            "value": 1
+          },
+          "x": {
+            "value": 0.0
+          },
+          "y": {
+            "value": 0.0
+          }
+        },
+        {
+          "speed": {
+            "value": 0.5
+          },
+          "working_zone": {
+            "value": 1
+          },
+          "x": {
+            "value": 0.0
+          },
+          "y": {
+            "value": 1.0
+          }
+        }
+      ],
+      "sectionType": {
+        "value": "row_path"
+      }
+    }
+  ],
+  "vehicleId": "v1",
+  "version": "3"
+}

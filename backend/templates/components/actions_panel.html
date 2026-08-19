@@ -1,0 +1,94 @@
+<!-- Editing actions panel -->
+<div class="panel-section">
+    <h3 data-i18n="actions.title">Editing Actions</h3>
+    <div class="action-buttons">
+        <button id="drawLineBtn" class="action-btn" data-mode="draw_line">
+            <i class="material-icons">edit</i>
+            <span data-i18n="actions.drawLine">Draw Line</span>
+        </button>
+        <button id="fillParcelBtn" class="action-btn" data-mode="fill_parcel">
+            <i class="material-icons">grid_on</i>
+            <span data-i18n="actions.fillParcel">Fill Parcel</span>
+        </button>
+        <button id="geofenceBtn" class="action-btn" data-mode="geofence">
+            <i class="material-icons">crop_free</i>
+            <span data-i18n="actions.geofence">Geofencing</span>
+        </button>
+        <button id="editWorkingZoneBtn" class="action-btn" data-mode="edit_working_zone">
+            <i class="material-icons">layers</i>
+            <span data-i18n="actions.editWorkingZone">Edit Working Zone</span>
+        </button>
+        <button id="editSpeedBtn" class="action-btn">
+            <i class="material-icons">speed</i>
+            <span data-i18n="actions.editSpeed">Edit Speed</span>
+        </button>
+        <button id="selectZoneBtn" class="action-btn" data-mode="select_zone">
+            <i class="material-icons">touch_app</i>
+            <span data-i18n="actions.selectZone">Select Sections</span>
+        </button>
+        <button id="selectSectionsPolygonBtn" class="action-btn" data-mode="select_sections_polygon">
+            <i class="material-icons">highlight_alt</i>
+            <span data-i18n="actions.selectSectionsZone">Select Sections by Zone</span>
+        </button>
+        <button id="deletePointsZoneBtn" class="action-btn" data-mode="delete_points_zone">
+            <i class="material-icons">delete_sweep</i>
+            <span data-i18n="actions.deletePointsZone">Delete Points by Zone</span>
+        </button>
+        <button id="rulerBtn" class="action-btn" data-mode="ruler">
+            <i class="material-icons">straighten</i>
+            <span data-i18n="actions.ruler">Ruler</span>
+        </button>
+        <button id="connectTurnsBtn" class="action-btn">
+            <i class="material-icons">link</i>
+            <span data-i18n="actions.connectTurns">Connect Headlands</span>
+        </button>
+        <button id="undoBtn" class="action-btn">
+            <i class="material-icons">undo</i>
+            <span data-i18n="actions.undo">Undo</span>
+        </button>
+    </div>
+
+    <!-- Editing validation buttons -->
+    <div id="validationButtons">
+        <button id="finishDrawLineBtn" class="btn btn-success">
+            <i class="material-icons">check</i>
+            <span data-i18n="validation.finishLine">Finish Line</span>
+        </button>
+        <button id="finishGeofenceBtn" class="btn btn-success">
+            <i class="material-icons">check</i>
+            <span data-i18n="validation.finishGeofence">Validate Geofencing</span>
+        </button>
+        <button id="finishEditWorkingZoneBtn" class="btn btn-success">
+            <i class="material-icons">check</i>
+            <span data-i18n="validation.finishEditWorkingZone">Validate Zone (working zone)</span>
+        </button>
+        <button id="cancelEditActionBtn" class="btn btn-secondary">
+            <i class="material-icons">close</i>
+            <span data-i18n="validation.cancelEditAction">Cancel</span>
+        </button>
+        <button id="finishDeletePointsZoneBtn" class="btn btn-danger">
+            <i class="material-icons">check</i>
+            <span data-i18n="validation.finishDeletePointsZone">Validate and Delete Points in Zone</span>
+        </button>
+        <button id="clearGeofenceBtn" class="btn btn-danger">
+            <i class="material-icons">clear</i>
+            <span data-i18n="validation.clearGeofence">Remove Geofencing</span>
+        </button>
+        <button id="clearRulerBtn" class="btn btn-secondary">
+            <i class="material-icons">straighten</i>
+            <span data-i18n="validation.clearRuler">Remove Ruler</span>
+        </button>
+        <button id="finishSelectSectionsBtn" class="btn btn-success">
+            <i class="material-icons">check</i>
+            <span data-i18n="validation.finishSelectSections">Finish Selection</span>
+        </button>
+        <button id="finishSelectSectionsPolygonBtn" class="btn btn-success">
+            <i class="material-icons">check</i>
+            <span data-i18n="validation.finishSelectSectionsZone">Select sections in zone</span>
+        </button>
+        <button id="deleteSelectedSectionsBtn" class="btn btn-danger">
+            <i class="material-icons">delete</i>
+            <span data-i18n="validation.deleteSelectedSections">Delete Selected Sections</span>
+        </button>
+    </div>
+</div>

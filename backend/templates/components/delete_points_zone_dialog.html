@@ -1,0 +1,14 @@
+<!-- Confirmation dialog for deleting points inside the zone -->
+<div id="deletePointsZoneDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog">
+        <h3 data-i18n="dialog.deletePointsZone.title">Delete points in the zone</h3>
+        <p class="dialog-description"><span id="deletePointsZoneCount">0</span> <span data-i18n="dialog.deletePointsZone.description">point(s) in the zone. Sections will be truncated or split if points in the middle are deleted.</span></p>
+        <div class="dialog-actions flex-wrap">
+            <button id="deletePointsZoneConfirm" class="btn btn-danger">
+                <i class="material-icons">delete</i>
+                <span data-i18n="dialog.deletePointsZone.confirm">Yes, delete</span>
+            </button>
+            <button id="deletePointsZoneCancel" class="btn btn-secondary" data-i18n="dialog.fillParcel.cancel">Cancel</button>
+        </div>
+    </div>
+</div>

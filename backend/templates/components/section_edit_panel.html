@@ -1,0 +1,111 @@
+<!-- Section edit panel (integrated into the left panel) -->
+<div id="sectionEditPanel" class="section-edit-panel" style="display: none;">
+    <h3 id="panelSectionEditTitle">Edit Section 1</h3>
+    <div class="section-edit-content">
+        <!-- Step configuration -->
+        <div class="edit-section">
+            <h4 data-i18n="sectionEdit.stepConfig.title">Step Configuration</h4>
+            <div class="step-config">
+                <div class="step-control">
+                    <label for="panelMoveStep" data-i18n="sectionEdit.stepConfig.moveStep">Move (m):</label>
+                    <input type="number" id="panelMoveStep" value="0.5" min="0.01" max="10" step="0.01">
+                </div>
+                <div class="step-control">
+                    <label for="panelRotationStep" data-i18n="sectionEdit.stepConfig.rotationStep">Rotation (°):</label>
+                    <input type="number" id="panelRotationStep" value="5" min="1" max="90" step="1">
+                </div>
+            </div>
+        </div>
+
+        <!-- Move -->
+        <div class="edit-section">
+            <h4 data-i18n="sectionEdit.move.title">Move Section</h4>
+            <div class="move-controls">
+                <button id="panelMoveUp" class="move-btn">↑</button>
+                <div class="move-row">
+                    <button id="panelMoveLeft" class="move-btn">←</button>
+                    <div class="move-center" id="panelMoveStepDisplay">0.5m</div>
+                    <button id="panelMoveRight" class="move-btn">→</button>
+                </div>
+                <button id="panelMoveDown" class="move-btn">↓</button>
+            </div>
+        </div>
+
+        <!-- Rotation -->
+        <div class="edit-section">
+            <h4 data-i18n="sectionEdit.rotate.title">Rotate Section</h4>
+            <div class="rotation-controls">
+                <button id="panelRotateMinus" class="rotate-btn">-</button>
+                <span id="panelRotationValue">0°</span>
+                <button id="panelRotatePlus" class="rotate-btn">+</button>
+            </div>
+        </div>
+
+        <!-- Copy/Paste (single section) -->
+        <div id="panelCopyPasteSection" class="edit-section">
+            <h4 data-i18n="sectionEdit.duplicate.title">Duplicate Section</h4>
+
+            <div class="duplicate-controls" id="duplicateControls">
+                <!-- The count controls how many parallel sections are generated from the selected base section. -->
+                <label for="duplicateSectionCount" data-i18n="sectionEdit.duplicate.count">Number of sections:</label>
+                <div class="duplicate-row">
+                    <input type="number" id="duplicateSectionCount" value="1" min="1" max="100" step="1">
+                </div>
+
+                <label for="duplicateSectionDistance" data-i18n="sectionEdit.duplicate.distance">Distance (m):</label>
+                <div class="duplicate-row">
+                    <input type="number" id="duplicateSectionDistance" value="2.5" min="0.01" max="100" step="0.1">
+                    <select id="duplicateSectionSide" data-i18n-title="sectionEdit.duplicate.side">
+                        <option value="left" data-i18n="sectionEdit.duplicate.side.left">Left</option>
+                        <option value="right" data-i18n="sectionEdit.duplicate.side.right">Right</option>
+                    </select>
+                    <button id="duplicateSectionBtn" class="btn btn-success" data-i18n="sectionEdit.duplicate.btn">Duplicate</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reverse (single section) -->
+        <div id="panelReverseSection" class="edit-section">
+            <button id="panelReverseSectionBtn" class="btn btn-warning full-width" data-i18n="sectionEdit.reverse.title">Reverse Start/End</button>
+        </div>
+
+        <!-- Extend section (single section) -->
+        <div id="panelExtendSection" class="edit-section">
+            <h4 data-i18n="sectionEdit.extend.title">Extend Section</h4>
+            <div id="panelExtendSectionPicker" class="extend-controls">
+                <button id="panelExtendStartBtn" class="btn btn-outline full-width">
+                    <i class="material-icons">first_page</i>
+                    <span data-i18n="sectionEdit.extend.start">Extend Start</span>
+                </button>
+                <button id="panelExtendEndBtn" class="btn btn-outline full-width">
+                    <i class="material-icons">last_page</i>
+                    <span data-i18n="sectionEdit.extend.end">Extend End</span>
+                </button>
+            </div>
+            <div id="panelExtendSectionActive" class="extend-active" style="display: none;">
+                <p class="dialog-description" id="panelExtendSectionHint" data-i18n="sectionEdit.extend.hint">Click on the map to place the new endpoint, then Apply.</p>
+                <p class="extend-distance">
+                    <span data-i18n="sectionEdit.extend.distance">Distance:</span>
+                    <strong id="panelExtendSectionDistance">--</strong>
+                </p>
+                <div class="extend-actions">
+                    <button id="panelExtendSectionApply" class="btn btn-success" disabled>
+                        <i class="material-icons">check</i>
+                        <span data-i18n="sectionEdit.extend.apply">Apply</span>
+                    </button>
+                    <button id="panelExtendSectionCancel" class="btn btn-secondary">
+                        <i class="material-icons">close</i>
+                        <span data-i18n="sectionEdit.extend.cancel">Cancel</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="edit-section">
+            <div class="panel-actions">
+                <button id="finishSectionEdit" class="btn btn-secondary" data-i18n="sectionEdit.finish">Finish Editing</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,43 @@
+/* Map */
+.map-container {
+    flex: 1;
+    position: relative;
+}
+
+#map {
+    height: 100%;
+    width: 100%;
+}
+
+/* Instruction card */
+.instruction-card {
+    /* The instruction widget is kept in the DOM for existing JS hooks, but hidden because it is not useful in the UI. */
+    display: none;
+    position: absolute;
+    top: 60px; /* Moved lower to avoid the search component */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999; /* Below the search component (z-index: 1000) */
+    min-width: 300px;
+    max-width: calc(100% - 320px); /* Leave space for the search component on the right */
+}
+
+.instruction-content {
+    background-color: rgba(43, 43, 43, 0.95);
+    border: 1px solid var(--trajectory-light-brown);
+    border-radius: 8px;
+    padding: 9px 14px;
+    color: var(--trajectory-text);
+    font-size: 12px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.zoom-info {
+    font-size: 10px;
+    color: var(--trajectory-text-secondary);
+    font-weight: 500;
+}

@@ -1,0 +1,44 @@
+/**
+ * Styles for PanelView - Side Panel
+ * 
+ * This file contains only styles specific to PanelView
+ * General panel styles are in layout/panel.css
+ */
+
+/* Instruction card */
+.instruction-card {
+    margin: 16px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.instruction-content {
+    padding: 16px;
+    background: var(--trajectory-dark-gray);
+    color: white;
+    transition: background-color 0.3s;
+}
+
+#instructionText {
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Validation buttons */
+#validationButtons {
+    display: none;
+    padding: 16px;
+    background: var(--trajectory-gray);
+    border-top: 1px solid var(--trajectory-dark-gray);
+}
+
+#validationButtons button {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+#validationButtons button:last-child {
+    margin-bottom: 0;
+}

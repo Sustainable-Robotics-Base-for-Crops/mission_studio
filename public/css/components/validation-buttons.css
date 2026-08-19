@@ -1,0 +1,23 @@
+/* Edit validation buttons */
+
+#validationButtons {
+    display: none;
+    margin-top: 15px;
+}
+
+#validationButtons button {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+#validationButtons button:last-child {
+    margin-bottom: 0;
+}
+
+#validationButtons .material-icons {
+    font-size: 16px;
+}
+
+#clearRulerBtn {
+    margin-top: 8px;
+}

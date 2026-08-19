@@ -1,0 +1,55 @@
+:root {
+    --bg-app: #f4f7f3;
+    --surface: #ffffff;
+    --surface-subtle: #f8faf8;
+    --surface-selected: #eaf7ee;
+    --border: #d8e1d9;
+    --border-strong: #aebbaf;
+    --text-primary: #17211b;
+    --text-secondary: #526059;
+    --text-muted: #758078;
+    --primary-700: #166534;
+    --primary-800: #14532d;
+    --primary-900: #0f3d24;
+    --primary-100: #dcfce7;
+    --focus: #2563eb;
+    --color-planned: #2563eb;
+    --color-selected: #7c3aed;
+    --color-valid: #15803d;
+    --color-transit: #64748b;
+    --color-warning: #b45309;
+    --color-danger: #b91c1c;
+    --color-autonomy: #0e7490;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --radius-control: 8px;
+    --radius-panel: 10px;
+    --radius-modal: 12px;
+    --radius-chip: 999px;
+    --shadow-panel: 0 8px 24px rgba(15, 23, 42, 0.12);
+    --shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.08);
+    --font:
+        'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    --control-h: 40px;
+    --focus-w: 2px;
+    --focus-off: 2px;
+    --rail: 64px;
+    --appbar: 56px;
+    --context-width: 304px;
+    --inspector-width: 360px;
+    --simulation-height: 240px;
+    --handle: 6px;
+    --radius: 8px;
+    --shadow: var(--shadow-subtle);
+}
+
+@media (pointer: coarse) {
+    :root {
+        --control-h: 48px;
+    }
+}

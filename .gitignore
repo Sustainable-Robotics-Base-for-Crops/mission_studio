@@ -1,0 +1,76 @@
+# Variables d'environnement locales : elles peuvent contenir des clés Firebase
+# ou des secrets d'application et ne doivent pas être versionnées.
+.env
+.env.*
+!.env.example
+!env.example
+
+# Environnements virtuels Python locaux.
+venv/
+.venv/
+env/
+ENV/
+
+# Caches Python et fichiers générés par l'interpréteur.
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+
+# Artefacts de packaging et de build Python.
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Caches et rapports des outils de test, typage et lint.
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+.coverage*
+htmlcov/
+coverage.xml
+
+# Dépendances et artefacts front éventuels pour les assets statiques.
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+
+# Build Vite de la coquille Mission Studio (régénéré par `npm run build`).
+public/studio/
+frontend/dist/
+
+# Secrets et identifiants Firebase/Admin SDK à garder hors du dépôt.
+serviceAccount*.json
+firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+credentials.json
+
+# Fichiers temporaires, logs et données locales de runtime.
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+backend/data/*.sqlite
+backend/data/*.sqlite-*
+
+# Fichiers locaux d'IDE/éditeur et métadonnées système.
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Notice utilisateur servie par l'éditeur (exception au *.pdf global)
+!public/docs/
+!public/docs/*.pdf

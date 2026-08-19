@@ -1,0 +1,17 @@
+/* Link-type buttons (used in login and other pages) */
+
+.link-btn {
+    background: none;
+    border: none;
+    color: var(--trajectory-primary);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: underline;
+    padding: 0;
+    margin-left: 5px;
+}
+
+.link-btn:hover {
+    color: var(--trajectory-primary);
+}

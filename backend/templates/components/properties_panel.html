@@ -1,0 +1,20 @@
+<!-- Properties panel -->
+<div class="panel-section">
+    <h3 data-i18n="properties.title">Properties</h3>
+    <div class="form-group">
+        <label for="fileName" data-i18n="properties.fileName">File name:</label>
+        <input type="text" id="fileName" value="new_trajectory.json">
+    </div>
+    <div class="form-group">
+        <label for="vehicleId" data-i18n="properties.vehicleId">Vehicle ID:</label>
+        <input type="text" id="vehicleId" value="v1">
+    </div>
+    <div class="form-group">
+        <label for="fileType" data-i18n="properties.fileType">Type:</label>
+        <select id="fileType">
+            {% for file_type in allowed_file_types %}
+            <option value="{{ file_type }}">{{ file_type }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>

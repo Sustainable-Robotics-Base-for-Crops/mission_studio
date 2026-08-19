@@ -1,0 +1,18 @@
+<!-- Edit speed dialog: replace the speed value of every point in the trajectory -->
+<div id="editSpeedDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog">
+        <h3 data-i18n="dialog.editSpeed.title">Edit speed for the whole trajectory</h3>
+        <p class="dialog-description" data-i18n="dialog.editSpeed.description">Set a new speed value for every point of the trajectory.</p>
+        <div class="form-group">
+            <label for="editSpeedValue" data-i18n="dialog.editSpeed.value">Speed (m/s):</label>
+            <input type="number" id="editSpeedValue" step="0.1" min="0" max="50" value="0.5">
+        </div>
+        <div class="dialog-actions flex-wrap">
+            <button id="editSpeedConfirm" class="btn btn-primary">
+                <i class="material-icons">check_circle</i>
+                <span data-i18n="dialog.editSpeed.confirm">Apply</span>
+            </button>
+            <button id="editSpeedCancel" class="btn btn-secondary" data-i18n="dialog.editSpeed.cancel">Cancel</button>
+        </div>
+    </div>
+</div>

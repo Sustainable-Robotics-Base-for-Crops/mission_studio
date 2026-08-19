@@ -1,0 +1,261 @@
+/* Section editing panel (integrated in the left panel) */
+.section-edit-panel {
+    display: none; /* Hidden by default, displayed via style.display */
+}
+
+.section-edit-panel h3 {
+    margin: 0 0 20px 0;
+    color: var(--trajectory-orange);
+    font-size: 16px;
+    text-align: center;
+    border-bottom: 1px solid var(--trajectory-light-brown);
+    padding-bottom: 8px;
+}
+
+/* Hide regular panel sections during editing */
+.left-panel.hide-sections .panel-section:not(.section-edit-panel) {
+    display: none;
+}
+
+/* Section editing dialog */
+.section-edit-dialog {
+    max-width: 500px;
+}
+
+.section-edit-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.edit-section {
+    border-bottom: 1px solid var(--trajectory-light-brown);
+    padding-bottom: 15px;
+}
+
+.edit-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.edit-section h4 {
+    margin: 0 0 10px 0;
+    color: var(--trajectory-orange);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Step configuration */
+.step-config {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.step-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.step-control label {
+    font-size: 12px;
+    color: var(--trajectory-text);
+    min-width: 100px;
+}
+
+.step-control input {
+    width: 60px;
+    padding: 4px 6px;
+    background-color: var(--trajectory-dark-gray);
+    border: 1px solid var(--trajectory-light-brown);
+    border-radius: 4px;
+    color: var(--trajectory-text);
+    text-align: center;
+    font-size: 12px;
+}
+
+.step-control input:focus {
+    border-color: var(--trajectory-primary);
+    outline: none;
+}
+
+/* Move controls */
+.move-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.move-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.move-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--trajectory-light-brown);
+    background-color: var(--trajectory-dark-gray);
+    color: var(--trajectory-text);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.move-btn:hover {
+    background-color: var(--trajectory-primary);
+    border-color: var(--trajectory-primary);
+}
+
+.move-center {
+    width: 60px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--trajectory-text-secondary);
+}
+
+/* Rotation controls */
+.rotation-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.rotate-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--trajectory-light-brown);
+    background-color: var(--trajectory-dark-gray);
+    color: var(--trajectory-text);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.rotate-btn:hover {
+    background-color: var(--trajectory-orange);
+    border-color: var(--trajectory-orange);
+}
+
+#rotationValue {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--trajectory-text);
+    min-width: 50px;
+    text-align: center;
+}
+
+.paste-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.paste-controls input {
+    width: 60px;
+    padding: 6px 8px;
+    background-color: var(--trajectory-dark-gray);
+    border: 1px solid var(--trajectory-light-brown);
+    border-radius: 4px;
+    color: var(--trajectory-text);
+    text-align: center;
+}
+
+.full-width {
+    width: 100%;
+}
+
+/* Extend section block */
+.extend-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.extend-active {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    border: 1px dashed var(--trajectory-orange);
+    border-radius: 6px;
+    background-color: rgba(255, 152, 0, 0.08);
+}
+
+.extend-active .dialog-description {
+    margin: 0;
+    color: var(--trajectory-text);
+    font-size: 13px;
+}
+
+.extend-distance {
+    margin: 0;
+    font-size: 13px;
+    color: var(--trajectory-text);
+}
+
+.extend-distance strong {
+    color: var(--trajectory-orange);
+    margin-left: 6px;
+}
+
+.extend-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.extend-actions .btn {
+    flex: 1;
+}
+
+/* Panel actions */
+.panel-actions {
+    display: grid;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+/* Outline buttons */
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid var(--trajectory-light-brown);
+    color: var(--trajectory-text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    margin: 2px;
+}
+
+.btn-outline:hover {
+    background-color: var(--trajectory-light-brown);
+    border-color: var(--trajectory-primary);
+}
+
+.btn-outline.active {
+    background-color: var(--trajectory-primary);
+    border-color: var(--trajectory-primary);
+    color: white;
+}
+
+/* Button groups */
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+}

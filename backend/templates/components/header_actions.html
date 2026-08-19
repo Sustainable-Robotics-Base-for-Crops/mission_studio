@@ -1,0 +1,37 @@
+<!-- Header Actions -->
+<div class="header-actions">
+    <a id="userManualBtn" class="btn btn-secondary" href="docs/Notice_Editeur_de_Trajectoire.pdf" target="_blank" rel="noopener noreferrer" title="" data-i18n-title="btn.userManual">
+        <i class="material-icons">menu_book</i>
+        <span class="btn-text" data-i18n="btn.userManual">Notice</span>
+    </a>
+    <!-- Language selector -->
+    <div class="language-selector">
+        <select id="languageSelect" class="btn btn-secondary">
+            <option value="fr">🇫🇷 FR</option>
+            <option value="en">🇬🇧 EN</option>
+            <option value="it">🇮🇹 IT</option>
+            <option value="es">🇪🇸 ES</option>
+            <option value="pl">🇵🇱 PL</option>
+            <option value="nl">🇳🇱 NL</option>
+            <option value="de">🇩🇪 DE</option>
+        </select>
+    </div>
+    <button id="newBtn" class="btn btn-primary" title="" data-i18n-title="btn.new">
+        <i class="material-icons">add</i>
+        <span class="btn-text" data-i18n="btn.new">New</span>
+    </button>
+    <button id="loadLocalBtn" class="btn btn-success" title="" data-i18n-title="btn.loadLocal">
+        <i class="material-icons">upload_file</i>
+        <span class="btn-text" data-i18n="btn.loadLocal">Load Local</span>
+    </button>
+    <input type="file" id="localFileInput" accept=".json">
+    <button id="saveBtn" class="btn btn-success" title="" data-i18n-title="btn.save">
+        <i class="material-icons">save</i>
+        <span class="btn-text" data-i18n="btn.save">Save</span>
+    </button>
+    <span id="pluginHeaderActions" class="plugin-header-actions">
+        {% for partial in plugin_header_extra_partials %}
+        {% include partial %}
+        {% endfor %}
+    </span>
+</div>

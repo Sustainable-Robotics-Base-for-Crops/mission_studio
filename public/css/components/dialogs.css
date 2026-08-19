@@ -1,0 +1,163 @@
+/* Dialogs */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.dialog {
+    background: linear-gradient(135deg, var(--trajectory-gray), rgba(43, 43, 43, 0.95));
+    border: 1px solid rgba(212, 145, 84, 0.3);
+    border-radius: 16px;
+    padding: 28px;
+    min-width: 500px;
+    max-width: 650px;
+    max-height: 85vh;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(212, 145, 84, 0.1);
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.dialog h3 {
+    margin-bottom: 15px !important;
+    color: var(--trajectory-primary);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(212, 145, 84, 0.2);
+}
+
+.dialog .form-group {
+    margin-bottom: 16px;
+}
+
+.dialog-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 0px !important;
+    padding-top: 20px;
+    border-top: 1px solid rgba(161, 136, 127, 0.2);
+}
+
+.dialog-actions.flex-wrap {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Connect turns dialog with scroll */
+.dialog-connect-turns {
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    padding: 20px;
+    /* Override .dialog padding to avoid double padding */
+}
+
+.dialog-connect-turns h3 {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+    /* Inherits style from .dialog h3 */
+}
+
+.dialog-scrollable-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 90px; /* Lets flexbox work properly */
+    padding-right: 8px;
+    margin-right: -8px;
+}
+
+.dialog-connect-turns .dialog-actions {
+    flex-shrink: 0;
+    margin-top: 20px;
+}
+
+/* Loop option: checkbox + label (the label should take up remaining space, not the checkbox) */
+.dialog-connect-turns .connect-turns-checkbox-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    /* Prevent any child from behaving like a full-width form column */
+    width: 100%;
+}
+
+/* Cancel .form-group input { width: 100% } (panel.css): otherwise the checkbox takes the whole flex line and the text is cramped on a narrow column */
+.dialog-connect-turns .connect-turns-checkbox-row input[type="checkbox"] {
+    margin-top: 4px;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 1.125rem;
+    max-width: none;
+    cursor: pointer;
+}
+
+.dialog-connect-turns .connect-turns-checkbox-row label {
+    cursor: pointer;
+    font-weight: normal;
+    line-height: 1.4;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
+    display: block;
+    text-align: left;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Scrollbar style for better UX */
+.dialog-scrollable-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dialog-scrollable-content::-webkit-scrollbar-track {
+    background: var(--trajectory-dark-gray);
+    border-radius: 4px;
+}
+
+.dialog-scrollable-content::-webkit-scrollbar-thumb {
+    background: var(--trajectory-orange);
+    border-radius: 4px;
+}
+
+.dialog-scrollable-content::-webkit-scrollbar-thumb:hover {
+    background: #e67e22;
+}

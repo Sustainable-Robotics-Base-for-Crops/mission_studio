@@ -1,0 +1,118 @@
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: var(--trajectory-gray);
+    border-bottom: 1px solid var(--trajectory-light-brown);
+}
+
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.header-logo {
+    width: 48px;
+    height: 42px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 300;
+    margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.plugin-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.plugin-header-actions [data-plugin-action-position="end"] {
+    order: 100;
+}
+
+/* Language selector */
+.language-selector {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.language-selector select {
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.95), rgba(43, 43, 43, 0.95)) !important;
+    color: var(--trajectory-text) !important;
+    border: 1px solid rgba(212, 145, 84, 0.2) !important;
+    padding: 8px 32px 8px 12px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    border-radius: 10px !important;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
+                0 0 0 0 rgba(212, 145, 84, 0) !important;
+    position: relative;
+    min-width: 90px;
+    backdrop-filter: blur(10px);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23D49154' d='M7 10L2 5h10z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 14px !important;
+}
+
+.language-selector select:hover {
+    background: linear-gradient(135deg, rgba(212, 145, 84, 0.15), rgba(66, 66, 66, 0.95)) !important;
+    border-color: var(--trajectory-primary) !important;
+    box-shadow: 0 4px 16px rgba(212, 145, 84, 0.3),
+                0 0 0 1px rgba(212, 145, 84, 0.2) !important;
+    transform: translateY(-1px);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23FF9800' d='M7 10L2 5h10z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 14px !important;
+}
+
+.language-selector select:focus {
+    outline: none !important;
+    border-color: var(--trajectory-primary) !important;
+    box-shadow: 0 4px 20px rgba(212, 145, 84, 0.4),
+                0 0 0 3px rgba(212, 145, 84, 0.15) !important;
+    transform: translateY(-1px);
+}
+
+.language-selector select:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.language-selector select option {
+    background: var(--trajectory-gray) !important;
+    color: var(--trajectory-text) !important;
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+}
+
+.language-selector select option:hover {
+    background: rgba(212, 145, 84, 0.2) !important;
+}
+
+.language-selector select option:checked {
+    background: var(--trajectory-primary) !important;
+    color: white !important;
+}

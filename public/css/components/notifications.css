@@ -1,0 +1,109 @@
+/* Notifications/Toasts */
+.notification {
+    background: var(--trajectory-gray);
+    color: var(--trajectory-text);
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideInRight 0.3s ease-out;
+    border-left: 4px solid var(--trajectory-primary);
+    min-width: 300px;
+    max-width: 400px;
+}
+
+/* Specific styles by notification type */
+.notification.success {
+    border-left-color: var(--trajectory-green);
+}
+
+.notification.error {
+    border-left-color: var(--trajectory-red);
+}
+
+.notification.warning {
+    border-left-color: var(--trajectory-orange);
+}
+
+.notification.info {
+    border-left-color: var(--trajectory-blue);
+}
+
+.notification-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.notification-message {
+    font-size: 13px;
+    color: var(--trajectory-text-secondary);
+    line-height: 1.4;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--trajectory-text-secondary);
+    cursor: pointer;
+    font-size: 20px;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+
+.notification-close:hover {
+    color: var(--trajectory-text);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.notification.hiding {
+    animation: slideOutRight 0.3s ease-out forwards;
+}
+
+/* Container for notifications */
+#notificationContainer {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    max-width: 400px;
+}

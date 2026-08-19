@@ -1,0 +1,462 @@
+/* Position search - Modern design */
+.search-container {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    min-width: 280px;
+    max-width: 400px;
+    animation: slideInRight 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+/* Entry animation for the search container */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 
+                0 2px 8px rgba(0, 0, 0, 0.08);
+    padding: 4px 4px 4px 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    position: relative;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* Focus effect on the container */
+.search-box:focus-within {
+    box-shadow: 0 6px 28px rgba(25, 118, 210, 0.2),
+                0 2px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    border-color: rgba(25, 118, 210, 0.3);
+}
+
+/* Search icon on the left - clickable on small screens */
+.search-icon {
+    color: #666;
+    font-size: 20px;
+    margin-right: 12px;
+    transition: color 0.2s ease;
+    flex-shrink: 0;
+    display: inline-block;
+    pointer-events: auto;
+}
+
+.search-toggle {
+    cursor: pointer;
+    user-select: none;
+    pointer-events: auto;
+    z-index: 1;
+    position: relative;
+}
+
+.search-toggle:hover {
+    color: #D49154;
+}
+
+.search-box:focus-within .search-icon {
+    color: #D49154;
+}
+
+/* Wrapper for the field and button - allows expansion animation */
+/* By default, hidden (for tablets and small screens) */
+.search-input-wrapper {
+    display: none;
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    flex: 0;
+    min-width: 0;
+}
+
+/* On large screens only (desktop), always visible */
+@media (min-width: 1024px) {
+    .search-input-wrapper {
+        display: flex !important;
+        align-items: center;
+        flex: 1;
+        gap: 0;
+        min-width: 0;
+        width: auto !important;
+        opacity: 1;
+    }
+}
+
+/* Input field */
+.search-box input {
+    flex: 1;
+    padding: 12px 8px;
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    outline: none;
+    color: #333;
+    font-weight: 400;
+    min-width: 0;
+}
+
+.search-box input::placeholder {
+    color: #999;
+    font-weight: 400;
+    transition: color 0.2s ease;
+}
+
+.search-box:focus-within input::placeholder {
+    color: #bbb;
+}
+
+/* Modern search button */
+.search-box .search-btn {
+    padding: 10px 14px;
+    min-width: auto;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #D49154 0%, #b87a3f 100%);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.search-box .search-btn:hover {
+    background: linear-gradient(135deg, #B87A3F 0%, #9A6A2E 100%);
+    box-shadow: 0 4px 12px rgb(184, 122, 63, 0.2);
+}
+
+.search-box .search-btn:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 6px rgb(184, 122, 63, 0.2);
+}
+
+.search-box .search-btn .material-icons {
+    font-size: 20px;
+    transition: transform 0.2s ease;
+}
+
+.search-box .search-btn:hover .material-icons {
+    transform: translateX(2px);
+}
+
+/* List of address suggestions returned by the geocoding provider */
+.search-suggestions {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 1002;
+    max-height: 280px;
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(25, 118, 210, 0.16);
+    border-radius: 16px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 6px;
+}
+
+.search-suggestion-item {
+    width: 100%;
+    border: none;
+    background: transparent;
+    border-radius: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: #333;
+}
+
+.search-suggestion-item:hover,
+.search-suggestion-item.selected {
+    background: rgba(212, 145, 84, 0.14);
+}
+
+.search-suggestion-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.25;
+}
+
+.search-suggestion-meta {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.2;
+}
+
+/* Geolocation button (user's position) */
+.geolocation-btn {
+    margin-left: 8px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 
+                0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.geolocation-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 6px 28px rgba(25, 118, 210, 0.2),
+                0 2px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    border-color: rgba(25, 118, 210, 0.3);
+}
+
+.geolocation-btn:active {
+    transform: scale(0.98) translateY(-1px);
+    box-shadow: 0 2px 6px rgba(25, 118, 210, 0.3);
+}
+
+.geolocation-btn .material-icons {
+    font-size: 22px;
+    color: #4285F4;
+    transition: transform 0.2s ease;
+}
+
+.geolocation-btn:hover .material-icons {
+    transform: scale(1.1);
+}
+
+/* Responsive adaptation for search - Tablets and small screens */
+@media (max-width: 1440px) {
+    .search-container {
+        top: 12px;
+        right: 12px;
+        min-width: auto;
+        max-width: calc(100vw - 340px);
+    }
+
+    .search-box {
+        padding: 8px;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        cursor: pointer;
+    }
+
+    .search-icon {
+        font-size: 20px;
+        margin-right: 0;
+        color: #666;
+        display: inline-block;
+        pointer-events: auto;
+        z-index: 2;
+        position: relative;
+    }
+
+    .search-toggle {
+        pointer-events: auto;
+        z-index: 2;
+        position: relative;
+    }
+
+    /* Geolocation button on small screens */
+    .geolocation-btn {
+        margin-left: 8px;
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Hidden by default on small screens - IMPORTANT */
+    .search-input-wrapper {
+        display: none !important;
+        width: 0 !important;
+        overflow: hidden;
+        opacity: 0;
+        flex: 0;
+        min-width: 0;
+    }
+
+    /* Expanded state - expansion animation */
+    .search-box.expanded .search-input-wrapper {
+        display: flex !important;
+        width: auto !important;
+        opacity: 1;
+        flex: 1;
+        animation: expandSearch 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .search-box.expanded {
+        border-radius: 24px;
+        width: auto;
+        min-width: 220px;
+        padding: 4px 4px 4px 12px;
+        justify-content: flex-start;
+        height: auto;
+    }
+
+    .search-box.expanded .search-suggestions {
+        min-width: 280px;
+    }
+
+    .search-box.expanded .search-icon {
+        margin-right: 10px;
+    }
+
+    .search-box input {
+        padding: 10px 6px;
+        font-size: 14px;
+    }
+
+    .search-box .search-btn {
+        padding: 8px 12px;
+    }
+
+    .search-box .search-btn .material-icons {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .search-container {
+        min-width: auto;
+        max-width: calc(100vw - 20px);
+        top: 8px;
+        right: 8px;
+    }
+
+    .search-box {
+        padding: 8px;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        justify-content: center;
+        min-width: 44px;
+        position: relative;
+        cursor: pointer;
+    }
+
+    .search-icon {
+        font-size: 20px;
+        margin-right: 0;
+        color: #666;
+        display: inline-block;
+        pointer-events: auto;
+        z-index: 2;
+        position: relative;
+    }
+
+    .search-toggle {
+        pointer-events: auto;
+        z-index: 2;
+        position: relative;
+    }
+
+    /* Hidden by default on very small screens - IMPORTANT */
+    .search-input-wrapper {
+        display: none !important;
+        width: 0 !important;
+        overflow: hidden;
+        opacity: 0;
+        flex: 0;
+        min-width: 0;
+    }
+
+    /* Expanded state on very small screens */
+    .search-box.expanded {
+        border-radius: 24px;
+        width: auto;
+        min-width: 180px;
+        padding: 4px 4px 4px 12px;
+        justify-content: flex-start;
+        height: auto;
+    }
+
+    .search-box.expanded .search-suggestions {
+        min-width: min(320px, calc(100vw - 20px));
+        right: auto;
+    }
+
+    .search-box.expanded .search-input-wrapper {
+        display: flex !important;
+        width: auto !important;
+        opacity: 1;
+        flex: 1;
+        animation: expandSearch 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        margin-left: 8px;
+    }
+
+    .search-box input {
+        padding: 8px 4px;
+        font-size: 13px;
+    }
+
+    .search-box input::placeholder {
+        font-size: 12px;
+    }
+
+    .search-box .search-btn {
+        padding: 7px 10px;
+    }
+
+    .search-box .search-btn .material-icons {
+        font-size: 16px;
+    }
+
+    .instruction-card {
+        top: 50px;
+        max-width: calc(100% - 20px);
+        min-width: auto;
+        left: 10px;
+        right: 10px;
+        transform: none;
+    }
+}
+
+/* Expansion animation */
+@keyframes expandSearch {
+    from {
+        width: 0;
+        opacity: 0;
+        margin-left: 0;
+    }
+    to {
+        width: auto;
+        opacity: 1;
+        margin-left: 8px;
+    }
+}
+
+.leaflet-control-container .leaflet-control a:hover {
+    color: #3498db;
+}

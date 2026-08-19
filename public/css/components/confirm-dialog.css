@@ -1,0 +1,42 @@
+/* Confirmation dialog */
+
+#confirmDialog {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 20000;
+    align-items: center;
+    justify-content: center;
+}
+
+#confirmDialog > div {
+    background: var(--trajectory-gray);
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 400px;
+    margin: 20px;
+}
+
+#confirmTitle {
+    margin-bottom: 15px;
+    color: var(--trajectory-text);
+}
+
+#confirmMessage {
+    margin-bottom: 20px;
+    color: var(--trajectory-text-secondary);
+}
+
+#confirmDialog .dialog-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+#confirmDialog .dialog-actions button {
+    min-width: 80px;
+}

@@ -1,0 +1,207 @@
+/* List of trajectories */
+/* Progress view for loading */
+.load-progress {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: rgba(43, 43, 43, 0.5);
+    border-radius: 8px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background-color: var(--trajectory-dark-gray);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--trajectory-primary), var(--trajectory-orange));
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.progress-text {
+    text-align: center;
+    color: var(--trajectory-text-secondary);
+    font-size: 13px;
+    margin: 0;
+}
+
+.trajectories-list {
+    max-height: 500px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    padding: 4px;
+}
+
+/* Custom scrollbar for the list */
+.trajectories-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.trajectories-list::-webkit-scrollbar-track {
+    background: var(--trajectory-dark-gray);
+    border-radius: 4px;
+}
+
+.trajectories-list::-webkit-scrollbar-thumb {
+    background: var(--trajectory-gray);
+    border-radius: 4px;
+}
+
+.trajectories-list::-webkit-scrollbar-thumb:hover {
+    background: var(--trajectory-light-brown);
+}
+
+.trajectory-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    margin-bottom: 6px;
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.6), rgba(43, 43, 43, 0.8));
+    border: 1px solid rgba(161, 136, 127, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.trajectory-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--trajectory-primary);
+    transform: scaleY(0);
+    transition: transform 0.25s ease;
+}
+
+.trajectory-item:hover {
+    background: linear-gradient(135deg, rgba(66, 66, 66, 0.8), rgba(43, 43, 43, 0.95));
+    border-color: var(--trajectory-primary);
+    box-shadow: 0 4px 12px rgba(212, 145, 84, 0.2);
+}
+
+.trajectory-item:hover::before {
+    transform: scaleY(1);
+}
+
+.trajectory-item.selected {
+    border-color: var(--trajectory-green);
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15), rgba(66, 66, 66, 0.8));
+}
+
+.trajectory-item.selected::before {
+    background: var(--trajectory-green);
+    transform: scaleY(1);
+}
+
+.trajectory-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.trajectory-info h4 {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--trajectory-text);
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    max-height: calc(1.4em * 2); /* 2 lines */
+    word-break: break-word;
+}
+
+.trajectory-info h4 .storage-indicator {
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+.trajectory-info p {
+    font-size: 12px;
+    color: var(--trajectory-text-secondary);
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.trajectory-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-left: 20px;
+}
+
+.trajectory-action {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.trajectory-action .material-icons {
+    font-size: 18px;
+}
+
+.trajectory-action .btn-text {
+    display: inline;
+}
+
+.trajectory-action.load-btn {
+    background: linear-gradient(135deg, var(--trajectory-primary), var(--trajectory-orange));
+    color: white;
+    box-shadow: 0 2px 8px rgba(212, 145, 84, 0.3);
+}
+
+.trajectory-action.load-btn:hover {
+    background: linear-gradient(135deg, var(--trajectory-orange), var(--trajectory-primary));
+    box-shadow: 0 4px 12px rgba(212, 145, 84, 0.5);
+    transform: translateY(-2px);
+}
+
+.trajectory-action.load-btn:active {
+    transform: translateY(0);
+}
+
+.trajectory-action.delete-btn {
+    background: rgba(244, 67, 54, 0.1);
+    color: var(--trajectory-red);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.trajectory-action.delete-btn:hover {
+    background: var(--trajectory-red);
+    color: white;
+    border-color: var(--trajectory-red);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+    transform: translateY(-2px);
+}
+
+.trajectory-action.delete-btn:active {
+    transform: translateY(0);
+}

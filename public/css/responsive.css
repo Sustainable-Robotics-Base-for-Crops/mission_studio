@@ -1,0 +1,280 @@
+/* Responsive - Small screens (< 1024px): buttons with icons only */
+@media (max-width: 1024px) {
+    /* Top bar buttons */
+    .header-actions .btn .btn-text {
+        display: none;
+    }
+    
+    .header-actions .btn {
+        min-width: 44px;
+        padding: 10px 12px;
+    }
+    
+    .header-actions .btn .material-icons {
+        margin: 0;
+    }
+    
+    /* Buttons in the file explorer */
+    .trajectory-action {
+        min-width: 44px;
+        padding: 8px 10px;
+    }
+    
+    .trajectory-action .btn-text {
+        display: none;
+    }
+    
+    .trajectory-action .material-icons {
+        margin: 0;
+        font-size: 20px;
+    }
+    
+    .trajectory-actions {
+        gap: 6px;
+    }
+    
+    .trajectory-item {
+        padding: 12px 14px;
+    }
+    
+    .trajectory-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .trajectory-info h4 {
+        font-size: 14px;
+    }
+    
+    .trajectory-info p {
+        font-size: 11px;
+    }
+}
+
+/* Responsive - Medium screens (1024px - 1440px): buttons with text only */
+@media (min-width: 1025px) and (max-width: 1440px) {
+    /* Top bar buttons */
+    .header-actions .btn .material-icons {
+        display: none;
+    }
+    
+    .header-actions .btn {
+        padding: 10px 16px;
+    }
+    
+    /* Buttons in the file explorer */
+    .trajectory-action .material-icons {
+        display: none;
+    }
+    
+    .trajectory-action {
+        padding: 8px 14px;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .left-panel {
+        width: 280px;
+    }
+
+    .header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .header h1 {
+        font-size: 18px;
+        font-weight: 400;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+    }
+
+    .header-actions::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+
+    .header-actions .btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        gap: 4px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .header-actions .btn .material-icons {
+        font-size: 18px;
+    }
+
+    .instruction-card {
+        /* Keep the map usable on narrow screens: the search bar is compact here,
+           so the instruction card no longer needs to reserve a wide right gutter. */
+        top: 58px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: min(360px, calc(100% - 24px));
+        min-width: 0;
+        max-width: none;
+        pointer-events: none;
+    }
+
+    .instruction-card .instruction-content {
+        /* Long translated instructions should never grow until they cover the map. */
+        max-height: 28vh;
+        overflow: hidden;
+        padding: 8px 10px;
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .dialog {
+        min-width: 90vw;
+        max-width: 90vw;
+        margin: 20px;
+        padding: 16px;
+    }
+
+    /* Connect turns dialog - mobile/tablet adaptation */
+    .dialog-connect-turns {
+        max-height: 85vh;
+        min-height: auto;
+    }
+
+    .dialog-connect-turns h3 {
+        font-size: 16px;
+        margin-bottom: 16px;
+    }
+
+    .dialog-scrollable-content {
+        max-height: calc(85vh - 120px); /* Total height minus header and actions */
+    }
+
+    .dialog .form-group {
+        margin-bottom: 14px;
+    }
+
+    .dialog .form-group label {
+        font-size: 14px;
+    }
+
+    .dialog .form-group input,
+    .dialog .form-group select {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .button-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .button-group .btn {
+        width: 100%;
+    }
+
+    .dialog-actions {
+        margin-top: 16px;
+        flex-wrap: wrap;
+    }
+
+    .dialog-actions .btn {
+        flex: 1;
+        min-width: 120px;
+    }
+}
+
+/* On very small screens, reduce button size */
+@media (max-width: 480px) {
+    .header {
+        padding: 8px 10px;
+    }
+
+    .header h1 {
+        font-size: 16px;
+    }
+
+    .header-actions {
+        gap: 4px;
+    }
+
+    .header-actions .btn {
+        padding: 6px 8px;
+        font-size: 11px;
+        gap: 3px;
+    }
+
+    .header-actions .btn .material-icons {
+        font-size: 16px;
+    }
+
+    .instruction-card {
+        top: 56px;
+        width: calc(100% - 16px);
+    }
+
+    .instruction-card .instruction-content {
+        /* Hide secondary zoom metadata first so the actual instruction stays visible. */
+        max-height: 72px;
+        padding: 6px 8px;
+    }
+
+    .instruction-card .zoom-info {
+        display: none;
+    }
+}
+
+/* Tablet adaptation */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .header {
+        padding: 12px 16px;
+    }
+
+    .header h1 {
+        font-size: 20px;
+    }
+
+    .header-actions .btn {
+        padding: 7px 12px;
+        font-size: 13px;
+        gap: 6px;
+    }
+
+    .header-actions .btn .material-icons {
+        font-size: 20px;
+    }
+
+    .dialog-connect-turns {
+        max-height: 80vh;
+    }
+
+    .dialog-scrollable-content {
+        max-height: calc(80vh - 120px);
+    }
+}
+
+/* Hide map instructions on compact screens so they never cover the editable map. */
+@media (max-width: 800px), (max-height: 400px) {
+    .instruction-card {
+        display: none;
+    }
+}

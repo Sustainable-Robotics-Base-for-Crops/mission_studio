@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trajectory Editor</title>
+    {% if app_logo_url %}
+    <link rel="icon" type="image/png" href="{{ app_logo_url }}">
+    <link rel="apple-touch-icon" href="{{ app_logo_url }}">
+    {% endif %}
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Material Design Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Modular CSS -->
+    <link rel="stylesheet" href="css/modules/map-view.css">
+    <link rel="stylesheet" href="css/modules/panel-view.css">
+    
+    <!-- I18n (Internationalization) -->
+    <script src="js/core/i18n.js"></script>
+
+    <!-- Frontend plugins registry (auth/cloud/extra UI) -->
+    <script src="js/core/plugins.js"></script>
+
+    <!-- Private plugin injections inside <head> -->
+    {% block plugin_head_scripts %}
+    {% for partial in plugin_head_partials %}
+    {% include partial %}
+    {% endfor %}
+    {% endblock %}
+
+    <!-- Server-injected map configuration (provider, URL, key, fallback). -->
+    <script type="application/json" id="trajectoryEditorMapConfig">
+        {{ map_config_json | safe }}
+    </script>
+    <script>
+        window.TRAJECTORY_EDITOR_MAP_CONFIG = JSON.parse(
+            document.getElementById('trajectoryEditorMapConfig').textContent
+        );
+    </script>
+
+    <!-- UI configuration derived from server permissions. -->
+    <script type="application/json" id="trajectoryEditorUiConfig">
+        {{ ui_config_json | safe }}
+    </script>
+    <script>
+        window.TRAJECTORY_EDITOR_UI_CONFIG = JSON.parse(
+            document.getElementById('trajectoryEditorUiConfig').textContent
+        );
+    </script>
+    
+    <!-- New modular modules -->
+    <script type="module" src="js/core/EventBus.js"></script>
+    <script type="module" src="js/services/ApiService.js"></script>
+    <script type="module" src="js/services/NotificationService.js"></script>
+    <script type="module" src="js/services/ProgressService.js"></script>
+    <script type="module" src="js/services/MapService.js"></script>
+    <script type="module" src="js/utils/GeometryUtils.js"></script>
+    <script type="module" src="js/utils/ConfirmDialog.js"></script>
+    <script type="module" src="js/views/MapView.js"></script>
+    <script type="module" src="js/views/PanelView.js"></script>
+    <script type="module" src="js/controllers/UIController.js"></script>
+    <script type="module" src="js/controllers/TrajectoryController.js"></script>
+    <script type="module" src="js/controllers/SectionController.js"></script>
+    <script type="module" src="js/controllers/MapController.js"></script>
+    <script type="module" src="js/controllers/TrajectoryEditor.js"></script>
+</head>
+<body>
+    {% block plugin_body_pre %}
+    {% for partial in plugin_body_pre_partials %}
+    {% include partial %}
+    {% endfor %}
+    {% endblock %}
+
+    <div id="app">
+        <div class="header">
+            <div class="header-brand">
+                {% if app_logo_url %}
+                <img class="header-logo" src="{{ app_logo_url }}" alt="Trajectory Editor logo">
+                {% endif %}
+                <h1 id="appTitle" data-i18n="app.title">Trajectory Editor</h1>
+            </div>
+            {% include 'components/header_actions.html' %}
+        </div>
+
+        <div class="main-content">
+            <!-- Left panel -->
+            <div id="mainPanel" class="left-panel">
+                {% include 'components/properties_panel.html' %}
+
+                {% include 'components/actions_panel.html' %}
+
+                <div class="panel-section">
+                    <h3><span data-i18n="sections.title">Sections</span> (<span id="sectionCount">0</span>)</h3>
+                    <div id="sectionsList" class="sections-list">
+                        <!-- Sections will be added here dynamically -->
+                    </div>
+                </div>
+
+                <!-- Section edit panel (integrated into the left panel) -->
+                {% include 'components/section_edit_panel.html' %}
+            </div>
+
+            <!-- Map -->
+            <div class="map-container">
+                <!-- Position search (placed at the top right of the map) -->
+                {% include 'components/search_container.html' %}
+                <div id="map"></div>
+
+                <!-- Instructions -->
+                {% include 'components/instruction_card.html' %}
+
+                <!-- Dialogs -->
+                {% include 'components/fill_parcel_dialog.html' %}
+                {% include 'components/delete_points_zone_dialog.html' %}
+                {% include 'components/working_zone_edit_dialog.html' %}
+                {% include 'components/speed_edit_dialog.html' %}
+                {% include 'components/connect_turns_dialog.html' %}
+                
+                <!-- Load dialog -->
+                {% include 'components/load_dialog.html' %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- JS application -->
+    <script type="module" src="js/app.js"></script>
+    
+    <!-- Translation initialization -->
+    <script>
+        // Initialize translations on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Update the language selector
+            const langSelect = document.getElementById('languageSelect');
+            if (langSelect) {
+                langSelect.value = window.i18n.getCurrentLanguage();
+                
+                // Listen for language changes from the WebView
+                langSelect.addEventListener('change', (e) => {
+                    const lang = e.target.value;
+                    // Use the global function to set the language
+                    window.setLanguage(lang);
+                    // Do not reload the page; translations will be updated dynamically
+                });
+            }
+            
+            // Listen for language changes to update the interface
+            window.addEventListener('languageChanged', (e) => {
+                // The interface will be updated by app.js
+                if (window.trajectoryEditor) {
+                    window.trajectoryEditor.updateTranslations();
+                }
+            });
+        });
+        
+        // Global function for the native app: set the language programmatically
+        // This function can be called by the native app to change the WebView language
+        // Example: webView.evaluateJavaScript("window.setLanguage('en')")
+        window.setLanguage = function(lang) {
+            
+            // Check that i18n is available
+            if (!window.i18n) {
+                console.error('[NATIVE] window.i18n n\'est pas disponible');
+                return false;
+            }
+            
+            // Check that the language is supported
+            if (!window.i18n.translations[lang]) {
+                console.error('[NATIVE] Langue non supportée:', lang);
+                return false;
+            }
+            
+            // Set the language (cookie + localStorage + interface)
+            window.i18n.setLanguage(lang);
+            
+            // Update the language selector
+            const langSelect = document.getElementById('languageSelect');
+            if (langSelect) {
+                langSelect.value = lang;
+            }
+            
+            // Update the interface immediately
+            if (window.trajectoryEditor) {
+                window.trajectoryEditor.updateTranslations();
+            }
+            
+            return true;
+        };
+    </script>
+    
+    {% block plugin_body_scripts %}
+    {% for partial in plugin_body_script_partials %}
+    {% include partial %}
+    {% endfor %}
+    {% endblock %}
+
+    <!-- Notification container -->
+    <div id="notificationContainer"></div>
+    
+    <!-- Confirmation container -->
+    {% include 'components/confirm_dialog.html' %}
+</body>
+</html>

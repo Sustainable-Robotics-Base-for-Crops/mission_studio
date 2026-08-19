@@ -1,0 +1,65 @@
+<!-- Turn connection dialog -->
+<div id="connectTurnsDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog dialog-connect-turns">
+        <h3 data-i18n="dialog.connectTurns.title">Connect turns</h3>
+        <div class="dialog-scrollable-content">
+            <div class="form-group">
+                <label for="turnType" data-i18n="dialog.connectTurns.turnType">Turn type:</label>
+                <select id="turnType">
+                    <option value="square" data-i18n="dialog.connectTurns.turnType.square">Square</option>
+                    <option value="u_turn" data-i18n="dialog.connectTurns.turnType.uturn">U-turn</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="rowSpeed" data-i18n="dialog.connectTurns.rowSpeed">Speed (m/s):</label>
+                <input type="number" id="rowSpeed" step="0.1" value="0.5">
+            </div>
+            <div class="form-group">
+                <label for="spaceIn" data-i18n="dialog.connectTurns.spaceIn">Entry distance into rows (m):</label>
+                <input type="number" id="spaceIn" step="0.1" value="1.0">
+            </div>
+            <div class="form-group">
+                <label for="spaceOut" data-i18n="dialog.connectTurns.spaceOut">Exit distance from row (m):</label>
+                <input type="number" id="spaceOut" step="0.1" value="1.0">
+            </div>
+            <div class="form-group" id="headlandGroup" style="display: none;">
+                <label for="headlandSpace" data-i18n="dialog.connectTurns.headlandSpace">Headland size (m):</label>
+                <input type="number" id="headlandSpace" step="0.1" value="2.0">
+            </div>
+            <div class="form-group">
+                <div class="button-group">
+                    <button type="button" id="reverseRows" class="btn btn-outline" data-i18n="dialog.connectTurns.reverseRows">Reverse rows</button>
+                    <button type="button" id="reverseSide" class="btn btn-outline" data-i18n="dialog.connectTurns.reverseSide">Reverse side</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="skipRows" data-i18n="dialog.connectTurns.skipRows">Skip rows:</label>
+                <input type="number" id="skipRows" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="orderType" data-i18n="dialog.connectTurns.orderType">Run order:</label>
+                <select id="orderType">
+                    <option value="normal" data-i18n="dialog.connectTurns.orderType.normal">Normal</option>
+                    <option value="snake" data-i18n="dialog.connectTurns.orderType.snake">Snake</option>
+                    <option value="corkscrew" data-i18n="dialog.connectTurns.orderType.corkscrew">Corkscrew</option>
+                </select>
+            </div>
+            <div class="form-group" id="corkscrewGroup" style="display: none;">
+                <label for="corkscrewJump" data-i18n="dialog.connectTurns.corkscrewJump">Corkscrew jump:</label>
+                <input type="number" id="corkscrewJump" min="1" value="2">
+            </div>
+            <!-- Loop: separate label with for= (i18n on the label, text always visible next to the checkbox) -->
+            <div class="form-group form-group--checkbox-inline">
+                <!-- Checkbox first: the label receives the remaining horizontal space (prevents compression when input has width:100%) -->
+                <div class="connect-turns-checkbox-row">
+                    <input type="checkbox" id="connectTurnsLoop" value="1">
+                    <label for="connectTurnsLoop" data-i18n="dialog.connectTurns.loop">Loop (connect last point to start point)</label>
+                </div>
+            </div>
+        </div>
+        <div class="dialog-actions">
+            <button id="connectTurnsConfirm" class="btn btn-primary" data-i18n="dialog.connectTurns.confirm">Connect</button>
+            <button id="connectTurnsCancel" class="btn btn-secondary" data-i18n="dialog.connectTurns.cancel">Cancel</button>
+        </div>
+    </div>
+</div>

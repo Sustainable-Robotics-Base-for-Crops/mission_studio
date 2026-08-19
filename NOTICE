@@ -1,0 +1,20 @@
+This product optionally uses Fields2Cover:
+
+  Fields2Cover
+  Copyright (c) 2020-2024 Wageningen University
+  SPDX-License-Identifier: BSD-3-Clause
+  https://github.com/Fields2Cover/Fields2Cover
+
+Redistributions must retain the Fields2Cover copyright notice, the BSD-3
+conditions, and the disclaimer. Neither the name of Wageningen University nor
+the names of Fields2Cover contributors may be used to endorse or promote
+products derived from this software without specific prior written permission.
+
+Fields2Cover links libgeos_c (GEOS), licensed under LGPL-2.1. GEOS is loaded
+dynamically by the Fields2Cover shared library; it is not statically linked
+into this repository. Do not compile Fields2Cover + GEOS to WebAssembly inside
+the Studio bundle.
+
+The public contract of this editor remains JSON Agri v3 (Apache-2.0 code,
+CC BY specification). The SRBC wrapper in `backend/coverage/` is Apache-2.0.
+Fields2Cover itself stays BSD-3-Clause; it is not re-licensed.

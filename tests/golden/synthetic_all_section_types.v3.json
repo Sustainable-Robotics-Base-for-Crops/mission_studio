@@ -1,0 +1,144 @@
+{
+  "file_type": "mission_order",
+  "geofencing": {
+    "columns": [
+      "x",
+      "y"
+    ],
+    "values": [
+      [
+        -5.0,
+        -5.0
+      ],
+      [
+        -5.0,
+        15.0
+      ],
+      [
+        8.0,
+        15.0
+      ],
+      [
+        8.0,
+        -5.0
+      ]
+    ]
+  },
+  "metadata": {},
+  "origin": {
+    "coordinates": {
+      "alt": 317.5,
+      "lat": 45.85,
+      "lon": 3.17
+    },
+    "type": "WGS84"
+  },
+  "points": [
+    {
+      "columns": [
+        "x",
+        "y",
+        "speed",
+        "working_zone",
+        "punctual"
+      ],
+      "section_type": "row_line",
+      "values": [
+        [
+          0.0,
+          0.0,
+          0.5,
+          1,
+          {}
+        ],
+        [
+          0.0,
+          10.0,
+          0.5,
+          1,
+          {}
+        ]
+      ]
+    },
+    {
+      "columns": [
+        "x",
+        "y",
+        "speed",
+        "working_zone",
+        "punctual"
+      ],
+      "section_type": "turn_path",
+      "values": [
+        [
+          0.0,
+          10.0,
+          0.3,
+          0,
+          {}
+        ],
+        [
+          1.5,
+          11.5,
+          0.3,
+          0,
+          {}
+        ]
+      ]
+    },
+    {
+      "columns": [
+        "x",
+        "y",
+        "speed",
+        "working_zone",
+        "punctual"
+      ],
+      "section_type": "turn_square",
+      "values": [
+        [
+          1.5,
+          11.5,
+          0.3,
+          0,
+          {}
+        ],
+        [
+          3.0,
+          10.0,
+          0.3,
+          0,
+          {}
+        ]
+      ]
+    },
+    {
+      "columns": [
+        "x",
+        "y",
+        "speed",
+        "working_zone",
+        "punctual"
+      ],
+      "section_type": "row_path",
+      "values": [
+        [
+          3.0,
+          10.0,
+          0.5,
+          1,
+          {}
+        ],
+        [
+          3.0,
+          0.0,
+          0.5,
+          1,
+          {}
+        ]
+      ]
+    }
+  ],
+  "vehicle_id": "v1",
+  "version": "3"
+}
