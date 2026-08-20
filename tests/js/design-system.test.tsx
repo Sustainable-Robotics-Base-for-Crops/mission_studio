@@ -24,6 +24,7 @@ import {
     LUCIDE_PINNED_VERSION,
     Machine,
     StudioProviders,
+    Tabs,
 } from '../../frontend/src/design-system';
 import { DesignSystemPage } from '../../frontend/src/design-system/DesignSystemPage';
 import { translate } from '../../frontend/src/i18n/adapter';
@@ -126,6 +127,65 @@ describe('design-system page', () => {
             (violation) => violation.impact === 'critical' || violation.impact === 'serious',
         );
         expect(blocking).toEqual([]);
+    });
+
+    it('renders a disabled tab visibly but refuses to open it', () => {
+        render(
+            <StudioProviders>
+                <Tabs
+                    defaultValue="create"
+                    items={[
+                        { value: 'create', label: 'Créer', content: <p>Assistant</p> },
+                        {
+                            value: 'meta',
+                            label: 'Méta-mission',
+                            content: <p>Jamais affiché</p>,
+                            disabled: true,
+                            tooltip: 'Développement à venir',
+                        },
+                    ]}
+                />
+            </StudioProviders>,
+        );
+
+        const planned = screen.getByRole('tab', { name: 'Méta-mission' });
+        expect(planned.hasAttribute('disabled')).toBe(true);
+
+        fireEvent.click(planned);
+
+        expect(screen.getByText('Assistant')).toBeTruthy();
+        expect(screen.queryByText('Jamais affiché')).toBeNull();
+    });
+
+    it('falls back on the first openable tab when the default one is disabled', () => {
+        render(
+            <StudioProviders>
+                <Tabs
+                    defaultValue="compare"
+                    items={[
+                        { value: 'load', label: 'Charger', content: <p>Explorateur</p> },
+                        {
+                            value: 'compare',
+                            label: 'Comparer',
+                            content: <p>Comparaison</p>,
+                            disabled: true,
+                        },
+                    ]}
+                />
+            </StudioProviders>,
+        );
+
+        expect(screen.getByText('Explorateur')).toBeTruthy();
+        expect(screen.getByRole('tab', { name: 'Charger' }).dataset.state).toBe('active');
+    });
+
+    it('styles tabs inside a left context panel, not only inside the inspector', () => {
+        const css = readFileSync('frontend/src/styles/shell.css', 'utf8');
+        expect(css).toContain('.studio-context .ds-tabs');
+        expect(css).toContain('.studio-context .ds-tab');
+        expect(css).toContain('.studio-context .ds-tab:focus-visible');
+        const primitives = readFileSync('frontend/src/design-system/primitives.css', 'utf8');
+        expect(primitives).toContain('.ds-tab:disabled');
     });
 
     it('opens a field help dialog from the i-button', () => {

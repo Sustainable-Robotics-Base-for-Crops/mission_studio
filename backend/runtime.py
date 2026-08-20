@@ -9,7 +9,7 @@ flag ``BACKEND_FASTAPI`` only switches the transport.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from backend.auth.anonymous import AnonymousAuthProvider
 from backend.config.settings import Settings
@@ -18,6 +18,7 @@ from backend.core.app_factory import AppFactory
 from backend.core.extension_points import AppContext
 from backend.db import Database
 from backend.equipment import EquipmentRepository
+from backend.farm.repository import FarmRepository
 from backend.fields import FieldRepository
 from backend.publications import PublicationRepository
 from backend.jobs import JobQueue
@@ -46,6 +47,8 @@ class EditorRuntime:
     fields: FieldRepository | None = None
     equipment: EquipmentRepository | None = None
     publications: PublicationRepository | None = None
+    #: The farm folder needs no database, so it is always available (L13).
+    farm: FarmRepository = field(default_factory=FarmRepository)
 
     @classmethod
     def build(cls, sqlite_path: str | None = None) -> EditorRuntime:
@@ -95,4 +98,5 @@ class EditorRuntime:
             fields=fields,
             equipment=equipment,
             publications=publications,
+            farm=FarmRepository(),
         )

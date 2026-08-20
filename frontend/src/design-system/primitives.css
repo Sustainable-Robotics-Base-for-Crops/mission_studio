@@ -381,6 +381,17 @@
     border-bottom-color: var(--primary-700);
 }
 
+.ds-tab-wrap {
+    display: inline-flex;
+}
+
+/* Planned but not shipped. Dimmed, never hidden: the tab announces the roadmap. */
+.ds-tab:disabled {
+    color: var(--text-secondary);
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .ds-tabs + [role='tabpanel'],
 [data-radix-tabs-content] {
     padding: var(--space-3) 0;

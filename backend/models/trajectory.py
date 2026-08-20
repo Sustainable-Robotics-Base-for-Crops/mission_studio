@@ -106,8 +106,9 @@ class Trajectory:
         if self.version not in supported_versions:
             errors.append(f"Version '{self.version}' not supported. Accepted versions: {supported_versions}")
         
-        # Check file type
-        allowed_types = ['draft', 'mission_order', 'parcel_map']
+        # Check file type. `work_performed` is read-only for the editor: the robot
+        # writes it, the studio loads it from the farm folder (CdC L13 §2.5).
+        allowed_types = ['draft', 'mission_order', 'parcel_map', 'work_performed']
         if self.file_type not in allowed_types:
             errors.append(f"File type '{self.file_type}' not allowed. Accepted types: {allowed_types}")
         

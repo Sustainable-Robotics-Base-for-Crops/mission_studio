@@ -1,12 +1,14 @@
 import type { MissionGeoJSON } from './agri-to-geojson';
-import type { BasemapId, OverlayId } from './styles';
+import type { BasemapId, MapView, OverlayId } from './styles';
 
 export type RowLabelMode = 'off' | 'normal' | 'large';
 
 export interface MapEngine {
-    attach(container: HTMLElement): void;
+    attach(container: HTMLElement, view?: MapView | null): void;
     detach(): void;
     resize(): void;
+    /** Live camera, for "use the current view as the farm start view". */
+    getView(): MapView | null;
     setBasemap(id: BasemapId): void;
     getBasemap(): BasemapId;
     setOverlayVisible(id: OverlayId, visible: boolean): void;
@@ -42,4 +44,4 @@ export interface MapEngine {
     setDragPanEnabled(enabled: boolean): void;
 }
 
-export type { BasemapId, OverlayId };
+export type { BasemapId, MapView, OverlayId };

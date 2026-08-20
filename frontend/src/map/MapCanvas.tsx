@@ -8,7 +8,14 @@ import { agriToGeoJSON, type PolygonFeatureCollection } from './agri-to-geojson'
 import type { MapEngine, RowLabelMode } from './engine';
 import { createMapLibreEngine } from './maplibre-engine';
 import { PlaceSearch } from './PlaceSearch';
-import { GEOLOCATION_ZOOM, SEARCH_ZOOM, type BasemapId, type OverlayId } from './styles';
+import {
+    GEOLOCATION_ZOOM,
+    initialView,
+    SEARCH_ZOOM,
+    type BasemapId,
+    type MapView,
+    type OverlayId,
+} from './styles';
 import { useI18n } from '../i18n/useI18n';
 import type { LatLng } from '../domain/geometry';
 import { engineDrawTool, type EditTool } from './useMissionEditor';
@@ -42,6 +49,10 @@ interface MapCanvasProps {
     poseLngLat?: [number, number] | null;
     poseFlyKey?: number;
     rowLabelMode?: RowLabelMode;
+    /** Farm start view; the map falls back to the national constants without it. */
+    startView?: MapView | null;
+    /** Publishes the live camera reader upward, and null once the map goes away. */
+    onViewReader?: (read: (() => MapView | null) | null) => void;
 }
 
 export function MapCanvas({
@@ -73,6 +84,8 @@ export function MapCanvas({
     poseLngLat = null,
     poseFlyKey = 0,
     rowLabelMode = 'off',
+    startView = null,
+    onViewReader,
 }: MapCanvasProps): ReactElement {
     const { t } = useI18n();
     const hostRef = useRef<HTMLDivElement>(null);
@@ -98,6 +111,11 @@ export function MapCanvas({
     hitSelectedSectionRef.current = hitSelectedSection;
     const fittedKeyRef = useRef<string | null | undefined>(undefined);
     const fittedCatalogueRef = useRef<string | null | undefined>(undefined);
+    const startViewRef = useRef(startView);
+    startViewRef.current = startView;
+    const onViewReaderRef = useRef(onViewReader);
+    onViewReaderRef.current = onViewReader;
+    const appliedStartViewRef = useRef(false);
 
     useEffect(() => {
         const node = containerRef.current;
@@ -107,7 +125,9 @@ export function MapCanvas({
         }
         const engine = createMapLibreEngine();
         engineRef.current = engine;
-        engine.attach(node);
+        engine.attach(node, startViewRef.current);
+        appliedStartViewRef.current = startViewRef.current !== null;
+        onViewReaderRef.current?.(() => engine.getView());
         const unsubscribeClick = engine.onClick((lngLat) =>
             onMapClickRef.current?.(lngLat, { shiftKey: false }),
         );
@@ -124,8 +144,23 @@ export function MapCanvas({
             unsubscribeDrag();
             engine.detach();
             engineRef.current = null;
+            onViewReaderRef.current?.(null);
         };
     }, []);
+
+    // The farm arrives after the map is attached, so honour its start view once —
+    // and only while no mission is loaded, since a mission fit must always win.
+    useEffect(() => {
+        const engine = engineRef.current;
+        if (!engine || appliedStartViewRef.current || !startView) {
+            return;
+        }
+        appliedStartViewRef.current = true;
+        if (document == null) {
+            const camera = initialView(startView);
+            engine.flyTo(camera.center, camera.zoom);
+        }
+    }, [document, startView]);
 
     const dblClickEnabled = Boolean(onMapDblClick);
     useEffect(() => {

@@ -1113,6 +1113,225 @@ body > #pluginHeaderActions {
     font-size: 12px;
 }
 
+.studio-home {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 16px 24px;
+}
+
+.studio-home .ds-banner {
+    margin: 0;
+}
+
+.studio-home h3 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.studio-home-identity h3 {
+    font-size: 16px;
+    line-height: 22px;
+    color: var(--text-primary);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.studio-home .studio-muted {
+    padding: 0 0 8px;
+}
+
+.studio-home-identity-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 12px;
+    margin: 0;
+    font-size: 12px;
+    line-height: 16px;
+}
+
+.studio-home-identity-list dt {
+    color: var(--text-muted);
+}
+
+.studio-home-identity-list dd {
+    margin: 0;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.studio-home-figures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.studio-home-figure {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-subtle);
+}
+
+.studio-home-figure-value {
+    font-size: 20px;
+    line-height: 26px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.studio-home-figure-label {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-secondary);
+}
+
+.studio-home-figure-hint {
+    font-size: 11px;
+    line-height: 15px;
+    color: var(--text-muted);
+}
+
+.studio-home-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.studio-home-list button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.studio-home-list button:hover:not(:disabled) {
+    background: var(--surface-selected);
+}
+
+.studio-home-list button:disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.studio-home-list button .studio-muted {
+    padding: 0;
+}
+
+.studio-home-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.studio-admin {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 8px 16px 24px;
+}
+
+.studio-admin .ds-banner {
+    margin: 0;
+}
+
+.studio-admin-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.studio-admin-section h3 {
+    margin: 0;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.studio-admin-section h4 {
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.studio-admin .studio-muted {
+    padding: 0;
+}
+
+.studio-admin-root,
+.studio-admin-view {
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-subtle);
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.studio-admin-root {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.studio-admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.studio-admin-recent {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.studio-admin-recent button {
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.studio-admin-recent button:hover {
+    background: var(--surface-selected);
+}
+
+.studio-admin-recent button.is-active {
+    background: var(--surface-selected);
+    font-weight: 600;
+}
+
 .studio-mission-list {
     padding: 8px 8px 16px;
 }
@@ -1320,6 +1539,50 @@ body > #pluginHeaderActions {
     padding: 0 8px;
     font-size: 12px;
     height: 36px;
+}
+
+/*
+ * Tabs inside a left context panel (L13 §9.3). Mission has six of them in 304 px,
+ * so they wrap and stay scrollable rather than shrinking the label to nothing.
+ */
+.studio-context .ds-tabs {
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 0 8px;
+    flex: 0 0 auto;
+}
+
+.studio-context .ds-tab {
+    padding: 0 8px;
+    font-size: 12px;
+    height: 34px;
+    white-space: nowrap;
+}
+
+.studio-context .ds-tab:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+}
+
+.studio-context [role='tabpanel'] {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.studio-panel-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 16px;
+}
+
+.studio-panel-tab p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--text-secondary);
 }
 
 .studio-field-tab {

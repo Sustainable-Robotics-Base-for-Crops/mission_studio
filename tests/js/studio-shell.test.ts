@@ -4,22 +4,26 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { breakpointFromWidth, LAYOUT, shellTracks } from '../../frontend/src/app/layout';
-import { filterModules, MODULE_COUNT, MODULES, moduleByPath } from '../../frontend/src/app/modules';
+import {
+    filterModules,
+    LEGACY_REDIRECTS,
+    MODULE_COUNT,
+    MODULES,
+    moduleByPath,
+    redirectFor,
+} from '../../frontend/src/app/modules';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-describe('modules (CdCF §7.1)', () => {
-    it('exposes exactly nine global entries in the specified order', () => {
-        expect(MODULE_COUNT).toBe(9);
+describe('modules (L13 §3.1)', () => {
+    it('exposes exactly six global entries, missions before fields', () => {
+        expect(MODULE_COUNT).toBe(6);
         expect(MODULES.map((module) => module.id)).toEqual([
             'home',
+            'missions',
             'fields',
             'equipment',
-            'missions',
             'simulation',
-            'publication',
-            'reports',
-            'integrations',
             'admin',
         ]);
     });
@@ -27,13 +31,10 @@ describe('modules (CdCF §7.1)', () => {
     it('assigns the Lucide metaphors from the UX specification', () => {
         expect(MODULES.map((module) => module.icon)).toEqual([
             'House',
+            'Route',
             'Map',
             'Machine',
-            'Route',
             'CirclePlay',
-            'Send',
-            'ChartColumn',
-            'Plug',
             'Settings',
         ]);
     });
@@ -47,7 +48,43 @@ describe('modules (CdCF §7.1)', () => {
     it('filters the palette by id, path and lot', () => {
         expect(filterModules('parcelle').map((module) => module.id)).toEqual(['fields']);
         expect(filterModules('L10').map((module) => module.id)).toEqual(['simulation']);
-        expect(filterModules('   ')).toHaveLength(9);
+        expect(filterModules('   ')).toHaveLength(6);
+    });
+
+    it('still finds the folded modules by their old vocabulary', () => {
+        expect(filterModules('publication').map((module) => module.id)).toEqual(['missions']);
+        expect(filterModules('rapport').map((module) => module.id)).toEqual(['simulation']);
+    });
+});
+
+describe('retired routes (L13 §3.2)', () => {
+    it('redirects publication, reports and integrations to the modules that absorbed them', () => {
+        expect(redirectFor('/publication')).toBe('/missions');
+        expect(redirectFor('/rapports')).toBe('/simulation');
+        expect(redirectFor('/integrations')).toBe('/materiel');
+    });
+
+    it('ignores trailing slashes', () => {
+        expect(redirectFor('/publication/')).toBe('/missions');
+    });
+
+    it('leaves current routes alone', () => {
+        expect(redirectFor('/missions')).toBeNull();
+        expect(redirectFor('/')).toBeNull();
+        expect(redirectFor('/unknown')).toBeNull();
+    });
+
+    it('never redirects towards a route that no longer exists', () => {
+        const paths = new Set(MODULES.map((module) => module.path));
+        for (const target of Object.values(LEGACY_REDIRECTS)) {
+            expect(paths.has(target)).toBe(true);
+        }
+    });
+
+    it('wires the redirect into the shell', () => {
+        const source = readFileSync(resolve(ROOT, 'frontend/src/app/AppShell.tsx'), 'utf8');
+        expect(source).toContain('redirectFor(location.pathname)');
+        expect(source).toContain('{ replace: true }');
     });
 });
 
@@ -170,8 +207,10 @@ describe('studio routes', () => {
         expect(drawer).toContain('sim.footprintHint');
         expect(shell).toContain('CompareDialog');
         expect(shell).toContain('PublishDialog');
-        expect(shell).toContain('ReportsPanel');
-        expect(shell).toContain("current.id === 'reports'");
+        // ReportsPanel and PublicationPanel left the shell in L13: they are remounted
+        // inside the simulation and mission panels, not routed from the rail.
+        expect(shell).not.toContain("current.id === 'reports'");
+        expect(shell).not.toContain("current.id === 'publication'");
         expect(shell).toContain('workingWidthM');
         expect(shell).toContain('app.save');
         expect(shell).toContain('saveNow');

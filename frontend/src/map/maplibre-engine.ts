@@ -28,11 +28,11 @@ import {
 import type { MapEngine, RowLabelMode } from './engine';
 import {
     BASEMAPS,
-    DEFAULT_CENTER,
-    DEFAULT_ZOOM,
+    initialView,
     MAP_MAX_ZOOM,
     MAP_STYLE,
     type BasemapId,
+    type MapView,
     type OverlayId,
 } from './styles';
 import { hitTestDraftPolyline } from './draft-hit';
@@ -1027,15 +1027,16 @@ export function createMapLibreEngine(): MapEngine {
     };
 
     return {
-        attach(container: HTMLElement) {
+        attach(container: HTMLElement, view?: MapView | null) {
             if (map) {
                 this.detach();
             }
+            const camera = initialView(view);
             const instance = new MapLibreMap({
                 container,
                 style: rasterStyle(),
-                center: DEFAULT_CENTER,
-                zoom: DEFAULT_ZOOM,
+                center: camera.center,
+                zoom: camera.zoom,
                 attributionControl: { compact: true },
                 maxZoom: MAP_MAX_ZOOM,
             });
@@ -1079,6 +1080,13 @@ export function createMapLibreEngine(): MapEngine {
         },
         resize() {
             map?.resize();
+        },
+        getView() {
+            if (!map) {
+                return null;
+            }
+            const center = map.getCenter();
+            return { lat: center.lat, lon: center.lng, zoom: map.getZoom() };
         },
         setBasemap(id: BasemapId) {
             basemap = id;

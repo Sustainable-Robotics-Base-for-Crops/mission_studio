@@ -1,7 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
 
-import { MODULES, type StudioModule } from './modules';
+import { type StudioModule } from './modules';
 import { translate } from '../i18n/adapter';
 import type { MissionRef } from '../map/missions-api';
 
@@ -24,8 +23,8 @@ export function ContextPanel({
     onSelectMission,
     overlay = false,
 }: ContextPanelProps): ReactElement {
-    const location = useLocation();
-
+    // No module list here: the rail already carries it, and repeating it was the
+    // redundancy reported by the product owner (L13 §7.1).
     return (
         <aside
             className={overlay ? 'studio-context is-overlay' : 'studio-context'}
@@ -34,24 +33,6 @@ export function ContextPanel({
             <header className="studio-panel-header">
                 <h2>{t(module.labelKey)}</h2>
             </header>
-            <nav className="studio-context-nav" aria-label={t(module.labelKey)}>
-                <ul>
-                    {MODULES.map((entry) => (
-                        <li key={entry.id}>
-                            <NavLink
-                                to={entry.path}
-                                className={({ isActive }) =>
-                                    isActive || location.pathname === entry.path
-                                        ? 'is-active'
-                                        : undefined
-                                }
-                            >
-                                {t(entry.labelKey)}
-                            </NavLink>
-                        </li>
-                    ))}
-                </ul>
-            </nav>
             <p className="studio-muted">{t(module.descriptionKey)}</p>
             {onSelectMission ? (
                 <div className="studio-mission-list">

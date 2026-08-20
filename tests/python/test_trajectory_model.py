@@ -38,27 +38,29 @@ def test_missing_filename_is_rejected():
     assert "The 'filename' field is required" in trajectory.validate()
 
 
-@pytest.mark.parametrize("file_type", ["draft", "mission_order", "parcel_map"])
+@pytest.mark.parametrize("file_type", ["draft", "mission_order", "parcel_map", "work_performed"])
 def test_accepted_file_types(file_type: str):
     assert make_trajectory(file_type=file_type).validate() == []
 
 
-def test_work_performed_is_rejected_by_the_model_but_allowed_by_the_upload_schema():
+def test_the_model_and_the_upload_schema_agree_on_file_types():
     """
-    Known inconsistency, documented rather than fixed here.
-
-    Trajectory.validate() allows draft / mission_order / parcel_map, while
-    ValidationService.TRAJECTORY_SCHEMA also lists work_performed. A file of that
-    type therefore passes upload validation and is then rejected on load.
-    Resolving it is a decision for the LS lot (Agri format evolution).
+    Fixed in L13: the farm folder has a work_performed/ directory, so a robot log must
+    load. The model used to reject it while the upload schema accepted it, which meant
+    a log passed upload and then failed on load.
     """
     from backend.services.validation_service import ValidationService
 
-    errors = make_trajectory(file_type="work_performed").validate()
-    assert any("work_performed" in error for error in errors)
-
     upload_enum = ValidationService.TRAJECTORY_SCHEMA["properties"]["file_type"]["enum"]
+
     assert "work_performed" in upload_enum
+    for file_type in upload_enum:
+        assert make_trajectory(file_type=file_type).validate() == [], file_type
+
+
+def test_an_unknown_file_type_is_still_rejected():
+    errors = make_trajectory(file_type="harvest_plan").validate()
+    assert any("harvest_plan" in error for error in errors)
 
 
 def test_model_only_accepts_version_3_unlike_the_content_validator():

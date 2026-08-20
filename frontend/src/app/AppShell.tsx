@@ -10,7 +10,6 @@ import {
 } from 'react';
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import {
-    ChartColumn,
     CircleCheck,
     CircleHelp,
     CirclePlay,
@@ -26,7 +25,6 @@ import {
     PanelLeftOpen,
     PanelRightClose,
     PanelRightOpen,
-    Plug,
     Route as RouteIcon,
     Search,
     Send,
@@ -38,12 +36,14 @@ import {
 
 import { CompareDialog } from '../simulation/CompareDialog';
 import { PublishDialog } from '../publication/PublishDialog';
-import { PublicationPanel } from '../publication/PublicationPanel';
 import { usePublications } from '../publication/usePublications';
-import { ReportsPanel } from '../reports/ReportsPanel';
+import { AdminPanel } from './AdminPanel';
 import { CommandPalette } from './CommandPalette';
+import { HomeDashboard } from './HomeDashboard';
+import type { FarmEntry } from './farm-api';
+import { useFarm } from './useFarm';
 import { breakpointFromWidth, LAYOUT, shellTracks, type Breakpoint } from './layout';
-import { MODULES, moduleByPath, type LucideIconName } from './modules';
+import { MODULES, moduleByPath, redirectFor, type LucideIconName } from './modules';
 import { ContextPanel, InspectorPanel, SimulationDrawer } from './PlaceholderModule';
 import { FieldInspector } from '../fields/FieldInspector';
 import { FieldsContextPanel } from '../fields/FieldsContextPanel';
@@ -95,7 +95,7 @@ import { SectionEditPanel } from '../map/SectionEditPanel';
 import { LayersPopover } from '../map/LayersPopover';
 import { MapCanvas } from '../map/MapCanvas';
 import type { PolygonFeatureCollection } from '../map/agri-to-geojson';
-import type { BasemapId, OverlayId } from '../map/styles';
+import type { BasemapId, MapView, OverlayId } from '../map/styles';
 import { useMissionEditor, type SaveState } from '../map/useMissionEditor';
 import { suggestedMissionPath } from '../map/missions-api';
 import { useI18n } from '../i18n/useI18n';
@@ -120,9 +120,6 @@ const ICONS: Record<LucideIconName, typeof House> = {
     Machine,
     Route: RouteIcon,
     CirclePlay,
-    Send,
-    ChartColumn,
-    Plug,
     Settings,
     CircleHelp,
     Cloud,
@@ -168,6 +165,7 @@ export function AppShell(): ReactElement {
     const breakpoint = useBreakpoint();
     const fields = useFieldCatalogue();
     const equipment = useEquipmentCatalogue();
+    const farm = useFarm();
     const keepoutM = equipment.envelope ? geofenceMarginM(equipment.envelope) : null;
     const editor = useMissionEditor({
         workingWidthM: equipment.preview.implement?.working_width_m ?? null,
@@ -219,8 +217,8 @@ export function AppShell(): ReactElement {
     const onEquipment = current.id === 'equipment' && !onDesignSystem;
     const onMissions = current.id === 'missions' && !onDesignSystem;
     const onSimulation = current.id === 'simulation' && !onDesignSystem;
-    const onPublication = current.id === 'publication' && !onDesignSystem;
-    const onReports = current.id === 'reports' && !onDesignSystem;
+    const onHome = current.id === 'home' && !onDesignSystem;
+    const onAdmin = current.id === 'admin' && !onDesignSystem;
     const missionTree = useMemo(() => buildMissionTree(editor.document), [editor.document]);
     const missionContext = useMemo(() => readMissionContext(editor.document), [editor.document]);
     const selectionLocked = indexListIntersects(editor.selectedIndices, editor.lockedIndices);
@@ -322,6 +320,19 @@ export function AppShell(): ReactElement {
     const [compareOpen, setCompareOpen] = useState(false);
     const [publishOpen, setPublishOpen] = useState(false);
     const [simSeekIndex, setSimSeekIndex] = useState<number | null>(null);
+    /** Show a check on the map and move the timeline cursor onto it. */
+    const locateSample = useCallback(
+        (sample: PoseSample) => {
+            setSimOpen(true);
+            setPoseSample(sample);
+            setPoseFlyKey((value) => value + 1);
+            const index = simReport?.samples.indexOf(sample) ?? -1;
+            if (index >= 0) {
+                setSimSeekIndex(index);
+            }
+        },
+        [simReport],
+    );
     const publications = usePublications(editor.activePath);
     const workingWidthM = equipment.preview.implement?.working_width_m ?? null;
     const oddContext = useMemo((): OddContext => {
@@ -531,6 +542,57 @@ export function AppShell(): ReactElement {
         }
         fields.cancelDraft();
     }, [onFields]);
+
+    // Home and administration have nothing worth inspecting, so the inspector starts
+    // folded there — and the previous choice comes back on the way out, instead of a
+    // panel that stays silently closed.
+    const inspectorFolded = onHome || onAdmin;
+    const rightBeforeFoldRef = useRef<boolean | null>(null);
+    useEffect(() => {
+        if (inspectorFolded) {
+            rightBeforeFoldRef.current = rightOpen;
+            setRightOpen(false);
+            return;
+        }
+        if (rightBeforeFoldRef.current !== null) {
+            setRightOpen(rightBeforeFoldRef.current);
+            rightBeforeFoldRef.current = null;
+        }
+    }, [inspectorFolded]);
+
+    /** Farm missions live in the farm folder; the editor still loads from uploads. */
+    const openFarmMission = useCallback(
+        (entry: FarmEntry) => {
+            const name = entry.name.toLowerCase();
+            const match = editor.list.find((mission) => mission.name.toLowerCase() === name);
+            if (match) {
+                editor.select(match.path);
+            }
+            navigate('/missions');
+        },
+        [editor, navigate],
+    );
+
+    const mapViewReaderRef = useRef<(() => MapView | null) | null>(null);
+    const readMapView = useCallback(() => mapViewReaderRef.current?.() ?? null, []);
+    const onViewReader = useCallback((read: (() => MapView | null) | null) => {
+        mapViewReaderRef.current = read;
+    }, []);
+    /** Switching farm changes every catalogue, so reload in place — no page reload. */
+    const reloadAfterFarmChange = useCallback(() => {
+        void fields.reload();
+        void equipment.reload();
+        void editor.refresh();
+    }, [editor, equipment, fields]);
+
+    // Publication, reports and integrations left the rail in L13; their routes still
+    // exist so an old link or a bookmark lands on the module that absorbed them.
+    useEffect(() => {
+        const target = redirectFor(location.pathname);
+        if (target) {
+            navigate(target, { replace: true });
+        }
+    }, [location.pathname, navigate]);
 
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
@@ -794,7 +856,25 @@ export function AppShell(): ReactElement {
             </nav>
 
             {showLeft || overlayLeft ? (
-                onFields ? (
+                onHome ? (
+                    <HomeDashboard
+                        t={t}
+                        language={language}
+                        farm={farm}
+                        combinationCount={equipment.combinations.length}
+                        onOpenMission={openFarmMission}
+                        overlay={overlayLeft}
+                    />
+                ) : onAdmin ? (
+                    <AdminPanel
+                        t={t}
+                        farm={farm}
+                        readMapView={readMapView}
+                        onFarmChanged={reloadAfterFarmChange}
+                        onLanguage={setLanguage}
+                        overlay={overlayLeft}
+                    />
+                ) : onFields ? (
                     <FieldsContextPanel
                         t={t}
                         catalogue={fields}
@@ -863,25 +943,6 @@ export function AppShell(): ReactElement {
                                 key: 'pack.applied',
                                 params: {},
                             });
-                        }}
-                    />
-                ) : onPublication ? (
-                    <PublicationPanel t={t} catalogue={publications} overlay={overlayLeft} />
-                ) : onReports ? (
-                    <ReportsPanel
-                        t={t}
-                        document={editor.document}
-                        sim={simReport}
-                        publications={publications.items}
-                        overlay={overlayLeft}
-                        onLocate={(sample) => {
-                            setSimOpen(true);
-                            setPoseSample(sample);
-                            setPoseFlyKey((value) => value + 1);
-                            const index = simReport?.samples.indexOf(sample) ?? -1;
-                            if (index >= 0) {
-                                setSimSeekIndex(index);
-                            }
                         }}
                     />
                 ) : (
@@ -1056,6 +1117,8 @@ export function AppShell(): ReactElement {
                                       ? 'normal'
                                       : 'off'
                             }
+                            startView={farm.farm?.start_view ?? null}
+                            onViewReader={onViewReader}
                         />
                         {onFields ? (
                             <FieldsToolbar
@@ -1385,10 +1448,7 @@ export function AppShell(): ReactElement {
                     seekIndex={simSeekIndex}
                     onRun={runSimulation}
                     onCursor={onSimCursor}
-                    onLocate={(sample) => {
-                        setPoseSample(sample);
-                        setPoseFlyKey((value) => value + 1);
-                    }}
+                    onLocate={locateSample}
                 />
             ) : null}
 

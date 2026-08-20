@@ -75,6 +75,35 @@ export const BASEMAPS: Record<
 export const DEFAULT_CENTER: [number, number] = [1.8883, 46.6034];
 export const DEFAULT_ZOOM = 6;
 
+export interface MapView {
+    lat: number;
+    lon: number;
+    zoom: number;
+}
+
+/**
+ * Camera to open the map on: the farm start view when it is usable, the national
+ * fallback otherwise (L13 §8). Coordinates out of range fall back too — a farm file
+ * edited by hand must never send the map into the void.
+ */
+export function initialView(view: MapView | null | undefined): {
+    center: [number, number];
+    zoom: number;
+} {
+    const fallback = { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM };
+    if (!view) {
+        return fallback;
+    }
+    const { lat, lon, zoom } = view;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(zoom)) {
+        return fallback;
+    }
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180 || zoom < 0 || zoom > MAP_MAX_ZOOM) {
+        return fallback;
+    }
+    return { center: [lon, lat], zoom };
+}
+
 export const LAYER_CATALOG = [
     { id: 'trajectories', lot: null },
     { id: 'parcels', lot: null },

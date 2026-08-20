@@ -1,6 +1,8 @@
-import type { ReactElement, ReactNode } from 'react';
+import { Fragment, type ReactElement, type ReactNode } from 'react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
+
+import { Tooltip } from './Overlay';
 
 interface AccordionItem {
     value: string;
@@ -39,6 +41,18 @@ interface TabItem {
     value: string;
     label: string;
     content: ReactNode;
+    /** Visible but inert: announces a planned feature without promising it. */
+    disabled?: boolean;
+    tooltip?: string;
+}
+
+/** A tab that cannot be opened must never be the one opened by default. */
+function firstOpenable(items: readonly TabItem[], preferred: string): string {
+    const wanted = items.find((item) => item.value === preferred);
+    if (wanted && !wanted.disabled) {
+        return preferred;
+    }
+    return items.find((item) => !item.disabled)?.value ?? preferred;
 }
 
 export function Tabs({
@@ -49,19 +63,37 @@ export function Tabs({
     defaultValue: string;
 }): ReactElement {
     return (
-        <TabsPrimitive.Root defaultValue={defaultValue}>
+        <TabsPrimitive.Root defaultValue={firstOpenable(items, defaultValue)}>
             <TabsPrimitive.List className="ds-tabs">
-                {items.map((item) => (
-                    <TabsPrimitive.Trigger key={item.value} value={item.value} className="ds-tab">
-                        {item.label}
-                    </TabsPrimitive.Trigger>
-                ))}
+                {items.map((item) => {
+                    const trigger = (
+                        <TabsPrimitive.Trigger
+                            value={item.value}
+                            className="ds-tab"
+                            disabled={item.disabled}
+                        >
+                            {item.label}
+                        </TabsPrimitive.Trigger>
+                    );
+                    if (!item.tooltip) {
+                        return <Fragment key={item.value}>{trigger}</Fragment>;
+                    }
+                    // The wrapper carries the hover: a disabled button swallows
+                    // pointer events, so a tooltip attached to it never shows.
+                    return (
+                        <Tooltip key={item.value} content={item.tooltip}>
+                            <span className="ds-tab-wrap">{trigger}</span>
+                        </Tooltip>
+                    );
+                })}
             </TabsPrimitive.List>
-            {items.map((item) => (
-                <TabsPrimitive.Content key={item.value} value={item.value}>
-                    {item.content}
-                </TabsPrimitive.Content>
-            ))}
+            {items.map((item) =>
+                item.disabled ? null : (
+                    <TabsPrimitive.Content key={item.value} value={item.value}>
+                        {item.content}
+                    </TabsPrimitive.Content>
+                ),
+            )}
         </TabsPrimitive.Root>
     );
 }
