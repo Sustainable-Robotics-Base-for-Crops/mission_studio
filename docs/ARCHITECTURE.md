@@ -1,7 +1,8 @@
 # Architecture — Mission Studio
 
-Strangler fig around the public core. The legacy editor stays the default until
-the v2 shell reaches functional parity (end of L9).
+Mission Studio enveloppe le cœur public historique sans le remplacer. Le shell React
+est disponible sous `/studio`, tandis que `/app` conserve l’éditeur legacy et son
+contrat WebView.
 
 ```
 UI (React, /studio) → domain TS (from L4) → Agri v3 projection
@@ -16,16 +17,60 @@ When FastAPI is on, `EditorRuntime` also opens SQLite (`backend/data/studio.sqli
 overridable with `SQLITE_PATH`) and starts the job worker. `http.server` does
 not create that file.
 
+## Le dossier de ferme est la source de vérité
+
+Depuis L13, le produit ouvre une ferme portable :
+
+```text
+<FARM_ROOT>/
+  farm.json
+  parcel_map/
+  mission_order/
+  work_performed/
+  equipment/
+  .studio/
+```
+
+Les fichiers sous `parcel_map/`, `mission_order/`, `work_performed/` et `equipment/`
+sont les données métier. L’application ne doit jamais exiger une base SQLite pour
+retrouver une ferme complète. La racine courante est amorcée par `FARM_ROOT`, puis par
+`backend/data/app.json`.
+
+Deux bases SQLite distinctes coexistent :
+
+| Base | Schéma | Rôle | Portable avec la ferme |
+|---|---:|---|---|
+| `<FARM_ROOT>/.studio/index.sqlite` | 1 | Index dérivé des fichiers, checksums et métadonnées de mission | Oui, mais supprimable et régénérable |
+| `backend/data/studio.sqlite` (`SQLITE_PATH`) | 7 | Catalogue applicatif, versions, matériel, publications et file de tâches | Non |
+
+Supprimer `.studio/` ne supprime aucune donnée métier. `POST /api/v1/farm/reindex`
+recrée l’index à partir des fichiers. Les lectures critiques savent retomber sur les
+fichiers lorsque l’index n’existe pas.
+
+Le contrat détaillé destiné aux intégrateurs est dans `docs/FARM_FOLDER.md`.
+
 Versioned surface (`/api/v1/`):
 
-| Path | Role |
-| ---- | ---- |
-| `GET /health` | `{ok, backend, sqlite, jobs}` |
-| `POST/GET /jobs`, `GET /jobs/{id}` | Local queue; kind `echo` only in this cut |
-| `/fields*` | Catalogue `Field` / `Zone` / `Obstacle` / `GuidanceLine`, versions, impact, GeoJSON import/export |
-| `/equipment*` | Catalogue `Vehicle` / `Implement` / `Combination` (L7a), enveloppe, `srbc_equipment` |
+| Path | Rôle |
+|---|---|
+| `GET /health` | État du backend, de SQLite, des jobs et de la ferme courante. |
+| `POST/GET /jobs`, `GET /jobs/{id}` | File locale de travaux. |
+| `/fields*` | Catalogue `Field` / `Zone` / `Obstacle` / `GuidanceLine`, versions, impact et GeoJSON. |
+| `/equipment*` | Catalogue `Vehicle` / `Implement` / `Combination`, enveloppe et projection `srbc_equipment`. |
+| `GET /farm` | Snapshot : `farm.json`, racine, compteurs, fermes récentes et pack cultural. |
+| `PUT /farm` | Mise à jour validée des préférences de `farm.json`. |
+| `POST /farm/create` | Création sûre dans un dossier neuf ou vide. |
+| `POST /farm/open-existing` | Ouverture stricte d’un dossier contenant déjà `farm.json`. |
+| `POST /farm/open` | Compatibilité : ouverture ou initialisation historique. |
+| `POST /farm/pick-folder` | Sélecteur natif du dossier sur le poste serveur local. |
+| `GET /farm/tree` | Inventaire des quatre dossiers métier. |
+| `GET/PUT /farm/file` | Lecture d’un ordre ou travail réalisé ; écriture d’un ordre de mission. |
+| `GET /farm/missions?field_id=…` | Missions et travaux d’une parcelle. |
+| `POST /farm/reindex` | Reconstruction de `.studio/index.sqlite`. |
 
-Agri v3 files under `backend/uploads/` stay the robot export. The field catalogue is a separate store. Format evolution (no v4): `docs/AGRI_FORMAT_EVOLUTION.md`.
+`backend/uploads/` reste le repli de l’éditeur legacy `/app`. Mission Studio utilise le
+dossier de ferme ; aucune migration automatique des uploads n’est effectuée. L’évolution
+du format (sans v4) est décrite dans `docs/AGRI_FORMAT_EVOLUTION.md`.
 
 ## Two shells
 
