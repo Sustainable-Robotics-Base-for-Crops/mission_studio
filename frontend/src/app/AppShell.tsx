@@ -46,7 +46,7 @@ import { breakpointFromWidth, LAYOUT, shellTracks, type Breakpoint } from './lay
 import { MODULES, moduleByPath, redirectFor, type LucideIconName } from './modules';
 import { ContextPanel, InspectorPanel, SimulationDrawer } from './PlaceholderModule';
 import { FieldInspector } from '../fields/FieldInspector';
-import { FieldsContextPanel } from '../fields/FieldsContextPanel';
+import { FieldsPanel } from '../fields/FieldsPanel';
 import { FieldsToolbar } from '../fields/FieldsToolbar';
 import { DEFAULT_BED_COUNT, DEFAULT_BED_PATH_M, DEFAULT_BED_WIDTH_M } from '../fields/rows';
 import { fieldsCanvasTool, fieldsDrawKind, fieldsDrawTarget } from '../fields/draw-target';
@@ -77,7 +77,7 @@ import {
     type PoseSample,
     type SimulationReport,
 } from '../domain/simulation';
-import { MissionAssistant } from '../missions/MissionAssistant';
+import { MissionPanel } from '../missions/MissionPanel';
 import { useMissionAssistant } from '../missions/useMissionAssistant';
 import { readMissionContext } from '../missions/brief';
 import {
@@ -875,7 +875,7 @@ export function AppShell(): ReactElement {
                         overlay={overlayLeft}
                     />
                 ) : onFields ? (
-                    <FieldsContextPanel
+                    <FieldsPanel
                         t={t}
                         catalogue={fields}
                         overlay={overlayLeft}
@@ -888,7 +888,7 @@ export function AppShell(): ReactElement {
                 ) : onEquipment ? (
                     <EquipmentContextPanel t={t} catalogue={equipment} overlay={overlayLeft} />
                 ) : onMissions ? (
-                    <MissionAssistant
+                    <MissionPanel
                         t={t}
                         overlay={overlayLeft}
                         assistant={assistant}
@@ -897,10 +897,14 @@ export function AppShell(): ReactElement {
                         fieldsAvailable={fields.available}
                         combinations={equipment.combinations}
                         implements={equipment.implements}
+                        vehicles={equipment.vehicles}
                         missions={editor.list}
                         activePath={editor.activePath}
                         hasWorkingDocument={Boolean(editor.document)}
                         onSelectMission={editor.select}
+                        onLoadFarmMission={editor.adopt}
+                        publications={publications}
+                        onPublish={() => setPublishOpen(true)}
                         tree={missionTree}
                         selectedIndices={editor.selectedIndices}
                         onSelectSection={(index, additive) =>

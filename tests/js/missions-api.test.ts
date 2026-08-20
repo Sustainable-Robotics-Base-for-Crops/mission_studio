@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    farmMissionFilename,
+    farmMissionPathFromName,
+    isFarmMissionPath,
+    slugifyFarmToken,
     storageIdentityFromPath,
     suggestedMissionPath,
     toAgriDocument,
     toSaveRequest,
+    uniquifyFarmFilename,
 } from '../../frontend/src/map/missions-api';
 
 describe('storageIdentityFromPath', () => {
@@ -83,5 +88,37 @@ describe('toAgriDocument / toSaveRequest', () => {
         expect(request?.file_type).toBe('draft');
         expect(request?.vehicle_id).toBe('v1');
         expect(request?.geofencing).toEqual({ columns: ['x', 'y'], values: [[0, 0]] });
+    });
+});
+
+describe('farm mission naming (CdC §2.3)', () => {
+    it('slugifies tokens: lowercase, hyphens, no accent', () => {
+        expect(slugifyFarmToken('Champ Nord')).toBe('champ-nord');
+        expect(slugifyFarmToken('Semis d automne')).toBe('semis-d-automne');
+    });
+
+    it('builds AAAA-MM-DD_parcelle_operation.json and suffixes collisions', () => {
+        const document = {
+            metadata: { srbc_mission_brief: { field_id: 'Parcelle 04', operation: 'semis' } },
+        };
+        const now = new Date('2026-08-20T09:00:00');
+        expect(farmMissionFilename(document, [], now)).toBe('2026-08-20_parcelle-04_semis.json');
+        expect(farmMissionFilename(document, ['2026-08-20_parcelle-04_semis.json'], now)).toBe(
+            '2026-08-20_parcelle-04_semis-2.json',
+        );
+        expect(
+            farmMissionFilename(
+                document,
+                ['2026-08-20_parcelle-04_semis.json', '2026-08-20_parcelle-04_semis-2.json'],
+                now,
+            ),
+        ).toBe('2026-08-20_parcelle-04_semis-3.json');
+    });
+
+    it('treats only two-segment mission_order paths as farm files', () => {
+        expect(isFarmMissionPath('mission_order/demo.json')).toBe(true);
+        expect(isFarmMissionPath('mission_order/v1/demo.json')).toBe(false);
+        expect(farmMissionPathFromName('demo')).toBe('mission_order/demo.json');
+        expect(uniquifyFarmFilename('demo.json', ['demo.json'])).toBe('demo-2.json');
     });
 });

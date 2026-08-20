@@ -1,6 +1,7 @@
 import { useState, type ReactElement } from 'react';
 
 import { Button } from '../design-system/Button';
+import { Accordion } from '../design-system/Disclosure';
 import { Input, Select } from '../design-system/Field';
 import type { AgriDocument } from '../domain/agri';
 import { readCropPack, workSectionIndices, writeCropPack } from '../domain/crop-pack';
@@ -24,9 +25,11 @@ import type { useMissionAssistant } from './useMissionAssistant';
 
 type Assistant = ReturnType<typeof useMissionAssistant>;
 
-interface MissionAssistantProps {
+export interface MissionAssistantProps {
     t: (key: string, params?: Record<string, string | number>) => string;
     overlay?: boolean;
+    /** Keep the historical full panel by default; MissionPanel can expose its existing blocks separately. */
+    view?: 'all' | 'create' | 'edit';
     assistant: Assistant;
     fields: FieldSummary[];
     selectedField: FieldDetail | null;
@@ -339,6 +342,7 @@ function StepFields({
 export function MissionAssistant({
     t,
     overlay = false,
+    view = 'all',
     assistant,
     fields,
     selectedField,
@@ -380,7 +384,12 @@ export function MissionAssistant({
     const skipEveryN = Math.max(0, Math.floor(Number(skipN)) || 0);
     return (
         <aside
-            className={overlay ? 'studio-context is-overlay' : 'studio-context'}
+            className={[
+                overlay ? 'studio-context is-overlay' : 'studio-context',
+                view === 'all' ? '' : `studio-mission-view-${view}`,
+            ]
+                .filter(Boolean)
+                .join(' ')}
             aria-label={t('nav.missions')}
         >
             <header className="studio-panel-header">
@@ -571,19 +580,29 @@ export function MissionAssistant({
             onToggleLocked &&
             onReverseSelected ? (
                 <div className="studio-tree-panel">
-                    <h3>{t('tree.title')}</h3>
-                    <MissionTree
-                        t={t}
-                        tree={tree}
-                        selectedIndices={selectedIndices}
-                        hiddenIndices={hiddenIndices}
-                        lockedIndices={lockedIndices}
-                        onSelect={onSelectSection}
-                        onMove={onReorderSelected}
-                        onReorderTo={onReorderTo}
-                        onToggleHidden={onToggleHidden}
-                        onToggleLocked={onToggleLocked}
-                        onReverse={onReverseSelected}
+                    <Accordion
+                        defaultValue="tree"
+                        items={[
+                            {
+                                value: 'tree',
+                                title: t('tree.title'),
+                                content: (
+                                    <MissionTree
+                                        t={t}
+                                        tree={tree}
+                                        selectedIndices={selectedIndices}
+                                        hiddenIndices={hiddenIndices}
+                                        lockedIndices={lockedIndices}
+                                        onSelect={onSelectSection}
+                                        onMove={onReorderSelected}
+                                        onReorderTo={onReorderTo}
+                                        onToggleHidden={onToggleHidden}
+                                        onToggleLocked={onToggleLocked}
+                                        onReverse={onReverseSelected}
+                                    />
+                                ),
+                            },
+                        ]}
                     />
                 </div>
             ) : null}

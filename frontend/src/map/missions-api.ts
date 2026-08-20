@@ -1,3 +1,5 @@
+import { saveFarmMission } from '../app/farm-api';
+
 export interface MissionRef {
     path: string;
     name: string;
@@ -167,10 +169,75 @@ export function suggestedMissionPath(document: Record<string, unknown>, now = ne
     return `${fileType}/${vehicleId}/${stem}-${stamp}.json`;
 }
 
+/** CdC L13 §2.3: lowercase, hyphens, no accent, no space. */
+export function slugifyFarmToken(value: string): string {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40);
+}
+
+export function uniquifyFarmFilename(filename: string, existing: readonly string[]): string {
+    const taken = new Set(existing.map((name) => name.toLowerCase()));
+    const withExt = filename.toLowerCase().endsWith('.json') ? filename : `${filename}.json`;
+    if (!taken.has(withExt.toLowerCase())) {
+        return withExt;
+    }
+    const stem = withExt.replace(/\.json$/i, '');
+    for (let index = 2; index < 1000; index += 1) {
+        const candidate = `${stem}-${index}.json`;
+        if (!taken.has(candidate.toLowerCase())) {
+            return candidate;
+        }
+    }
+    return `${stem}-${Date.now()}.json`;
+}
+
+/** `AAAA-MM-DD_<parcelle-slug>_<operation-slug>.json`, with -2, -3 on collision. */
+export function farmMissionFilename(
+    document: Record<string, unknown>,
+    existing: readonly string[] = [],
+    now = new Date(),
+): string {
+    const metadata = asRecord(document.metadata);
+    const brief = asRecord(metadata?.srbc_mission_brief);
+    const field = slugifyFarmToken(String(brief?.field_id || 'parcelle')) || 'parcelle';
+    const operation = slugifyFarmToken(String(brief?.operation || 'operation')) || 'operation';
+    const stamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    return uniquifyFarmFilename(`${stamp}_${field}_${operation}.json`, existing);
+}
+
+export function isFarmMissionPath(path: string | null | undefined): boolean {
+    if (!path) {
+        return false;
+    }
+    const parts = path.split(/[\\/]/).filter(Boolean);
+    return (
+        parts.length === 2 &&
+        parts[0] === 'mission_order' &&
+        Boolean(parts[1]?.toLowerCase().endsWith('.json'))
+    );
+}
+
+export function farmMissionPathFromName(filename: string): string {
+    const safe = filename.toLowerCase().endsWith('.json') ? filename : `${filename}.json`;
+    return `mission_order/${safe.split(/[\\/]/).pop() ?? safe}`;
+}
+
 export async function saveMissionDocument(
     document: Record<string, unknown>,
     path: string,
 ): Promise<string> {
+    if (isFarmMissionPath(path)) {
+        return saveFarmMission(path, toAgriDocument(document));
+    }
     const request = toSaveRequest(document, path);
     if (!request) {
         throw new Error(`Invalid trajectory path: ${path}`);
@@ -200,4 +267,18 @@ export async function saveMissionDocument(
     return typeof body?.path === 'string' && body.path
         ? body.path
         : `${String(request.file_type)}/${String(request.vehicle_id)}/${String(request.filename)}`;
+}
+
+/** Naked Agri v3 download: `filename` is an editor-only key and must not ship. */
+export function downloadAgriDocument(agri: Record<string, unknown>, filename: string): void {
+    const payload = toAgriDocument(agri);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = globalThis.document.createElement('a');
+    link.href = url;
+    link.download = filename.toLowerCase().endsWith('.json') ? filename : `${filename}.json`;
+    globalThis.document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
 }

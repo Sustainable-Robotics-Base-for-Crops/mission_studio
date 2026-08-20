@@ -126,7 +126,12 @@ describe('studio routes', () => {
     it('hosts the field inspector on /parcellaire and keeps the mission inspector elsewhere', () => {
         const source = readFileSync(resolve(ROOT, 'frontend/src/app/AppShell.tsx'), 'utf8');
         expect(source).toContain('FieldInspector');
-        expect(source).toContain('FieldsContextPanel');
+        expect(source).toContain('FieldsPanel');
+        const fieldsPanel = readFileSync(
+            resolve(ROOT, 'frontend/src/fields/FieldsPanel.tsx'),
+            'utf8',
+        );
+        expect(fieldsPanel).toContain('FieldsContextPanel');
         expect(source).toContain('FieldsToolbar');
         expect(source).toContain("current.id === 'fields'");
         expect(source).toContain('Tooltip content={label} side="right"');
@@ -228,6 +233,7 @@ describe('studio routes', () => {
             'utf8',
         );
         expect(assistant).toContain('MissionTree');
+        expect(assistant).toContain('Accordion');
         expect(assistant).toContain('PacksPanel');
         expect(assistant).toContain('TeachRepeatDialog');
         expect(assistant).toContain('map.draftNotListed');

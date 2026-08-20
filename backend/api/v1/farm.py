@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import os
+
 from fastapi import APIRouter, Request
 
 from backend.api.http import json_from_handler
 from backend.farm.index import reindex
-from backend.farm.layout import crop_pack_for, is_farm
+from backend.farm.layout import crop_pack_for, is_farm, safe_farm_path
 from backend.farm.tree import list_tree
 from backend.runtime import EditorRuntime
 
@@ -75,6 +78,55 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
             return json_from_handler(200, {"root": root, "tree": list_tree(root, kind)})
         except ValueError as reason:
             return bad_request(reason)
+
+    @router.get("/farm/file")
+    def farm_file(path: str):
+        """Read one mission_order document without exposing arbitrary farm files."""
+        root = repo().resolve_root()
+        if not root or not is_farm(root):
+            return no_farm()
+        if not path.startswith("mission_order/"):
+            return json_from_handler(400, {"error": "path must be inside mission_order"})
+        try:
+            full_path = safe_farm_path(root, path)
+        except ValueError as reason:
+            return bad_request(reason)
+        if not os.path.isfile(full_path):
+            return json_from_handler(404, {"error": "mission file not found"})
+        try:
+            with open(full_path, "r", encoding="utf-8") as handle:
+                document = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            return json_from_handler(422, {"error": "mission file is unreadable"})
+        if not isinstance(document, dict):
+            return json_from_handler(422, {"error": "mission file must contain a JSON object"})
+        return json_from_handler(200, {"path": path, "document": document})
+
+    @router.put("/farm/file")
+    async def write_farm_file(request: Request):
+        """Write one Agri mission into mission_order/, never outside that folder."""
+        root = repo().resolve_root()
+        if not root or not is_farm(root):
+            return no_farm()
+        body = await request.json()
+        if not isinstance(body, dict):
+            return json_from_handler(400, {"error": "JSON object expected"})
+        path = body.get("path")
+        document = body.get("document")
+        if not isinstance(path, str) or not path.startswith("mission_order/"):
+            return json_from_handler(400, {"error": "path must be inside mission_order"})
+        if not isinstance(document, dict):
+            return json_from_handler(400, {"error": "document must be a JSON object"})
+        try:
+            full_path = safe_farm_path(root, path)
+        except ValueError as reason:
+            return bad_request(reason)
+        payload = {key: value for key, value in document.items() if key != "filename"}
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        return json_from_handler(200, {"path": path, "document": payload})
 
     @router.post("/farm/reindex")
     def farm_reindex():

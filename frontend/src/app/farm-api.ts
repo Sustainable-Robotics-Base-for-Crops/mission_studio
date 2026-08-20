@@ -155,6 +155,23 @@ export async function fetchFarmTree(kind?: FarmKind): Promise<FarmTree> {
     return body.tree ?? {};
 }
 
+export async function fetchFarmMission(path: string): Promise<unknown> {
+    const query = `?path=${encodeURIComponent(path)}`;
+    const body = await request<{ document: unknown }>(`/api/v1/farm/file${query}`);
+    return body.document;
+}
+
+export async function saveFarmMission(
+    path: string,
+    document: Record<string, unknown>,
+): Promise<string> {
+    const body = await request<{ path?: string }>('/api/v1/farm/file', {
+        method: 'PUT',
+        body: JSON.stringify({ path, document }),
+    });
+    return typeof body.path === 'string' && body.path ? body.path : path;
+}
+
 export async function reindexFarm(): Promise<{ errors: number }> {
     const body = await request<{ errors?: number }>('/api/v1/farm/reindex', { method: 'POST' });
     return { errors: body.errors ?? 0 };

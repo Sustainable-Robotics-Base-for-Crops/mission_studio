@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Lock, LockOpen } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff, Lock, LockOpen } from 'lucide-react';
 import { useState, type DragEvent, type KeyboardEvent, type ReactElement } from 'react';
 
 import { Button, IconButton } from '../design-system/Button';
@@ -52,78 +52,98 @@ function GroupBlock({
     onDrop: (event: DragEvent<HTMLLIElement>, index: number) => void;
     onDragEnd: () => void;
 }): ReactElement {
+    const [open, setOpen] = useState(true);
+    const title = t(`tree.group.${group.bucket}`, { count: group.children.length });
     return (
         <li className="studio-tree-group">
-            <p className="studio-tree-group-title">
-                {t(`tree.group.${group.bucket}`, { count: group.children.length })}
-            </p>
-            <ul>
-                {group.children.map((leaf) => {
-                    const active = selected.has(leaf.index);
-                    const isHidden = hidden.has(leaf.index);
-                    const isLocked = locked.has(leaf.index);
-                    const classes = [
-                        'studio-tree-row',
-                        active ? 'is-active' : '',
-                        isHidden ? 'is-hidden' : '',
-                        isLocked ? 'is-locked' : '',
-                        dropIndex === leaf.index ? 'is-drop' : '',
-                    ]
-                        .filter(Boolean)
-                        .join(' ');
-                    return (
-                        <li
-                            key={leaf.id}
-                            className={classes}
-                            draggable={!isLocked}
-                            onDragStart={(event) => onDragStart(event, leaf.index)}
-                            onDragOver={(event) => onDragOver(event, leaf.index)}
-                            onDrop={(event) => onDrop(event, leaf.index)}
-                            onDragEnd={onDragEnd}
-                        >
-                            <button
-                                type="button"
-                                className="studio-tree-leaf"
-                                aria-selected={active}
-                                onClick={(event) => onSelect(leaf.index, event.shiftKey)}
+            <button
+                type="button"
+                className="studio-tree-group-title"
+                aria-expanded={open}
+                aria-label={
+                    open ? t('tree.collapse', { name: title }) : t('tree.expand', { name: title })
+                }
+                onClick={() => setOpen((value) => !value)}
+            >
+                <span>{title}</span>
+                <ChevronDown
+                    className={open ? undefined : 'is-collapsed'}
+                    size={ICON_SIZE.button}
+                    strokeWidth={STROKE}
+                    aria-hidden="true"
+                />
+            </button>
+            {open ? (
+                <ul>
+                    {group.children.map((leaf) => {
+                        const active = selected.has(leaf.index);
+                        const isHidden = hidden.has(leaf.index);
+                        const isLocked = locked.has(leaf.index);
+                        const classes = [
+                            'studio-tree-row',
+                            active ? 'is-active' : '',
+                            isHidden ? 'is-hidden' : '',
+                            isLocked ? 'is-locked' : '',
+                            dropIndex === leaf.index ? 'is-drop' : '',
+                        ]
+                            .filter(Boolean)
+                            .join(' ');
+                        return (
+                            <li
+                                key={leaf.id}
+                                className={classes}
+                                draggable={!isLocked}
+                                onDragStart={(event) => onDragStart(event, leaf.index)}
+                                onDragOver={(event) => onDragOver(event, leaf.index)}
+                                onDrop={(event) => onDrop(event, leaf.index)}
+                                onDragEnd={onDragEnd}
                             >
-                                <span>{leafLabel(t, leaf)}</span>
-                                <span className="studio-muted">{Math.round(leaf.length_m)} m</span>
-                            </button>
-                            <IconButton
-                                label={isHidden ? t('tree.show') : t('tree.hide')}
-                                aria-pressed={isHidden}
-                                onPointerDown={(event) => event.stopPropagation()}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onToggleHidden(leaf.index);
-                                }}
-                            >
-                                {isHidden ? (
-                                    <EyeOff size={ICON_SIZE.button} strokeWidth={STROKE} />
-                                ) : (
-                                    <Eye size={ICON_SIZE.button} strokeWidth={STROKE} />
-                                )}
-                            </IconButton>
-                            <IconButton
-                                label={isLocked ? t('tree.unlock') : t('tree.lock')}
-                                aria-pressed={isLocked}
-                                onPointerDown={(event) => event.stopPropagation()}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onToggleLocked(leaf.index);
-                                }}
-                            >
-                                {isLocked ? (
-                                    <Lock size={ICON_SIZE.button} strokeWidth={STROKE} />
-                                ) : (
-                                    <LockOpen size={ICON_SIZE.button} strokeWidth={STROKE} />
-                                )}
-                            </IconButton>
-                        </li>
-                    );
-                })}
-            </ul>
+                                <button
+                                    type="button"
+                                    className="studio-tree-leaf"
+                                    aria-selected={active}
+                                    onClick={(event) => onSelect(leaf.index, event.shiftKey)}
+                                >
+                                    <span>{leafLabel(t, leaf)}</span>
+                                    <span className="studio-muted">
+                                        {Math.round(leaf.length_m)} m
+                                    </span>
+                                </button>
+                                <IconButton
+                                    label={isHidden ? t('tree.show') : t('tree.hide')}
+                                    aria-pressed={isHidden}
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onToggleHidden(leaf.index);
+                                    }}
+                                >
+                                    {isHidden ? (
+                                        <EyeOff size={ICON_SIZE.button} strokeWidth={STROKE} />
+                                    ) : (
+                                        <Eye size={ICON_SIZE.button} strokeWidth={STROKE} />
+                                    )}
+                                </IconButton>
+                                <IconButton
+                                    label={isLocked ? t('tree.unlock') : t('tree.lock')}
+                                    aria-pressed={isLocked}
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onToggleLocked(leaf.index);
+                                    }}
+                                >
+                                    {isLocked ? (
+                                        <Lock size={ICON_SIZE.button} strokeWidth={STROKE} />
+                                    ) : (
+                                        <LockOpen size={ICON_SIZE.button} strokeWidth={STROKE} />
+                                    )}
+                                </IconButton>
+                            </li>
+                        );
+                    })}
+                </ul>
+            ) : null}
         </li>
     );
 }

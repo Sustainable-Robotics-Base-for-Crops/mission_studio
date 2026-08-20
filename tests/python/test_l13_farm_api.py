@@ -198,6 +198,74 @@ def test_tree_rejects_an_unknown_kind(client, farm_root):
     assert "secrets" in response.json()["error"]
 
 
+# -- mission file loading ----------------------------------------------------
+
+
+def test_farm_file_reads_a_mission_order(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+    relative = "mission_order/2026-08-20_parcelle-04_semis.json"
+    payload = _mission(field_id="field-4")
+    _write(os.path.join(farm_root, relative), payload)
+
+    response = client.get("/api/v1/farm/file", params={"path": relative})
+
+    assert response.status_code == 200
+    assert response.json() == {"path": relative, "document": payload}
+
+
+def test_farm_file_reports_a_missing_mission(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+
+    response = client.get("/api/v1/farm/file", params={"path": "mission_order/missing.json"})
+
+    assert response.status_code == 404
+    assert "not found" in response.json()["error"]
+
+
+def test_farm_file_rejects_paths_outside_mission_order(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+
+    response = client.get("/api/v1/farm/file", params={"path": "../farm.json"})
+
+    assert response.status_code == 400
+    assert "mission_order" in response.json()["error"]
+
+
+def test_put_farm_file_writes_a_mission_order(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+    relative = "mission_order/2026-08-20_parcelle-04_semis.json"
+    payload = _mission(field_id="field-4")
+
+    response = client.put("/api/v1/farm/file", json={"path": relative, "document": payload})
+
+    assert response.status_code == 200
+    stored = client.get("/api/v1/farm/file", params={"path": relative}).json()["document"]
+    assert stored["metadata"]["srbc_mission_brief"]["field_id"] == "field-4"
+    assert "filename" not in stored
+
+
+def test_put_farm_file_strips_the_editor_filename(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+    relative = "mission_order/demo.json"
+    payload = {**_mission(), "filename": "secret.json"}
+
+    stored = client.put("/api/v1/farm/file", json={"path": relative, "document": payload}).json()
+
+    assert "filename" not in stored["document"]
+
+
+def test_put_farm_file_rejects_paths_outside_mission_order(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+
+    response = client.put(
+        "/api/v1/farm/file",
+        json={"path": "equipment/escape.json", "document": _mission()},
+    )
+
+    assert response.status_code == 400
+    assert "mission_order" in response.json()["error"]
+
+
 # -- reindex -----------------------------------------------------------------
 
 

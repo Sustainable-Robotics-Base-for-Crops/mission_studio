@@ -259,7 +259,7 @@ export function MapCanvas({
             const featureId = catalogueFitKey.split('#')[0] ?? catalogueFitKey;
             const bounds = boundsForFeatureId(catalogueGeoJSON, featureId);
             if (bounds) {
-                engine.fitToCatalogue(bounds);
+                engine.fitBounds(bounds);
             }
         }
     }, [catalogueFitKey, catalogueGeoJSON]);

@@ -1120,7 +1120,7 @@ export function createMapLibreEngine(): MapEngine {
             setSourceData(map, SOURCE.catalogue, collection);
             syncOverlay();
         },
-        fitToCatalogue(bounds: [[number, number], [number, number]] | null) {
+        fitBounds(bounds: [[number, number], [number, number]] | null) {
             if (!map || !bounds) {
                 return;
             }

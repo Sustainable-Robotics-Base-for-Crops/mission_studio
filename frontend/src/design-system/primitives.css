@@ -336,19 +336,13 @@
     border-bottom: 1px solid var(--border);
 }
 
-.ds-accordion-trigger {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: var(--control-h);
-    padding: 0 var(--space-3);
-    background: transparent;
-    border: 0;
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-    color: var(--text-primary);
+.ds-accordion-trigger:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.ds-accordion-trigger[data-state='closed'] svg {
+    transform: rotate(-90deg);
 }
 
 .ds-accordion-item [data-radix-accordion-content] {

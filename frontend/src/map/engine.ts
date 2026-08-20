@@ -15,7 +15,7 @@ export interface MapEngine {
     setRowLabelMode(mode: RowLabelMode): void;
     renderMission(geojson: MissionGeoJSON): void;
     renderCatalogue(collection: MissionGeoJSON['geofence']): void;
-    fitToCatalogue(bounds: [[number, number], [number, number]] | null): void;
+    fitBounds(bounds: [[number, number], [number, number]] | null): void;
     fitToMission(): void;
     flyTo(lngLat: [number, number], zoom: number): void;
     showPin(lngLat: [number, number], label: string): void;

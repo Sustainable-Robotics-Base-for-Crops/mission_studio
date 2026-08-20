@@ -1381,14 +1381,25 @@ body > #pluginHeaderActions {
     border-top: 1px solid var(--border);
 }
 
-.studio-tree-panel h3 {
-    margin: 0 8px 8px;
+.studio-tree-panel .ds-accordion-item {
+    border: none;
+}
+
+.studio-tree-panel .ds-accordion-trigger {
+    height: auto;
+    min-height: var(--control-h);
+    margin: 0;
+    padding: 0 8px;
     font-size: 12px;
     line-height: 16px;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+.studio-tree-panel .ds-accordion-item [data-radix-accordion-content] {
+    padding: 0;
 }
 
 .studio-tree {
@@ -1416,11 +1427,31 @@ body > #pluginHeaderActions {
 }
 
 .studio-tree-group-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: calc(100% - 16px);
     margin: 0 8px 4px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
     font-size: 11px;
     line-height: 14px;
     font-weight: 600;
     color: var(--text-muted);
+    cursor: pointer;
+    text-align: left;
+}
+
+.studio-tree-group-title:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.studio-tree-group-title svg.is-collapsed {
+    transform: rotate(-90deg);
 }
 
 .studio-tree-leaf {
@@ -1583,6 +1614,196 @@ body > #pluginHeaderActions {
     font-size: 13px;
     line-height: 18px;
     color: var(--text-secondary);
+}
+
+.studio-mission-view-create,
+.studio-mission-view-edit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    grid-area: auto;
+    overflow: visible;
+    border: none;
+    background: transparent;
+}
+
+.studio-mission-view-create > .studio-panel-header,
+.studio-mission-view-create > .studio-packs,
+.studio-mission-view-create > .studio-mission-list,
+.studio-mission-view-create > .studio-tree-panel,
+.studio-mission-view-edit > .studio-panel-header,
+.studio-mission-view-edit > .studio-assist-toolbar,
+.studio-mission-view-edit > .studio-assist,
+.studio-mission-view-edit > .studio-muted,
+.studio-mission-view-edit > .studio-mission-list {
+    display: none;
+}
+
+.studio-mission-placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-control);
+    background: var(--surface-subtle);
+}
+
+.studio-mission-placeholder h3 {
+    margin: 0;
+}
+
+.studio-mission-explorer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.studio-mission-explorer button {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: var(--focus-w) solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface);
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+}
+
+.studio-mission-explorer button:hover,
+.studio-mission-explorer button.is-active {
+    border-color: var(--primary-700);
+    background: var(--surface-selected);
+}
+
+.studio-mission-explorer button:disabled {
+    cursor: not-allowed;
+}
+
+.studio-mission-explorer button:focus-visible {
+    outline: var(--focus-w) solid var(--focus);
+    outline-offset: var(--focus-off);
+}
+
+.studio-mission-explorer-title {
+    font-weight: 700;
+}
+
+.studio-mission-explorer-context {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    color: var(--text-secondary);
+}
+
+.studio-mission-state {
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-chip);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.studio-mission-state.is-simulated {
+    background: var(--primary-100);
+    color: var(--primary-800);
+}
+
+.studio-mission-meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.studio-mission-meta h3 {
+    margin: var(--space-2) 0 0;
+}
+
+.studio-mission-publish-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.studio-mission-publish-history {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.studio-mission-publish-history > .studio-context {
+    grid-area: auto;
+    border: none;
+    background: transparent;
+    overflow: visible;
+    box-shadow: none;
+}
+
+.studio-fields-navigator,
+.studio-fields-formats {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.studio-fields-navigator button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: var(--control-h);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.studio-fields-navigator button:hover,
+.studio-fields-navigator button.is-active {
+    background: var(--surface-selected);
+}
+
+.studio-fields-navigator button:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.studio-fields-import {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.studio-fields-formats li {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-control);
+    color: var(--text-muted);
+}
+
+.studio-context [role='tabpanel'] > .studio-context {
+    grid-area: auto;
+    border: none;
+    background: transparent;
+    overflow: visible;
+    box-shadow: none;
 }
 
 .studio-field-tab {

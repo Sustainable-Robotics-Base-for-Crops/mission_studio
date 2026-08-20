@@ -1,7 +1,9 @@
 import { Fragment, type ReactElement, type ReactNode } from 'react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
+import { ChevronDown } from 'lucide-react';
 
+import { ICON_SIZE, STROKE } from './icons';
 import { Tooltip } from './Overlay';
 
 interface AccordionItem {
@@ -28,6 +30,11 @@ export function Accordion({
                     <AccordionPrimitive.Header>
                         <AccordionPrimitive.Trigger className="ds-accordion-trigger">
                             {item.title}
+                            <ChevronDown
+                                size={ICON_SIZE.button}
+                                strokeWidth={STROKE}
+                                aria-hidden="true"
+                            />
                         </AccordionPrimitive.Trigger>
                     </AccordionPrimitive.Header>
                     <AccordionPrimitive.Content>{item.content}</AccordionPrimitive.Content>
