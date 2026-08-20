@@ -139,9 +139,9 @@ export function ReportsPanel({
     });
     const inspectorClass = overlay ? 'studio-context is-overlay' : 'studio-context';
     return (
-        <aside className={inspectorClass} aria-label={t('nav.reports')}>
+        <aside className={inspectorClass} aria-label={t('sim.tab.report')}>
             <header className="studio-panel-header">
-                <h2>{t('nav.reports')}</h2>
+                <h2>{t('sim.tab.report')}</h2>
             </header>
             <p className="studio-muted">{t('rep.panelHint')}</p>
             <Tabs

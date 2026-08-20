@@ -1,6 +1,13 @@
 import { useEffect, useState, type ReactElement } from 'react';
 
-import { fetchFarmMission, fetchFarmTree, type FarmEntry } from '../app/farm-api';
+import { AdvancedModeLink } from '../app/AdvancedModeLink';
+import {
+    fetchFarmMission,
+    fetchFarmTree,
+    isAdvancedUi,
+    type FarmEntry,
+    type UiMode,
+} from '../app/farm-api';
 import { Button } from '../design-system/Button';
 import { Tabs } from '../design-system/Disclosure';
 import { Input } from '../design-system/Field';
@@ -25,6 +32,7 @@ export type MissionPanelProps = Omit<MissionAssistantProps, 'view'> & {
     vehicles: VehicleTwin[];
     publications: ReturnType<typeof usePublications>;
     onPublish: () => void;
+    uiMode?: UiMode;
 };
 
 function displayName(entry: FarmEntry): string {
@@ -131,7 +139,9 @@ export function MissionPanel(props: MissionPanelProps): ReactElement {
         vehicles = [],
         publications,
         onPublish,
+        uiMode,
     } = props;
+    const advanced = isAdvancedUi(uiMode);
     const [defaultTab, setDefaultTab] = useState('create');
     const [tabRevision, setTabRevision] = useState(0);
     const [entries, setEntries] = useState<FarmEntry[]>([]);
@@ -190,8 +200,10 @@ export function MissionPanel(props: MissionPanelProps): ReactElement {
 
     const startFromScratch = () => {
         onApplyDocument?.(createEmptyDocument());
-        setDefaultTab('edit');
-        setTabRevision((value) => value + 1);
+        if (advanced) {
+            setDefaultTab('edit');
+            setTabRevision((value) => value + 1);
+        }
     };
 
     const loadMission = async (path: string) => {
@@ -214,6 +226,7 @@ export function MissionPanel(props: MissionPanelProps): ReactElement {
             <header className="studio-panel-header">
                 <h2>{t('nav.missions')}</h2>
             </header>
+            {advanced ? null : <AdvancedModeLink t={t} />}
             <Tabs
                 key={tabRevision}
                 defaultValue={defaultTab}
@@ -469,7 +482,7 @@ export function MissionPanel(props: MissionPanelProps): ReactElement {
                             </div>
                         ),
                     },
-                ]}
+                ].filter((item) => advanced || item.value !== 'edit')}
             />
         </aside>
     );

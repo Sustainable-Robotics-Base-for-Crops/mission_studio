@@ -22,6 +22,14 @@ import {
     patchImplement,
     patchVehicle,
 } from './api';
+import {
+    equipmentFileToImplement,
+    equipmentFileToVehicle,
+    type EquipmentFile,
+    type ManualCombinationDraft,
+    type ManualImplementDraft,
+    type ManualVehicleDraft,
+} from './import-format';
 
 export type EquipmentNav = 'vehicles' | 'implements' | 'combinations';
 
@@ -186,52 +194,99 @@ export function useEquipmentCatalogue() {
         [run, selectedCombinationId],
     );
 
-    const addVehicle = useCallback(() => {
-        void run(async () => {
-            const created = await createVehicle({
-                name: 'Nouveau véhicule',
-                kinematics: 'skid_steer',
-                length_m: 1.1,
-                width_m: 0.6,
+    const addVehicle = useCallback(
+        (draft?: ManualVehicleDraft) => {
+            void run(async () => {
+                const created = await createVehicle({
+                    name: draft?.name ?? 'Nouveau véhicule',
+                    kinematics: draft?.kinematics ?? 'skid_steer',
+                    length_m: draft?.length_m ?? 1.1,
+                    width_m: draft?.width_m ?? 0.6,
+                    mass_kg: draft?.mass_kg ?? null,
+                });
+                setVehicles((current) => [...current, created]);
+                setSelectedVehicleId(created.id);
+                setNav('vehicles');
             });
-            setVehicles((current) => [...current, created]);
-            setSelectedVehicleId(created.id);
-            setNav('vehicles');
-        });
-    }, [run]);
+        },
+        [run],
+    );
 
-    const addImplement = useCallback(() => {
-        void run(async () => {
-            const created = await createImplement({
-                name: 'Nouvel outil',
-                kind: 'tool',
-                physical_width_m: 1.2,
-                working_width_m: 1.2,
-                length_m: 0.4,
+    const addImplement = useCallback(
+        (draft?: ManualImplementDraft) => {
+            void run(async () => {
+                const created = await createImplement({
+                    name: draft?.name ?? 'Nouvel outil',
+                    kind: draft?.hitch_mode === 'trailed' ? 'trailer' : 'tool',
+                    physical_width_m: draft?.width_m ?? 1.2,
+                    working_width_m: draft?.working_width_m ?? draft?.width_m ?? 1.2,
+                    length_m: draft?.length_m ?? 0.4,
+                    drawbar_length_m: draft?.drawbar_length_m ?? null,
+                });
+                setImplementsList((current) => [...current, created]);
+                setSelectedImplementId(created.id);
+                setNav('implements');
             });
-            setImplementsList((current) => [...current, created]);
-            setSelectedImplementId(created.id);
-            setNav('implements');
-        });
-    }, [run]);
+        },
+        [run],
+    );
 
-    const addCombination = useCallback(() => {
-        const vehicleId = selectedVehicleId ?? vehicles[0]?.id;
-        if (!vehicleId) {
-            setError('equipment.error.needVehicle');
-            return;
-        }
-        void run(async () => {
-            const created = await createCombination({
-                name: 'Nouvelle combinaison',
-                vehicle_id: vehicleId,
-                implement_id: selectedImplementId,
+    const addCombination = useCallback(
+        (draft?: ManualCombinationDraft) => {
+            const vehicleId = draft?.vehicle_id ?? selectedVehicleId ?? vehicles[0]?.id;
+            if (!vehicleId) {
+                setError('equipment.error.needVehicle');
+                return;
+            }
+            void run(async () => {
+                const created = await createCombination({
+                    name: draft?.name ?? 'Nouvelle combinaison',
+                    vehicle_id: vehicleId,
+                    implement_id: draft !== undefined ? draft.implement_id : selectedImplementId,
+                });
+                setCombinations((current) => [...current, created]);
+                setSelectedCombinationId(created.id);
+                setNav('combinations');
             });
-            setCombinations((current) => [...current, created]);
-            setSelectedCombinationId(created.id);
-            setNav('combinations');
-        });
-    }, [run, selectedImplementId, selectedVehicleId, vehicles]);
+        },
+        [run, selectedImplementId, selectedVehicleId, vehicles],
+    );
+
+    const importEquipmentFile = useCallback(
+        (file: EquipmentFile) => {
+            void run(async () => {
+                if (file.kind === 'vehicle') {
+                    const twin = equipmentFileToVehicle(file);
+                    const created = await createVehicle({
+                        id: twin.id,
+                        name: twin.name,
+                        kinematics: twin.kinematics,
+                        length_m: twin.length_m,
+                        width_m: twin.width_m,
+                        mass_kg: twin.mass_kg,
+                    });
+                    setVehicles((current) => [...current, created]);
+                    setSelectedVehicleId(created.id);
+                    setNav('vehicles');
+                    return;
+                }
+                const twin = equipmentFileToImplement(file);
+                const created = await createImplement({
+                    id: twin.id,
+                    name: twin.name,
+                    kind: twin.kind,
+                    physical_width_m: twin.physical_width_m,
+                    working_width_m: twin.working_width_m,
+                    length_m: twin.length_m,
+                    drawbar_length_m: twin.drawbar_length_m,
+                });
+                setImplementsList((current) => [...current, created]);
+                setSelectedImplementId(created.id);
+                setNav('implements');
+            });
+        },
+        [run],
+    );
 
     const removeSelected = useCallback(() => {
         void run(async () => {
@@ -286,6 +341,7 @@ export function useEquipmentCatalogue() {
         addVehicle,
         addImplement,
         addCombination,
+        importEquipmentFile,
         removeSelected,
         reload,
     };

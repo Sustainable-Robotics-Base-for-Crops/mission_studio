@@ -8,7 +8,8 @@ import os
 from fastapi import APIRouter, Request
 
 from backend.api.http import json_from_handler
-from backend.farm.index import reindex
+from backend.farm.folder_picker import pick_folder
+from backend.farm.index import missions_for_field, reindex
 from backend.farm.layout import crop_pack_for, is_farm, safe_farm_path
 from backend.farm.tree import list_tree
 from backend.runtime import EditorRuntime
@@ -56,6 +57,7 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
 
     @router.post("/farm/open")
     async def open_farm(request: Request):
+        """Backward-compatible open-or-create operation."""
         body = await request.json()
         if not isinstance(body, dict):
             return json_from_handler(400, {"error": "JSON object expected"})
@@ -69,6 +71,45 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
             return bad_request(reason)
         return json_from_handler(200, snapshot())
 
+    @router.post("/farm/open-existing")
+    async def open_existing_farm(request: Request):
+        body = await request.json()
+        if not isinstance(body, dict):
+            return json_from_handler(400, {"error": "JSON object expected"})
+        root = body.get("root")
+        if not isinstance(root, str) or not root.strip():
+            return json_from_handler(400, {"error": "root must be a non-empty path"})
+        try:
+            repo().open_existing_farm(root)
+        except (ValueError, OSError) as reason:
+            return bad_request(reason)
+        return json_from_handler(200, snapshot())
+
+    @router.post("/farm/create")
+    async def create_farm(request: Request):
+        body = await request.json()
+        if not isinstance(body, dict):
+            return json_from_handler(400, {"error": "JSON object expected"})
+        root = body.get("root")
+        name = body.get("name")
+        if not isinstance(root, str) or not root.strip():
+            return json_from_handler(400, {"error": "root must be a non-empty path"})
+        if not isinstance(name, str) or not name.strip():
+            return json_from_handler(400, {"error": "name must be a non-empty string"})
+        try:
+            repo().create_farm(root, name.strip())
+        except (ValueError, OSError) as reason:
+            return bad_request(reason)
+        return json_from_handler(201, snapshot())
+
+    @router.post("/farm/pick-folder")
+    def choose_farm_folder():
+        try:
+            selected = pick_folder()
+        except RuntimeError as reason:
+            return json_from_handler(501, {"error": str(reason)})
+        return json_from_handler(200, {"path": selected, "cancelled": selected is None})
+
     @router.get("/farm/tree")
     def farm_tree(kind: str | None = None):
         root = repo().resolve_root()
@@ -81,12 +122,14 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
 
     @router.get("/farm/file")
     def farm_file(path: str):
-        """Read one mission_order document without exposing arbitrary farm files."""
+        """Read one Agri document from mission_order/ or work_performed/."""
         root = repo().resolve_root()
         if not root or not is_farm(root):
             return no_farm()
-        if not path.startswith("mission_order/"):
-            return json_from_handler(400, {"error": "path must be inside mission_order"})
+        if not (path.startswith("mission_order/") or path.startswith("work_performed/")):
+            return json_from_handler(
+                400, {"error": "path must be inside mission_order or work_performed"}
+            )
         try:
             full_path = safe_farm_path(root, path)
         except ValueError as reason:
@@ -127,6 +170,18 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
             json.dump(payload, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
         return json_from_handler(200, {"path": path, "document": payload})
+
+    @router.get("/farm/missions")
+    def farm_missions_for_field(field_id: str | None = None):
+        """Missions and performed work attached to one field, via the farm index."""
+        root = repo().resolve_root()
+        if not root or not is_farm(root):
+            return no_farm()
+        if not field_id or not field_id.strip():
+            return json_from_handler(400, {"error": "field_id is required"})
+        return json_from_handler(
+            200, {"field_id": field_id, "missions": missions_for_field(root, field_id)}
+        )
 
     @router.post("/farm/reindex")
     def farm_reindex():

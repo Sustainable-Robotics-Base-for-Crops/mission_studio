@@ -5,7 +5,9 @@ import {
     fetchFarm,
     fetchFarmAvailable,
     fetchFarmTree,
+    createFarm,
     openFarm,
+    openExistingFarm,
     reindexFarm,
     updateFarm,
     type FarmDocument,
@@ -85,6 +87,34 @@ export function useFarm() {
         [reload],
     );
 
+    const openExisting = useCallback(
+        async (root: string) => {
+            setError(null);
+            try {
+                await openExistingFarm(root);
+            } catch (reason: unknown) {
+                setError(reason instanceof Error ? reason.message : 'farm.error.open');
+                throw reason;
+            }
+            await reload();
+        },
+        [reload],
+    );
+
+    const create = useCallback(
+        async (root: string, name: string) => {
+            setError(null);
+            try {
+                await createFarm(root, name);
+            } catch (reason: unknown) {
+                setError(reason instanceof Error ? reason.message : 'farm.error.open');
+                throw reason;
+            }
+            await reload();
+        },
+        [reload],
+    );
+
     const reindex = useCallback(async () => {
         setError(null);
         try {
@@ -111,6 +141,8 @@ export function useFarm() {
         reload,
         save,
         open,
+        openExisting,
+        create,
         reindex,
     };
 }

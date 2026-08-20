@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { BadgeCheck, Pencil } from 'lucide-react';
 
 import { Button, Chip, Input, Select } from '../design-system';
+import { AdvancedModeLink } from '../app/AdvancedModeLink';
+import { isAdvancedUi, type UiMode } from '../app/farm-api';
 import { fieldSource, type FieldSource } from '../domain/equipment';
 import {
     defaultOddProfile,
@@ -81,10 +83,12 @@ export function EquipmentInspector({
     t,
     catalogue,
     overlay = false,
+    uiMode,
 }: {
     t: (key: string) => string;
     catalogue: Catalogue;
     overlay?: boolean;
+    uiMode?: UiMode;
 }): ReactElement {
     const inspectorClass = overlay ? 'studio-inspector is-overlay' : 'studio-inspector';
     if (!catalogue.available) {
@@ -421,94 +425,103 @@ export function EquipmentInspector({
                         };
                         return (
                             <>
-                                <p className="studio-muted">{t('equipment.odd.title')}</p>
-                                <Select
-                                    id="eq-odd-approved"
-                                    label={t('equipment.odd.approved')}
-                                    help={t('equipment.help.oddApproved')}
-                                    value={odd.approved ? 'yes' : 'no'}
-                                    onValueChange={(value) =>
-                                        patchOdd({ approved: value === 'yes' })
-                                    }
-                                    options={[
-                                        { value: 'no', label: t('equipment.odd.draft') },
-                                        { value: 'yes', label: t('equipment.odd.ready') },
-                                    ]}
-                                />
-                                <NumberInput
-                                    id="eq-odd-slope"
-                                    label={t('equipment.odd.slope')}
-                                    unit="%"
-                                    source={t('equipment.sourceLocal')}
-                                    help={t('equipment.help.oddSlope')}
-                                    value={odd.max_slope_pct}
-                                    onCommit={(next) => patchOdd({ max_slope_pct: next })}
-                                />
-                                <Select
-                                    id="eq-odd-weather"
-                                    label={t('equipment.odd.weather')}
-                                    help={t('equipment.help.oddWeather')}
-                                    value={odd.weather}
-                                    onValueChange={(value) =>
-                                        patchOdd({ weather: value as OddProfile['weather'] })
-                                    }
-                                    options={ODD_WEATHER.map((item) => ({
-                                        value: item,
-                                        label: t(`equipment.odd.weather.${item}`),
-                                    }))}
-                                />
-                                <Select
-                                    id="eq-odd-visibility"
-                                    label={t('equipment.odd.visibility')}
-                                    help={t('equipment.help.oddVisibility')}
-                                    value={odd.visibility}
-                                    onValueChange={(value) =>
-                                        patchOdd({
-                                            visibility: value as OddProfile['visibility'],
-                                        })
-                                    }
-                                    options={ODD_VISIBILITY.map((item) => ({
-                                        value: item,
-                                        label: t(`equipment.odd.visibility.${item}`),
-                                    }))}
-                                />
-                                <Select
-                                    id="eq-odd-crop"
-                                    label={t('equipment.odd.crop')}
-                                    help={t('equipment.help.oddCrop')}
-                                    value={odd.crop}
-                                    onValueChange={(value) =>
-                                        patchOdd({ crop: value as OddProfile['crop'] })
-                                    }
-                                    options={ODD_CROP.map((item) => ({
-                                        value: item,
-                                        label: t(`equipment.odd.crop.${item}`),
-                                    }))}
-                                />
-                                <Select
-                                    id="eq-odd-loc"
-                                    label={t('equipment.odd.localization')}
-                                    help={t('equipment.help.oddLocalization')}
-                                    value={odd.localization}
-                                    onValueChange={(value) =>
-                                        patchOdd({
-                                            localization: value as OddProfile['localization'],
-                                        })
-                                    }
-                                    options={ODD_LOCALIZATION.map((item) => ({
-                                        value: item,
-                                        label: t(`equipment.odd.localization.${item}`),
-                                    }))}
-                                />
-                                <Input
-                                    id="eq-odd-soil"
-                                    label={t('equipment.odd.soil')}
-                                    help={t('equipment.help.oddSoil')}
-                                    value={odd.soil_note}
-                                    onChange={(event) =>
-                                        patchOdd({ soil_note: event.target.value })
-                                    }
-                                />
+                                {isAdvancedUi(uiMode) ? (
+                                    <>
+                                        <p className="studio-muted">{t('equipment.odd.title')}</p>
+                                        <Select
+                                            id="eq-odd-approved"
+                                            label={t('equipment.odd.approved')}
+                                            help={t('equipment.help.oddApproved')}
+                                            value={odd.approved ? 'yes' : 'no'}
+                                            onValueChange={(value) =>
+                                                patchOdd({ approved: value === 'yes' })
+                                            }
+                                            options={[
+                                                { value: 'no', label: t('equipment.odd.draft') },
+                                                { value: 'yes', label: t('equipment.odd.ready') },
+                                            ]}
+                                        />
+                                        <NumberInput
+                                            id="eq-odd-slope"
+                                            label={t('equipment.odd.slope')}
+                                            unit="%"
+                                            source={t('equipment.sourceLocal')}
+                                            help={t('equipment.help.oddSlope')}
+                                            value={odd.max_slope_pct}
+                                            onCommit={(next) => patchOdd({ max_slope_pct: next })}
+                                        />
+                                        <Select
+                                            id="eq-odd-weather"
+                                            label={t('equipment.odd.weather')}
+                                            help={t('equipment.help.oddWeather')}
+                                            value={odd.weather}
+                                            onValueChange={(value) =>
+                                                patchOdd({
+                                                    weather: value as OddProfile['weather'],
+                                                })
+                                            }
+                                            options={ODD_WEATHER.map((item) => ({
+                                                value: item,
+                                                label: t(`equipment.odd.weather.${item}`),
+                                            }))}
+                                        />
+                                        <Select
+                                            id="eq-odd-visibility"
+                                            label={t('equipment.odd.visibility')}
+                                            help={t('equipment.help.oddVisibility')}
+                                            value={odd.visibility}
+                                            onValueChange={(value) =>
+                                                patchOdd({
+                                                    visibility: value as OddProfile['visibility'],
+                                                })
+                                            }
+                                            options={ODD_VISIBILITY.map((item) => ({
+                                                value: item,
+                                                label: t(`equipment.odd.visibility.${item}`),
+                                            }))}
+                                        />
+                                        <Select
+                                            id="eq-odd-crop"
+                                            label={t('equipment.odd.crop')}
+                                            help={t('equipment.help.oddCrop')}
+                                            value={odd.crop}
+                                            onValueChange={(value) =>
+                                                patchOdd({ crop: value as OddProfile['crop'] })
+                                            }
+                                            options={ODD_CROP.map((item) => ({
+                                                value: item,
+                                                label: t(`equipment.odd.crop.${item}`),
+                                            }))}
+                                        />
+                                        <Select
+                                            id="eq-odd-loc"
+                                            label={t('equipment.odd.localization')}
+                                            help={t('equipment.help.oddLocalization')}
+                                            value={odd.localization}
+                                            onValueChange={(value) =>
+                                                patchOdd({
+                                                    localization:
+                                                        value as OddProfile['localization'],
+                                                })
+                                            }
+                                            options={ODD_LOCALIZATION.map((item) => ({
+                                                value: item,
+                                                label: t(`equipment.odd.localization.${item}`),
+                                            }))}
+                                        />
+                                        <Input
+                                            id="eq-odd-soil"
+                                            label={t('equipment.odd.soil')}
+                                            help={t('equipment.help.oddSoil')}
+                                            value={odd.soil_note}
+                                            onChange={(event) =>
+                                                patchOdd({ soil_note: event.target.value })
+                                            }
+                                        />
+                                    </>
+                                ) : (
+                                    <AdvancedModeLink t={t} />
+                                )}
                             </>
                         );
                     })()}

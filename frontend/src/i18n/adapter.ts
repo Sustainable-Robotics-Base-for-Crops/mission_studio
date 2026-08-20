@@ -12,17 +12,17 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'app.publish': 'Publier',
         'app.simulateHint': 'Valider la cinématique et l’enveloppe balayée',
         'app.save': 'Enregistrer',
-        'app.saveHint': 'Écrire la mission dans backend/uploads (JSON Agri)',
+        'app.saveHint': 'Enregistrer la mission dans le dossier de travail',
         'app.publishHint': 'Verrouiller une version immuable (checksum) pour le mobile',
         'app.blockers': '{blocks} bloqueur(s) / {warns} avertissement(s)',
         'app.compare': 'Comparer',
         'app.compareHint': 'Comparer 2–3 orientations de couverture sur la même parcelle',
         'compare.title': 'Comparer les orientations',
         'compare.hint':
-            'Replanifie jusqu’à trois stratégies sur la géofence actuelle. L’ODD de la combinaison est réévalué sur chaque variante. Énergie et Gazebo restent hors de cette coupe.',
+            'Replanifie jusqu’à trois stratégies sur la limite de parcelle actuelle. L’ODD de la combinaison est réévalué sur chaque variante. Énergie et Gazebo restent hors de cette coupe.',
         'compare.loading': 'Calcul des variantes…',
         'compare.failed': 'Le moteur de couverture n’a pas pu comparer.',
-        'compare.needField': 'Il faut une géofence et une largeur utile (Matériel).',
+        'compare.needField': 'Il faut une limite de parcelle et une largeur utile (Matériel).',
         'compare.current': 'Mission actuelle',
         'compare.apply': 'Retenir',
         'compare.close': 'Fermer',
@@ -45,7 +45,6 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'app.expandRight': 'Déplier l’inspecteur',
         'app.toggleSimulation': 'Tiroir simulation',
         'app.language': 'Langue',
-        'app.canvasPlaceholder': 'Carte MapLibre — fonds et symbologie CdCF §5',
         'app.inspectorEmpty': 'Aucun objet sélectionné',
         'app.reviewMode':
             'Écran trop étroit pour l’édition experte. Ouvrez les panneaux (icônes en haut à gauche) pour la bibliothèque et l’inspecteur. Le Web n’est pas le poste terrain — app mobile, ou un écran ≥ 1024 px.',
@@ -103,6 +102,29 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'equipment.nav.implements': 'Outils',
         'equipment.nav.combinations': 'Combinaisons',
         'equipment.add': 'Ajouter',
+        'equipment.import.manual': 'Saisir les propriétés',
+        'equipment.import.file': 'Téléverser un fichier',
+        'equipment.import.addVehicle': 'Ajouter un véhicule',
+        'equipment.import.addImplement': 'Ajouter un outil',
+        'equipment.import.addCombination': 'Ajouter une combinaison',
+        'equipment.import.combinationHint':
+            'Une combinaison associe un véhicule et un outil déjà dans le catalogue. Elle ne s’importe pas par fichier.',
+        'equipment.import.fileHint':
+            'Fichier JSON srbc.equipment/1, plus un PNG optionnel du même nom pour l’icône.',
+        'equipment.import.needJson':
+            'Choisissez un fichier JSON. Le PNG d’icône est optionnel et doit porter le même nom.',
+        'equipment.import.invalidJson':
+            'Le fichier n’est pas du JSON lisible — corrigez les virgules et les guillemets.',
+        'equipment.import.ready': 'Prêt à importer : {name} ({kind}).',
+        'equipment.import.kind.vehicle': 'véhicule',
+        'equipment.import.kind.implement': 'outil',
+        'equipment.import.iconOk':
+            'Icône PNG reconnue. Elle reste à côté du JSON dans equipment/ ; le catalogue n’embarque pas l’image.',
+        'equipment.import.iconMismatch':
+            'Le PNG n’a pas le même nom que le JSON ni que le champ icon — il sera ignoré.',
+        'equipment.import.iconOptional':
+            'Pas de PNG : l’icône est optionnelle (même nom que le JSON, dans equipment/).',
+        'equipment.import.confirm': 'Ajouter',
         'equipment.empty': 'Aucun élément dans cette liste.',
         'equipment.delete': 'Supprimer',
         'equipment.deleteConfirm': 'Confirmer la suppression',
@@ -139,21 +161,20 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'equipment.kinematics.skid': 'Chenilles / pivot',
         'equipment.kinematics.ackermann': 'Ackermann',
         'equipment.hint.vehicle':
-            'Emprise OEM = rectangle geofencing prod (1,10 × 0,60 m). Le dessin se met à jour à chaque valeur.',
+            'Emprise OEM = rectangle de limite de parcelle de production (1,10 × 0,60 m). Le dessin se met à jour à chaque valeur.',
         'equipment.hint.implement':
             'Outil porté (bineuse, semoir) : attelage rigide. Largeur utile (couverture) et largeur physique (collision) sont distinctes.',
         'equipment.hint.implementTrailed':
             'Outil traîné (remorque, covercrop sur roues) : articulation au hitch du véhicule, timon = distance attelage → essieu.',
-        'equipment.hint.combination':
-            'La combinaison est la photo figée exportée dans metadata.srbc_equipment.',
+        'equipment.hint.combination': 'La combinaison est la photo figée exportée avec la mission.',
         'equipment.help.name':
-            'Nom affiché dans la bibliothèque Matériel. Il n’est pas exporté dans le JSON Agri.',
+            'Nom affiché dans la bibliothèque Matériel. Il n’est pas exporté dans le fichier mission.',
         'equipment.help.kinematics':
             'Chenilles / pivot : cinématique réelle du SRBC, rayon minimal nul. Ackermann : braquage type tracteur, pour comparer un modèle à essieux.',
         'equipment.help.vehicleLength':
-            'Longueur hors-tout du véhicule, le long de l’axe avant (+x). Elle dessine le rectangle de collision et le gabarit geofencing.',
+            'Longueur hors-tout du véhicule, le long de l’axe avant (+x). Elle dessine le rectangle de collision et le gabarit de limite de parcelle.',
         'equipment.help.vehicleWidth':
-            'Largeur hors-tout du véhicule. Sur le preset OEM SRBC, c’est le rectangle de geofencing de production (0,60 m).',
+            'Largeur hors-tout du véhicule. Sur le preset OEM SRBC, c’est le rectangle de limite de parcelle de production (0,60 m).',
         'equipment.help.wheelbase':
             'Distance entre essieux, ou empattement virtuel sur chenilles. Sert surtout à estimer un rayon de braquage Ackermann.',
         'equipment.help.track':
@@ -184,7 +205,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'equipment.help.workPointXTrailer':
             'Point de travail mesuré depuis l’essieu (+x avant), pas depuis le hitch.',
         'equipment.help.combinationName':
-            'Nom de la photo véhicule + outil. C’est cette combinaison qui est exportée dans metadata.srbc_equipment.',
+            'Nom de la photo véhicule + outil. C’est cette combinaison qui est exportée avec la mission.',
         'equipment.help.combinationVehicle': 'Véhicule de la combinaison.',
         'equipment.help.combinationImplement':
             'Outil porté ou traîné attelé à ce véhicule, ou aucun.',
@@ -278,13 +299,12 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'mission.load.operationUnknown': 'Opération : — (non renseignée)',
         'mission.load.simulated': 'Simulée',
         'mission.load.notSimulated': 'Non simulée',
-        'mission.publish.title': 'Publication et enregistrement',
         'mission.publish.needDocument':
             'Aucune mission en cours — créez-en une ou chargez-en une avant d’enregistrer.',
         'mission.publish.saveAs': 'Enregistrer sous',
         'mission.publish.saveAsName': 'Nom du fichier',
         'mission.publish.duplicate': 'Dupliquer',
-        'mission.publish.export': 'Exporter Agri',
+        'mission.publish.export': 'Exporter le fichier mission',
         'mission.publish.history': 'Historique des publications',
         'mission.publish.error': 'Enregistrement impossible : {error}',
         'assist.title': 'Nouvelle mission',
@@ -298,7 +318,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'assist.generating': 'Génération…',
         'assist.choose': 'Choisir…',
         'assist.none': 'Aucun',
-        'assist.ready': 'Prêt — la carte montre l’aperçu. Générer écrit le brouillon Agri.',
+        'assist.ready': 'Prêt — la carte montre l’aperçu. Générer écrit le brouillon de mission.',
         'assist.generateHint':
             'Le plan ouvre l’éditeur (cette carte) avec rangs, fourrières et métriques. Prescription, météo live et Dubins restent hors coupe.',
         'assist.applied': 'Plan généré — brouillon dans l’éditeur',
@@ -352,20 +372,20 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'assist.help.rowSet':
             'Si la parcelle a des rangs plantés (vigne), on les suit. Sinon boustrophédon sur le polygone.',
         'assist.help.combination':
-            'Photo figée exportée dans metadata.srbc_equipment. Largeur utile reprise de l’outil.',
+            'Photo figée exportée avec la mission. Largeur utile reprise de l’outil.',
         'assist.help.recipe':
-            'Dose, profondeur et cartes de prescription : notes pour la tablette, pas encore des colonnes Agri.',
+            'Dose, profondeur et cartes de prescription : notes pour la tablette, pas encore des colonnes du fichier mission.',
         'assist.help.recipeNote': 'Texte libre (profondeur, produit). Non consommé par le robot.',
         'assist.help.transit':
             'Mémo d’entrée / sortie. Le tracé de transit outil inactif arrive plus tard (P1.8).',
         'assist.help.weather':
             'Pas de flux météo. Une note suffit pour le brief ; le blocage prévol est L10.',
         'tree.title': 'Arbre de mission',
-        'tree.empty': 'Aucune section — générez un plan ou chargez une mission.',
+        'tree.empty': 'Aucune passe — générez un plan ou chargez une mission.',
         'tree.moveUp': 'Monter',
         'tree.moveDown': 'Descendre',
         'tree.reverse': 'Inverser le sens',
-        'tree.reordered': 'Section déplacée',
+        'tree.reordered': 'Passe déplacée',
         'tree.hide': 'Masquer sur la carte',
         'tree.show': 'Afficher sur la carte',
         'tree.lock': 'Verrouiller la géométrie',
@@ -375,7 +395,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tree.lockedBlocked': 'Section verrouillée — déverrouillez-la pour éditer',
         'tree.lockedHint':
             'Cette sélection est verrouillée. L’œil masque la carte ; le cadenas bloque les edits.',
-        'tree.dragHint': 'Glissez une section pour changer l’ordre. Alt+↑ / Alt+↓ aussi.',
+        'tree.dragHint': 'Glissez une passe pour changer l’ordre. Alt+↑ / Alt+↓ aussi.',
         'tree.group.headland': 'Fourrière ({count})',
         'tree.group.work': 'Passes ({count})',
         'tree.group.other': 'Autres ({count})',
@@ -398,13 +418,23 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
             'Le type de ferme détermine le pack cultural proposé par défaut aux nouvelles missions (vigne, maraîchage, grandes cultures).',
         'admin.folder': 'Dossier de travail',
         'admin.folder.none': 'Aucun dossier de ferme ouvert',
-        'admin.folder.open': 'Ouvrir une autre ferme',
-        'admin.folder.openAction': 'Ouvrir',
+        'admin.folder.selected': 'Dossier sélectionné',
+        'admin.folder.pickAction': 'Choisir un dossier…',
+        'admin.folder.picking': 'Choix du dossier…',
+        'admin.folder.pickFailed': 'Le sélecteur de dossier n’est pas disponible.',
+        'admin.folder.openAction': 'Ouvrir la ferme',
         'admin.folder.recent': 'Fermes récentes',
         'admin.folder.required': 'Indiquez le chemin du dossier de la ferme.',
         'admin.folder.failed': 'Impossible d’ouvrir ce dossier.',
         'admin.folder.hint':
-            'Chemin absolu du dossier de la ferme. Un dossier vide est initialisé avec parcel_map, mission_order, work_performed et equipment.',
+            'Choisissez un dossier existant. Ouvrir exige un farm.json valide ; créer exige un dossier vide.',
+        'admin.create.name': 'Nom de la nouvelle ferme',
+        'admin.create.namePlaceholder': 'Ex. Ferme des Grands Champs',
+        'admin.create.nameRequired': 'Indiquez le nom de la nouvelle ferme.',
+        'admin.create.action': 'Créer la ferme ici',
+        'admin.create.hint':
+            'Le dossier vide recevra farm.json, parcel_map, mission_order, work_performed, equipment et .studio.',
+        'admin.create.failed': 'Impossible de créer la ferme dans ce dossier.',
         'admin.index.rebuild': 'Reconstruire l’index',
         'admin.index.hint':
             'L’index accélère les recherches ; il se reconstruit entièrement depuis les fichiers.',
@@ -424,13 +454,29 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'admin.uiMode.basic': 'Basique',
         'admin.uiMode.advanced': 'Avancé',
         'admin.uiMode.hint':
-            'Le mode basique masquera les outils experts (transformations, arbre de mission, édition de l’ODD). Le choix est enregistré ; son application aux outils arrive dans un lot suivant.',
+            'Le mode basique masque les outils experts (transformations, arbre de mission, édition de l’ODD). Passez en avancé pour les réafficher.',
+        'admin.uiMode.needFarm':
+            'Créez ou ouvrez d’abord une ferme ; le niveau d’outils est enregistré dans son farm.json.',
+        'admin.switchToAdvanced': 'Passer en mode avancé',
         'context.title': 'Contexte',
         'inspector.title': 'Inspecteur',
         'simulation.title': 'Simulation',
-        'simulation.body': 'Timeline et contrôles de validation.',
         'sim.needRun': 'Cliquez Simuler pour calculer l’enveloppe balayée et les bloqueurs.',
-        'sim.needMission': 'Chargez une mission avec au moins une section.',
+        'sim.tab.configure': 'Configurer',
+        'sim.tab.results': 'Résultats',
+        'sim.tab.report': 'Rapport',
+        'sim.allChecks': 'Voir tous les contrôles',
+        'sim.config.missionHint':
+            'Mission en cours par défaut. Chargez un ordre de mission ou un travail réalisé pour rejouer avec un autre matériel.',
+        'sim.config.current': 'Mission en cours : {name}',
+        'sim.config.draft': 'brouillon non enregistré',
+        'sim.config.loading': 'Lecture des missions de la ferme…',
+        'sim.config.empty': 'Aucune mission dans mission_order/ ni work_performed/.',
+        'sim.config.missionOrder': 'Ordre de mission',
+        'sim.config.workPerformed': 'Travail réalisé',
+        'sim.config.equipment': 'Combinaison',
+        'sim.config.noEquipment': 'Aucun matériel dans le catalogue',
+        'sim.needMission': 'Chargez une mission avec au moins une passe.',
         'sim.stale': 'La mission a changé — relancez Simuler (À revalider).',
         'sim.footprintHint':
             'Carte : rectangle vert = châssis, cyan = outil (jumeau Matériel). L’empreinte claire est le balayage de toute la mission.',
@@ -453,16 +499,16 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'sim.group.fleet': 'Multi-machine',
         'sim.group.incidents': 'Scénarios d’incident',
         'sim.check.pending': 'Pas encore modélisé dans l’éditeur.',
-        'sim.check.mission.empty': 'Aucune section à simuler.',
+        'sim.check.mission.empty': 'Aucune passe à simuler.',
         'sim.check.kinematics.turnRadius': 'Rayon de courbure vs rayon mini.',
         'sim.check.kinematics.speed': 'Vitesse de consigne vs max machine.',
-        'sim.check.collisions.geofence': 'Enveloppe collision vs géofence.',
-        'sim.check.collisions.margin': 'Marge à la géofence sous le seuil de 15 cm.',
+        'sim.check.collisions.geofence': 'Enveloppe collision vs limite de parcelle.',
+        'sim.check.collisions.margin': 'Marge à la limite de parcelle sous le seuil de 15 cm.',
         'sim.check.coverage.overlap': 'Recouvrement (surface travaillée au moins deux fois).',
         'sim.check.coverage.gap':
             'Manque (surface de parcelle non travaillée) — informatif : rangs, strip-till, planches.',
-        'sim.check.limits.noGeofence': 'Pas de polygone de géofence sur la mission.',
-        'sim.check.limits.geofence': 'Géofence présente.',
+        'sim.check.limits.noGeofence': 'Pas de polygone de limite de parcelle sur la mission.',
+        'sim.check.limits.geofence': 'Limite de parcelle présente.',
         'sim.check.odd.notModelled': 'ODD machine non simulé ici.',
         'sim.check.odd.profile': 'Profil ODD de la combinaison.',
         'sim.check.odd.approved': 'ODD approuvé pour l’autonomie.',
@@ -489,15 +535,16 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'pub.dialogHint':
             'Cette action n’est pas annulable. La version publiée devient immuable ; toute modification suivante créera une nouvelle version.',
         'pub.noPath': 'Fichier pas encore enregistré — il le sera à la publication.',
-        'pub.sections': 'section(s)',
+        'pub.sections': 'passe(s)',
         'pub.simSummary': 'Simulation : {pass} conformes, {warn} avertissements, {length} m.',
         'pub.immutableTitle': 'Devient immuable',
-        'pub.immutable.trajectory': 'Trajectoire (points et types de section)',
-        'pub.immutable.geofence': 'Géofence',
-        'pub.immutable.twin': 'Jumeau véhicule–outil (metadata.srbc_equipment)',
-        'pub.immutable.odd': 'ODD déclaré (metadata.srbc_odd)',
+        'pub.immutable.trajectory': 'Trajectoire (points et types de passe)',
+        'pub.immutable.geofence': 'Limite de parcelle',
+        'pub.immutable.twin': 'Jumeau véhicule–outil',
+        'pub.immutable.odd': 'Domaine d’emploi déclaré',
         'pub.immutable.simulation': 'Résultat de simulation attesté',
-        'pub.immutable.checksum': 'Empreinte SHA-256 du JSON Agri (hors tampon de publication)',
+        'pub.immutable.checksum':
+            'Empreinte SHA-256 du fichier mission (hors tampon de publication)',
         'pub.immutable.version': 'Numéro de version',
         'pub.immutable.expiry': 'Date d’expiration du paquet',
         'pub.approver': 'Approbateur',
@@ -506,7 +553,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
             'Nom local. Pas d’OAuth dans cette coupe (INT-010 reste côté plugins).',
         'pub.help.expires': 'Après cette date le paquet reste lisible mais est signalé périmé.',
         'pub.cancel': 'Annuler',
-        'pub.confirm': 'Publier v{version}',
+        'pub.confirm': 'Approuver la mission v{version}',
         'pub.applied': 'Mission publiée v{version}.',
         'pub.error.save': 'Publication impossible.',
         'pub.error.load': 'Impossible de charger les publications.',
@@ -525,7 +572,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'pub.status.published': 'Publiée',
         'pub.status.obsolete': 'Obsolète',
         'pub.block.no_document': 'Chargez ou générez une mission.',
-        'pub.block.empty': 'La mission n’a pas de section.',
+        'pub.block.empty': 'La mission n’a pas de passe.',
         'pub.block.no_sim': 'Lancez Simuler avant de publier.',
         'pub.block.stale': 'La mission a changé — relancez Simuler (À revalider).',
         'pub.block.blocked': 'Publication impossible tant que le bloqueur n’est pas résolu.',
@@ -561,7 +608,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'pack.title': 'Pack culture',
         'pack.select': 'Pack',
         'pack.help':
-            'Règles d’affichage et d’édition. Le JSON Agri v3 ne change pas ; le pack est dans metadata.srbc_crop_pack.',
+            'Règles d’affichage et d’édition. Le fichier mission ne change pas de format ; le pack est une métadonnée interne.',
         'pack.open_field': 'Plein champ',
         'pack.vineyard': 'Vigne',
         'pack.market_garden': 'Maraîchage',
@@ -590,7 +637,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'teach.open': 'Teach-and-repeat',
         'teach.title': 'Importer une trace',
         'teach.hint':
-            'GeoJSON [lng, lat] ou Agri. Simplification RDP {epsilon} m, une section row_path.',
+            'GeoJSON [lng, lat] ou fichier mission. Simplification RDP {epsilon} m, une passe de rang.',
         'teach.file': 'Fichier JSON / GeoJSON',
         'teach.json': 'Coller le JSON',
         'teach.preview': '{source} points → {simplified} après simplification',
@@ -609,7 +656,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'map.basemap.terrain': 'Terrain',
         'map.overlays': 'Couches métier',
         'map.layer.trajectories': 'Trajectoires',
-        'map.layer.parcels': 'Parcelles / géofence',
+        'map.layer.parcels': 'Parcelles / limite',
         'map.layer.rows': 'Rangs / planches',
         'map.layer.zones': 'Zones',
         'map.layer.obstacles': 'Obstacles',
@@ -646,7 +693,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
             'Cliquez les coins de la parcelle. Le premier côté oriente les rangs. Entrée ou ✓ ouvre largeur utile et stratégie.',
         'tool.finishFillParcel': 'Choisir la largeur utile et remplir',
         'tool.fillParcelDialogHint':
-            'Rangs droits (row_line) en aller-retour, fourrières en contour (row_path). Choisissez une orientation : aperçu sur la carte. Le moteur Fields2Cover tourne sur le serveur ; sans lui, repli parallèle.',
+            'Rangs droits en aller-retour, fourrières en contour. Choisissez une orientation : aperçu sur la carte. Le moteur Fields2Cover tourne sur le serveur ; sans lui, repli parallèle.',
         'tool.rowSpacing': 'Largeur utile / espacement',
         'tool.rowSpacingSource':
             'Défaut 2,5 m — ouvrez Matériel pour préremplir avec la largeur utile de l’outil',
@@ -662,7 +709,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.coverageStrategy.snake': 'Serpentin',
         'tool.headlandWidth': 'Largeur de fourrière',
         'tool.headlandWidthHelp':
-            '0 = pas de contour travaillé. La parcelle sert de géofence : rangs et pivots laissent la place à l’encombrement de l’outil (plus 15 cm). Une largeur > 0 ajoute une fourrière en contour.',
+            '0 = pas de contour travaillé. La parcelle sert de limite : rangs et pivots laissent la place à l’encombrement de l’outil (plus 15 cm). Une largeur > 0 ajoute une fourrière en contour.',
         'tool.invalidHeadland': 'Saisissez une largeur nulle ou positive',
         'tool.coverageVariantsLoading': 'Calcul des trois orientations…',
         'tool.coverageVariantMeta': '{rows} rang(s) · {length}',
@@ -683,15 +730,15 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.fillParcelEmpty':
             'Aucun rang généré — élargissez le polygone ou réduisez l’espacement',
         'tool.invalidSpacing': 'Saisissez un espacement strictement positif',
-        'tool.drawPolygon': 'Tracer un polygone (géofence)',
+        'tool.drawPolygon': 'Tracer un polygone (limite de parcelle)',
         'tool.drawPolygonHint':
             'Cliquez au moins trois points. Glissez un sommet pour le corriger, cliquez un segment pour en insérer un. Entrée ou ✓ valide, Échap annule.',
-        'tool.finishPolygon': 'Valider la géofence',
+        'tool.finishPolygon': 'Valider la limite de parcelle',
         'tool.tooFewPolygonPoints': 'Cliquez au moins trois points pour fermer le polygone',
-        'tool.geofenceAdded': 'Géofence enregistrée ({count} sommets)',
+        'tool.geofenceAdded': 'Limite de parcelle enregistrée ({count} sommets)',
         'tool.workingZone': 'Zone de travail',
         'tool.workingZoneHint':
-            'Tracez un polygone autour des points à marquer. ✓ = travail (gains in_working_zone), tirets = transit. Entrée = travail, Échap annule.',
+            'Tracez un polygone autour des points à marquer. ✓ = travail, tirets = transit. Entrée = travail, Échap annule.',
         'tool.finishWorkingZoneWork': 'Marquer comme travail',
         'tool.finishWorkingZoneTransit': 'Marquer comme transit',
         'tool.workingZoneWork': '{count} point(s) en zone de travail',
@@ -705,7 +752,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.pointsDeleted': '{count} rang(s) recoupé(s)',
         'tool.connectTurns': 'Connecter les demi-tours',
         'tool.connectTurnsHint':
-            'Relie les rangs par un U ou un carré (turn_path / turn_square). Les rangs restent en row_line ; le robot suit nav_turn sur les manœuvres.',
+            'Relie les rangs par un U ou un carré. Les rangs restent des passes droites ; les manœuvres sont des demi-tours.',
         'tool.connectTurnsConfirm': 'Connecter',
         'tool.connectTurnsNeedRows': 'Il faut au moins deux rangs (hors demi-tours déjà générés)',
         'tool.connectTurnsAdded': '{turns} demi-tour(s) ajouté(s)',
@@ -735,7 +782,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.offsetConfirm': 'Décaler',
         'tool.offsetNeedSelection': 'Sélectionnez d’abord un ou plusieurs rangs',
         'tool.offsetInvalid': 'Saisissez une distance entre 0,01 et 100 m',
-        'tool.offsetApplied': '{count} section(s) décalée(s) de {distance} m',
+        'tool.offsetApplied': '{count} passe(s) décalée(s) de {distance} m',
         'tool.ruler': 'Règle',
         'tool.rulerHint':
             'Cliquez deux points pour mesurer (hors mission). Glissez un sommet pour affiner. Un troisième clic recommence. Échap quitte.',
@@ -744,24 +791,24 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.editSpeed': 'Modifier la vitesse',
         'tool.editSpeedHint':
             'La vitesse s’applique à tous les points de la mission (rangs et demi-tours). Bornes 0–50 m/s.',
-        'tool.editSpeedSource': 'Défaut 0,50 m/s — profil par section à venir',
+        'tool.editSpeedSource': 'Défaut 0,50 m/s — profil par passe à venir',
         'tool.editSpeedConfirm': 'Appliquer',
         'tool.speedInvalid': 'Saisissez une vitesse entre 0 et 50 m/s',
         'tool.speedUpdated': 'Vitesse {value} m/s appliquée à {count} point(s)',
         'tool.speedNoPoints': 'Aucun point avec une colonne vitesse dans cette mission',
-        'tool.selectZone': 'Sélectionner des sections',
+        'tool.selectZone': 'Sélectionner des passes',
         'tool.selectZoneHint':
-            'Cliquez un rang (Shift pour cumuler). Glissez une section déjà sélectionnée pour la déplacer. Clic à côté désélectionne. Échap : désélection, puis quitter. Inverser / Supprimer dans la barre.',
+            'Cliquez un rang (Shift pour cumuler). Glissez une passe déjà sélectionnée pour la déplacer. Clic à côté désélectionne. Échap : désélection, puis quitter. Inverser / Supprimer dans la barre.',
         'tool.selectPolygon': 'Sélectionner par zone',
         'tool.selectPolygonHint':
             'Tracez un polygone autour des rangs à sélectionner — un rang qui traverse sans sommet dedans compte. Entrée ou ✓ valide.',
         'tool.finishSelectPolygon': 'Sélectionner les rangs dans la zone',
         'tool.selectEmpty': 'Aucun rang ne croise ce polygone',
-        'tool.sectionsSelected': '{count} section(s) sélectionnée(s)',
+        'tool.sectionsSelected': '{count} passe(s) sélectionnée(s)',
         'tool.reverseSelected': 'Inverser le sens',
-        'tool.reverseSelectedDone': '{count} section(s) inversée(s)',
+        'tool.reverseSelectedDone': '{count} passe(s) inversée(s)',
         'tool.deleteSelected': 'Supprimer la sélection',
-        'tool.deletedSelected': '{count} section(s) supprimée(s)',
+        'tool.deletedSelected': '{count} passe(s) supprimée(s)',
         'tool.needMission': 'Ouvrez ou tracez d’abord une trajectoire',
         'tool.unsaved': 'Brouillon local — non enregistré sur le disque',
         'tool.unsavedChip': 'Non enregistré',
@@ -772,11 +819,11 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.saveFailed': 'Enregistrement impossible : {error}',
         'tool.saveFailedChip': 'Échec d’enregistrement',
         'tool.tooFewPoints': 'Cliquez au moins deux points pour terminer la ligne',
-        'tool.sectionLimit': 'Cette ligne dépasserait la limite de 50 000 points par section',
+        'tool.sectionLimit': 'Cette ligne dépasserait la limite de 50 000 points par passe',
         'tool.trajectoryLimit': 'La mission dépasserait la limite de 1 000 000 points',
         'tool.lineAdded': 'Ligne ajoutée ({count} points)',
-        'inspector.points': '{sections} section(s) · {points} point(s)',
-        'inspector.selected': '{count} section(s) sélectionnée(s)',
+        'inspector.points': '{sections} passe(s) · {points} point(s)',
+        'inspector.selected': '{count} passe(s) sélectionnée(s)',
         'inspector.accordion.geometry': 'Géométrie',
         'inspector.accordion.order': 'Ordre et sens',
         'inspector.accordion.speed': 'Vitesse',
@@ -786,7 +833,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'inspector.briefHint': 'Campagne {campaign} · {operation}',
         'inspector.noBrief': 'Pas de brief assistant sur cette mission.',
         'inspector.orderHint':
-            'Montez ou descendez une section dans l’arbre (une à la fois). Alt+↑ / Alt+↓.',
+            'Montez ou descendez une passe dans l’arbre (une à la fois). Alt+↑ / Alt+↓.',
         'inspector.speedHint':
             'Vitesse moyenne {speed} m/s. Utilisez l’outil Vitesse pour la modifier.',
         'inspector.edit.move': 'Déplacer',
@@ -815,7 +862,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'inspector.edit.extendEnd': 'Fin',
         'inspector.edit.extendHint':
             'Cliquez sur la carte pour placer la nouvelle extrémité. Échap annule.',
-        'inspector.edit.extendNeedOne': 'Rallonger une seule section à la fois',
+        'inspector.edit.extendNeedOne': 'Rallonger une seule passe à la fois',
         'inspector.edit.extendCancel': 'Annuler le rallongement',
         'inspector.edit.extendTooClose': 'Cible trop proche (moins de 0,1 m)',
         'inspector.edit.extended': 'Extrémité déplacée',
@@ -894,7 +941,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'fields.navigate.empty':
             'Aucune parcelle à consulter. Utilisez l’onglet Éditer pour tracer ou importer une parcelle.',
         'fields.work.hint':
-            'Importez une trace Agri ou GeoJSON. Elle sera nettoyée avant de générer des rangs pérennes ou des planches.',
+            'Importez une trace de mission ou un GeoJSON. Elle sera nettoyée avant de générer des rangs pérennes ou des planches.',
         'fields.work.needField': 'Sélectionnez d’abord la parcelle qui recevra les rangs.',
         'fields.work.target': 'Parcelle cible : {name}',
         'fields.work.choose': 'Choisir une trace JSON ou GeoJSON',
@@ -915,6 +962,20 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'fields.tab.safety': 'Sécurité',
         'fields.tab.history': 'Historique',
         'fields.tab.impact': 'Impact',
+        'fields.tab.missions': 'Missions',
+        'fields.missions.needField':
+            'Sélectionnez une parcelle dans Naviguer pour retrouver ses missions.',
+        'fields.missions.loading': 'Lecture des missions de la parcelle…',
+        'fields.missions.unavailable':
+            'Le dossier de ferme n’est pas joignable. Relancez Mission Studio avec FastAPI, puis ouvrez une ferme dans Administration.',
+        'fields.missions.noFarm':
+            'Aucune ferme n’est ouverte. Ouvrez un dossier dans Administration pour y rattacher les missions.',
+        'fields.missions.generated': 'Missions générées',
+        'fields.missions.work': 'Travaux réalisés',
+        'fields.missions.generatedEmpty':
+            'Aucune mission générée pour cette parcelle. Créez-en une dans Missions, elle sera rattachée par l’identifiant de parcelle.',
+        'fields.missions.workEmpty':
+            'Aucun travail réalisé pour cette parcelle. Importez une trace dans l’onglet Importer un travail réalisé.',
         'fields.name': 'Nom',
         'fields.type': 'Type',
         'fields.typeField': 'Parcelle',
@@ -1045,17 +1106,17 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'app.publish': 'Publish',
         'app.simulateHint': 'Validate kinematics and the swept envelope',
         'app.save': 'Save',
-        'app.saveHint': 'Write the mission to backend/uploads (Agri JSON)',
+        'app.saveHint': 'Save the mission to the working folder',
         'app.publishHint': 'Lock an immutable version (checksum) for the mobile app',
         'app.blockers': '{blocks} blocker(s) / {warns} warning(s)',
         'app.compare': 'Compare',
         'app.compareHint': 'Compare 2–3 coverage headings on the same field',
         'compare.title': 'Compare headings',
         'compare.hint':
-            'Replans up to three strategies on the current geofence. Combination ODD is re-checked on each variant. Energy and Gazebo stay out of this slice.',
+            'Replans up to three strategies on the current field boundary. Combination ODD is re-checked on each variant. Energy and Gazebo stay out of this slice.',
         'compare.loading': 'Computing variants…',
         'compare.failed': 'The coverage engine could not compare.',
-        'compare.needField': 'A geofence and a working width (Equipment) are required.',
+        'compare.needField': 'A field boundary and a working width (Equipment) are required.',
         'compare.current': 'Current mission',
         'compare.apply': 'Keep',
         'compare.close': 'Close',
@@ -1078,7 +1139,6 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'app.expandRight': 'Expand inspector',
         'app.toggleSimulation': 'Simulation drawer',
         'app.language': 'Language',
-        'app.canvasPlaceholder': 'MapLibre map — basemaps and CdCF §5 symbology',
         'app.inspectorEmpty': 'No object selected',
         'app.reviewMode':
             'This viewport is too narrow for expert editing. Open the panels (icons at the top left) for the library and inspector. The web app is not the field station — use the mobile app, or a screen ≥ 1024 px.',
@@ -1135,6 +1195,28 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'equipment.nav.implements': 'Implements',
         'equipment.nav.combinations': 'Combinations',
         'equipment.add': 'Add',
+        'equipment.import.manual': 'Enter properties',
+        'equipment.import.file': 'Upload a file',
+        'equipment.import.addVehicle': 'Add a vehicle',
+        'equipment.import.addImplement': 'Add an implement',
+        'equipment.import.addCombination': 'Add a combination',
+        'equipment.import.combinationHint':
+            'A combination links a vehicle and an implement already in the catalogue. It is not imported from a file.',
+        'equipment.import.fileHint':
+            'JSON file srbc.equipment/1, plus an optional PNG with the same name for the icon.',
+        'equipment.import.needJson':
+            'Choose a JSON file. The PNG icon is optional and must share the same name.',
+        'equipment.import.invalidJson': 'The file is not readable JSON — fix commas and quotes.',
+        'equipment.import.ready': 'Ready to import: {name} ({kind}).',
+        'equipment.import.kind.vehicle': 'vehicle',
+        'equipment.import.kind.implement': 'implement',
+        'equipment.import.iconOk':
+            'PNG icon recognised. It stays next to the JSON in equipment/; the catalogue does not embed the image.',
+        'equipment.import.iconMismatch':
+            'The PNG name matches neither the JSON nor the icon field — it will be ignored.',
+        'equipment.import.iconOptional':
+            'No PNG: the icon is optional (same name as the JSON, in equipment/).',
+        'equipment.import.confirm': 'Add',
         'equipment.empty': 'Nothing in this list yet.',
         'equipment.delete': 'Delete',
         'equipment.deleteConfirm': 'Confirm deletion',
@@ -1171,21 +1253,21 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'equipment.kinematics.skid': 'Tracks / pivot',
         'equipment.kinematics.ackermann': 'Ackermann',
         'equipment.hint.vehicle':
-            'OEM footprint is the production geofencing rectangle (1.10 × 0.60 m). The drawing updates with every value.',
+            'OEM footprint is the production field-boundary rectangle (1.10 × 0.60 m). The drawing updates with every value.',
         'equipment.hint.implement':
             'Mounted implement (hoe, seeder): rigid hitch. Working width (coverage) and physical width (collision) are distinct.',
         'equipment.hint.implementTrailed':
             'Trailed implement (trailer, wheeled disc harrow): hinge at the vehicle hitch; drawbar is hitch-to-axle length.',
         'equipment.hint.combination':
-            'The combination is the frozen snapshot exported in metadata.srbc_equipment.',
+            'The combination is the frozen snapshot exported with the mission.',
         'equipment.help.name':
-            'Name shown in the equipment library. It is not exported in the Agri JSON.',
+            'Name shown in the equipment library. It is not exported in the mission file.',
         'equipment.help.kinematics':
             'Tracks / pivot: real SRBC kinematics, zero min radius. Ackermann: tractor-style steering, for comparison.',
         'equipment.help.vehicleLength':
-            'Overall vehicle length along the forward +x axis. It draws the collision rectangle and geofencing footprint.',
+            'Overall vehicle length along the forward +x axis. It draws the collision rectangle and field-boundary footprint.',
         'equipment.help.vehicleWidth':
-            'Overall vehicle width. On the OEM SRBC preset this is the production geofencing rectangle (0.60 m).',
+            'Overall vehicle width. On the OEM SRBC preset this is the production field-boundary rectangle (0.60 m).',
         'equipment.help.wheelbase':
             'Axle spacing, or a virtual wheelbase on tracks. Used mainly to estimate an Ackermann turn radius.',
         'equipment.help.track':
@@ -1215,7 +1297,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'equipment.help.workPointXTrailer':
             'Work point measured from the axle (+x forward), not from the hitch.',
         'equipment.help.combinationName':
-            'Name of the vehicle + implement snapshot exported in metadata.srbc_equipment.',
+            'Name of the vehicle + implement snapshot exported with the mission.',
         'equipment.help.combinationVehicle': 'Vehicle in this combination.',
         'equipment.help.combinationImplement':
             'Mounted or trailed implement hitched to this vehicle, or none.',
@@ -1306,12 +1388,11 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'mission.load.operationUnknown': 'Operation: — (not provided)',
         'mission.load.simulated': 'Simulated',
         'mission.load.notSimulated': 'Not simulated',
-        'mission.publish.title': 'Publish and save',
         'mission.publish.needDocument': 'No working mission — create or load one before saving.',
         'mission.publish.saveAs': 'Save as',
         'mission.publish.saveAsName': 'File name',
         'mission.publish.duplicate': 'Duplicate',
-        'mission.publish.export': 'Export Agri',
+        'mission.publish.export': 'Export mission file',
         'mission.publish.history': 'Publication history',
         'mission.publish.error': 'Could not save: {error}',
         'assist.title': 'New mission',
@@ -1325,7 +1406,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'assist.generating': 'Generating…',
         'assist.choose': 'Choose…',
         'assist.none': 'None',
-        'assist.ready': 'Ready — the map shows a preview. Generate writes the Agri draft.',
+        'assist.ready': 'Ready — the map shows a preview. Generate writes the mission draft.',
         'assist.generateHint':
             'The plan opens the editor (this map) with rows, headlands and metrics. Prescription maps, live weather and Dubins stay out of this cut.',
         'assist.applied': 'Plan generated — draft in the editor',
@@ -1378,20 +1459,20 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'assist.help.rowSet':
             'If the field has planted rows (vineyard), follow them. Otherwise a boustrophedon on the polygon.',
         'assist.help.combination':
-            'Frozen snapshot in metadata.srbc_equipment. Working width comes from the implement.',
+            'Frozen snapshot exported with the mission. Working width comes from the implement.',
         'assist.help.recipe':
-            'Dose, depth and prescription maps: tablet notes, not Agri columns yet.',
+            'Dose, depth and prescription maps: tablet notes, not mission-file columns yet.',
         'assist.help.recipeNote': 'Free text (depth, product). Not consumed by the robot.',
         'assist.help.transit':
             'Entry / exit memo. Inactive-tool transit geometry comes later (P1.8).',
         'assist.help.weather':
             'No weather feed. A note is enough for the brief; pre-flight blocking is L10.',
         'tree.title': 'Mission tree',
-        'tree.empty': 'No sections — generate a plan or load a mission.',
+        'tree.empty': 'No passes — generate a plan or load a mission.',
         'tree.moveUp': 'Move up',
         'tree.moveDown': 'Move down',
         'tree.reverse': 'Reverse direction',
-        'tree.reordered': 'Section moved',
+        'tree.reordered': 'Pass moved',
         'tree.hide': 'Hide on the map',
         'tree.show': 'Show on the map',
         'tree.lock': 'Lock geometry',
@@ -1401,7 +1482,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tree.lockedBlocked': 'Section locked — unlock it to edit',
         'tree.lockedHint':
             'This selection is locked. The eye hides the map; the padlock blocks edits.',
-        'tree.dragHint': 'Drag a section to reorder. Alt+↑ / Alt+↓ also work.',
+        'tree.dragHint': 'Drag a pass to reorder. Alt+↑ / Alt+↓ also work.',
         'tree.group.headland': 'Headland ({count})',
         'tree.group.work': 'Passes ({count})',
         'tree.group.other': 'Other ({count})',
@@ -1422,13 +1503,23 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
             'The farm type sets the crop pack offered by default to new missions (vineyard, market garden, open field).',
         'admin.folder': 'Working folder',
         'admin.folder.none': 'No farm folder open',
-        'admin.folder.open': 'Open another farm',
-        'admin.folder.openAction': 'Open',
+        'admin.folder.selected': 'Selected folder',
+        'admin.folder.pickAction': 'Choose a folder…',
+        'admin.folder.picking': 'Choosing folder…',
+        'admin.folder.pickFailed': 'The folder chooser is unavailable.',
+        'admin.folder.openAction': 'Open farm',
         'admin.folder.recent': 'Recent farms',
         'admin.folder.required': 'Enter the path of the farm folder.',
         'admin.folder.failed': 'This folder could not be opened.',
         'admin.folder.hint':
-            'Absolute path of the farm folder. An empty folder is initialised with parcel_map, mission_order, work_performed and equipment.',
+            'Choose an existing folder. Open requires a valid farm.json; create requires an empty folder.',
+        'admin.create.name': 'New farm name',
+        'admin.create.namePlaceholder': 'E.g. Great Fields Farm',
+        'admin.create.nameRequired': 'Enter the new farm name.',
+        'admin.create.action': 'Create farm here',
+        'admin.create.hint':
+            'The empty folder will receive farm.json, parcel_map, mission_order, work_performed, equipment and .studio.',
+        'admin.create.failed': 'The farm could not be created in this folder.',
         'admin.index.rebuild': 'Rebuild the index',
         'admin.index.hint': 'The index speeds up lookups; it is rebuilt entirely from the files.',
         'admin.index.failed': 'The index could not be rebuilt.',
@@ -1447,13 +1538,29 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'admin.uiMode.basic': 'Basic',
         'admin.uiMode.advanced': 'Advanced',
         'admin.uiMode.hint':
-            'Basic mode will hide the expert tools (transforms, mission tree, ODD editing). The choice is stored; applying it to the tools ships in a later lot.',
+            'Basic mode hides expert tools (transforms, mission tree, ODD editing). Switch to advanced to show them again.',
+        'admin.uiMode.needFarm':
+            'Create or open a farm first; the tool level is stored in its farm.json.',
+        'admin.switchToAdvanced': 'Switch to advanced mode',
         'context.title': 'Context',
         'inspector.title': 'Inspector',
         'simulation.title': 'Simulation',
-        'simulation.body': 'Timeline and validation controls.',
         'sim.needRun': 'Click Simulate to compute the swept envelope and blockers.',
-        'sim.needMission': 'Load a mission with at least one section.',
+        'sim.tab.configure': 'Configure',
+        'sim.tab.results': 'Results',
+        'sim.tab.report': 'Report',
+        'sim.allChecks': 'See all checks',
+        'sim.config.missionHint':
+            'Uses the mission being edited by default. Load a mission order or completed work to replay it with different equipment.',
+        'sim.config.current': 'Current mission: {name}',
+        'sim.config.draft': 'unsaved draft',
+        'sim.config.loading': 'Reading farm missions…',
+        'sim.config.empty': 'No missions in mission_order/ or work_performed/.',
+        'sim.config.missionOrder': 'Mission order',
+        'sim.config.workPerformed': 'Completed work',
+        'sim.config.equipment': 'Combination',
+        'sim.config.noEquipment': 'No equipment in the catalogue',
+        'sim.needMission': 'Load a mission with at least one pass.',
         'sim.stale': 'The mission changed — run Simulate again (needs revalidation).',
         'sim.footprintHint':
             'Map: green rectangle = chassis, cyan = implement (Equipment twin). The pale footprint is the full-mission sweep.',
@@ -1476,16 +1583,16 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'sim.group.fleet': 'Multi-machine',
         'sim.group.incidents': 'Incident scenarios',
         'sim.check.pending': 'Not modelled in the editor yet.',
-        'sim.check.mission.empty': 'No section to simulate.',
+        'sim.check.mission.empty': 'No pass to simulate.',
         'sim.check.kinematics.turnRadius': 'Path curvature vs min turn radius.',
         'sim.check.kinematics.speed': 'Commanded speed vs machine max.',
-        'sim.check.collisions.geofence': 'Collision envelope vs geofence.',
-        'sim.check.collisions.margin': 'Geofence clearance below the 15 cm threshold.',
+        'sim.check.collisions.geofence': 'Collision envelope vs field boundary.',
+        'sim.check.collisions.margin': 'Field-boundary clearance below the 15 cm threshold.',
         'sim.check.coverage.overlap': 'Overlap (area worked at least twice).',
         'sim.check.coverage.gap':
             'Skip (field area not worked) — informational: vineyard rows, strip-till, beds.',
-        'sim.check.limits.noGeofence': 'No geofence polygon on the mission.',
-        'sim.check.limits.geofence': 'Geofence present.',
+        'sim.check.limits.noGeofence': 'No field-boundary polygon on the mission.',
+        'sim.check.limits.geofence': 'Field boundary present.',
         'sim.check.odd.notModelled': 'Machine ODD is not simulated here.',
         'sim.check.odd.profile': 'Combination ODD profile.',
         'sim.check.odd.approved': 'ODD approved for autonomy.',
@@ -1513,15 +1620,15 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'pub.dialogHint':
             'This cannot be undone. The published version becomes immutable; any later edit will create a new version.',
         'pub.noPath': 'File not saved yet — it will be saved on publish.',
-        'pub.sections': 'section(s)',
+        'pub.sections': 'pass(es)',
         'pub.simSummary': 'Simulation: {pass} passed, {warn} warnings, {length} m.',
         'pub.immutableTitle': 'Becomes immutable',
-        'pub.immutable.trajectory': 'Trajectory (points and section types)',
-        'pub.immutable.geofence': 'Geofence',
-        'pub.immutable.twin': 'Vehicle–implement twin (metadata.srbc_equipment)',
-        'pub.immutable.odd': 'Declared ODD (metadata.srbc_odd)',
+        'pub.immutable.trajectory': 'Trajectory (points and pass types)',
+        'pub.immutable.geofence': 'Field boundary',
+        'pub.immutable.twin': 'Vehicle–implement twin',
+        'pub.immutable.odd': 'Declared operating domain',
         'pub.immutable.simulation': 'Attested simulation result',
-        'pub.immutable.checksum': 'SHA-256 of the Agri JSON (publication stamp excluded)',
+        'pub.immutable.checksum': 'SHA-256 of the mission file (publication stamp excluded)',
         'pub.immutable.version': 'Version number',
         'pub.immutable.expiry': 'Package expiry date',
         'pub.approver': 'Approver',
@@ -1529,7 +1636,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'pub.help.approver': 'Local name. No OAuth in this cut (INT-010 stays in plugins).',
         'pub.help.expires': 'After this date the packet remains readable but is marked expired.',
         'pub.cancel': 'Cancel',
-        'pub.confirm': 'Publish v{version}',
+        'pub.confirm': 'Approve the mission v{version}',
         'pub.applied': 'Mission published v{version}.',
         'pub.error.save': 'Could not publish.',
         'pub.error.load': 'Could not load publications.',
@@ -1548,7 +1655,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'pub.status.published': 'Published',
         'pub.status.obsolete': 'Obsolete',
         'pub.block.no_document': 'Load or generate a mission.',
-        'pub.block.empty': 'The mission has no section.',
+        'pub.block.empty': 'The mission has no pass.',
         'pub.block.no_sim': 'Run Simulate before publishing.',
         'pub.block.stale': 'The mission changed — run Simulate again (needs revalidation).',
         'pub.block.blocked': 'Publishing is blocked until the blocker is resolved.',
@@ -1583,7 +1690,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'pack.title': 'Crop pack',
         'pack.select': 'Pack',
         'pack.help':
-            'Display and edit rules. Agri v3 stays unchanged; the pack lives in metadata.srbc_crop_pack.',
+            'Display and edit rules. The mission file format stays the same; the pack is an internal setting.',
         'pack.open_field': 'Arable',
         'pack.vineyard': 'Vineyard',
         'pack.market_garden': 'Market garden',
@@ -1610,7 +1717,8 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'pack.skip.plants': 'No plant-level action or perception in this slice.',
         'teach.open': 'Teach-and-repeat',
         'teach.title': 'Import a trace',
-        'teach.hint': 'GeoJSON [lng, lat] or Agri. RDP simplify {epsilon} m, one row_path section.',
+        'teach.hint':
+            'GeoJSON [lng, lat] or a mission file. RDP simplify {epsilon} m, one row pass.',
         'teach.file': 'JSON / GeoJSON file',
         'teach.json': 'Paste JSON',
         'teach.preview': '{source} points → {simplified} after simplify',
@@ -1629,7 +1737,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'map.basemap.terrain': 'Terrain',
         'map.overlays': 'Business layers',
         'map.layer.trajectories': 'Trajectories',
-        'map.layer.parcels': 'Fields / geofence',
+        'map.layer.parcels': 'Fields / boundary',
         'map.layer.rows': 'Rows / beds',
         'map.layer.zones': 'Zones',
         'map.layer.obstacles': 'Obstacles',
@@ -1665,7 +1773,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
             'Click the field corners. The first side sets row heading. Enter or ✓ opens working width and strategy.',
         'tool.finishFillParcel': 'Set working width and fill',
         'tool.fillParcelDialogHint':
-            'Straight rows (row_line) in a bounce pattern, contour headlands (row_path). Pick a heading: preview on the map. Fields2Cover runs on the server; otherwise a parallel fallback.',
+            'Straight rows in a bounce pattern, contour headlands. Pick a heading: preview on the map. Fields2Cover runs on the server; otherwise a parallel fallback.',
         'tool.rowSpacing': 'Working width / spacing',
         'tool.rowSpacingSource':
             'Default 2.5 m — open Equipment to prefill from the implement working width',
@@ -1681,7 +1789,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.coverageStrategy.snake': 'Snake',
         'tool.headlandWidth': 'Headland width',
         'tool.headlandWidthHelp':
-            '0 = no worked contour. The parcel is the geofence: rows and pivots leave room for the implement envelope (plus 15 cm). A width > 0 adds a contour headland.',
+            '0 = no worked contour. The parcel is the field boundary: rows and pivots leave room for the implement envelope (plus 15 cm). A width > 0 adds a contour headland.',
         'tool.invalidHeadland': 'Enter a zero or positive width',
         'tool.coverageVariantsLoading': 'Computing the three headings…',
         'tool.coverageVariantMeta': '{rows} row(s) · {length}',
@@ -1701,15 +1809,15 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
             '{rows} catalogue row(s) and {turns} pivot(s) ({points} vertices)',
         'tool.fillParcelEmpty': 'No rows generated — enlarge the polygon or reduce spacing',
         'tool.invalidSpacing': 'Enter a strictly positive spacing',
-        'tool.drawPolygon': 'Draw a polygon (geofence)',
+        'tool.drawPolygon': 'Draw a polygon (field boundary)',
         'tool.drawPolygonHint':
             'Click at least three points. Drag a vertex to correct it, click a segment to insert one. Enter or ✓ finishes, Esc cancels.',
-        'tool.finishPolygon': 'Finish the geofence',
+        'tool.finishPolygon': 'Finish the field boundary',
         'tool.tooFewPolygonPoints': 'Click at least three points to close the polygon',
-        'tool.geofenceAdded': 'Geofence saved ({count} vertices)',
-        'tool.workingZone': 'Working zone',
+        'tool.geofenceAdded': 'Field boundary saved ({count} vertices)',
+        'tool.workingZone': 'Work area',
         'tool.workingZoneHint':
-            'Draw a polygon around the points to mark. ✓ = work (in_working_zone gains), dashes = transit. Enter = work, Esc cancels.',
+            'Draw a polygon around the points to mark. ✓ = work, dashes = transit. Enter = work, Esc cancels.',
         'tool.finishWorkingZoneWork': 'Mark as work',
         'tool.finishWorkingZoneTransit': 'Mark as transit',
         'tool.workingZoneWork': '{count} point(s) set to work',
@@ -1723,7 +1831,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.pointsDeleted': '{count} row(s) clipped',
         'tool.connectTurns': 'Connect headlands',
         'tool.connectTurnsHint':
-            'Join rows with a U-turn or square (turn_path / turn_square). Rows stay as row_line; the robot follows nav_turn on the manoeuvres.',
+            'Join rows with a U-turn or square. Rows stay as straight passes; manoeuvres are headland turns.',
         'tool.connectTurnsConfirm': 'Connect',
         'tool.connectTurnsNeedRows': 'Need at least two rows (existing turns are ignored)',
         'tool.connectTurnsAdded': '{turns} turn(s) added',
@@ -1752,7 +1860,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.offsetConfirm': 'Offset',
         'tool.offsetNeedSelection': 'Select one or more rows first',
         'tool.offsetInvalid': 'Enter a distance between 0.01 and 100 m',
-        'tool.offsetApplied': '{count} section(s) offset by {distance} m',
+        'tool.offsetApplied': '{count} pass(es) offset by {distance} m',
         'tool.ruler': 'Ruler',
         'tool.rulerHint':
             'Click two points to measure (not saved). Drag a vertex to refine. A third click starts over. Esc exits.',
@@ -1760,24 +1868,24 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.editSpeed': 'Edit speed',
         'tool.editSpeedHint':
             'Speed is applied to every point of the mission (rows and turns). Range 0–50 m/s.',
-        'tool.editSpeedSource': 'Default 0.50 m/s — per-section profile comes later',
+        'tool.editSpeedSource': 'Default 0.50 m/s — per-pass profile comes later',
         'tool.editSpeedConfirm': 'Apply',
         'tool.speedInvalid': 'Enter a speed between 0 and 50 m/s',
         'tool.speedUpdated': 'Speed {value} m/s applied to {count} point(s)',
         'tool.speedNoPoints': 'No points with a speed column in this mission',
-        'tool.selectZone': 'Select sections',
+        'tool.selectZone': 'Select passes',
         'tool.selectZoneHint':
-            'Click a row (Shift to add). Drag a selected section to move it. Click empty space to clear. Esc: deselect, then leave. Reverse / Delete in the toolbar.',
+            'Click a row (Shift to add). Drag a selected pass to move it. Click empty space to clear. Esc: deselect, then leave. Reverse / Delete in the toolbar.',
         'tool.selectPolygon': 'Select by area',
         'tool.selectPolygonHint':
             'Draw a polygon around the rows to select — a row that crosses without a vertex inside still counts. Enter or ✓ confirms.',
         'tool.finishSelectPolygon': 'Select rows in the area',
         'tool.selectEmpty': 'No row crosses this polygon',
-        'tool.sectionsSelected': '{count} section(s) selected',
+        'tool.sectionsSelected': '{count} pass(es) selected',
         'tool.reverseSelected': 'Reverse direction',
-        'tool.reverseSelectedDone': '{count} section(s) reversed',
+        'tool.reverseSelectedDone': '{count} pass(es) reversed',
         'tool.deleteSelected': 'Delete selection',
-        'tool.deletedSelected': '{count} section(s) deleted',
+        'tool.deletedSelected': '{count} pass(es) deleted',
         'tool.needMission': 'Open or draw a trajectory first',
         'tool.unsaved': 'Local draft — not written to disk',
         'tool.unsavedChip': 'Unsaved',
@@ -1788,11 +1896,11 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.saveFailed': 'Could not save: {error}',
         'tool.saveFailedChip': 'Save failed',
         'tool.tooFewPoints': 'Click at least two points to finish the line',
-        'tool.sectionLimit': 'This line would exceed the 50,000 points per section limit',
+        'tool.sectionLimit': 'This line would exceed the 50,000 points per pass limit',
         'tool.trajectoryLimit': 'The mission would exceed the 1,000,000 point limit',
         'tool.lineAdded': 'Line added ({count} points)',
-        'inspector.points': '{sections} section(s) · {points} point(s)',
-        'inspector.selected': '{count} section(s) selected',
+        'inspector.points': '{sections} pass(es) · {points} point(s)',
+        'inspector.selected': '{count} pass(es) selected',
         'inspector.accordion.geometry': 'Geometry',
         'inspector.accordion.order': 'Order and direction',
         'inspector.accordion.speed': 'Speed',
@@ -1801,8 +1909,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'inspector.toolHint': 'Combination {combo} · working width {width} m',
         'inspector.briefHint': 'Season {campaign} · {operation}',
         'inspector.noBrief': 'No assistant brief on this mission.',
-        'inspector.orderHint':
-            'Move a section up or down in the tree (one at a time). Alt+↑ / Alt+↓.',
+        'inspector.orderHint': 'Move a pass up or down in the tree (one at a time). Alt+↑ / Alt+↓.',
         'inspector.speedHint': 'Mean speed {speed} m/s. Use the Speed tool to change it.',
         'inspector.edit.move': 'Move',
         'inspector.edit.moveStep': 'Step',
@@ -1829,7 +1936,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'inspector.edit.extendStart': 'Start',
         'inspector.edit.extendEnd': 'End',
         'inspector.edit.extendHint': 'Click the map to place the new endpoint. Esc cancels.',
-        'inspector.edit.extendNeedOne': 'Extend one section at a time',
+        'inspector.edit.extendNeedOne': 'Extend one pass at a time',
         'inspector.edit.extendCancel': 'Cancel extend',
         'inspector.edit.extendTooClose': 'Target too close (less than 0.1 m)',
         'inspector.edit.extended': 'Endpoint moved',
@@ -1907,7 +2014,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'fields.tab.thirdParty': 'Import from third party',
         'fields.navigate.empty': 'No field to browse. Use the Edit tab to draw or import a field.',
         'fields.work.hint':
-            'Import an Agri or GeoJSON trace. It will be cleaned before permanent rows or beds are generated.',
+            'Import a mission trace or GeoJSON. It will be cleaned before permanent rows or beds are generated.',
         'fields.work.needField': 'Select the field that will receive the rows first.',
         'fields.work.target': 'Target field: {name}',
         'fields.work.choose': 'Choose a JSON or GeoJSON trace',
@@ -1928,6 +2035,19 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'fields.tab.safety': 'Safety',
         'fields.tab.history': 'History',
         'fields.tab.impact': 'Impact',
+        'fields.tab.missions': 'Missions',
+        'fields.missions.needField': 'Select a field in Browse to find its missions.',
+        'fields.missions.loading': 'Reading missions for this field…',
+        'fields.missions.unavailable':
+            'The farm folder is unreachable. Restart Mission Studio with FastAPI, then open a farm in Administration.',
+        'fields.missions.noFarm':
+            'No farm is open. Open a folder in Administration to attach missions.',
+        'fields.missions.generated': 'Generated missions',
+        'fields.missions.work': 'Completed work',
+        'fields.missions.generatedEmpty':
+            'No generated mission for this field. Create one in Missions; it will attach via the field id.',
+        'fields.missions.workEmpty':
+            'No completed work for this field. Import a trace from Import completed work.',
         'fields.name': 'Name',
         'fields.type': 'Type',
         'fields.typeField': 'Field',
@@ -2064,6 +2184,10 @@ export function resolveLanguage(raw: string | undefined): SupportedLanguage {
         return raw;
     }
     return 'fr';
+}
+
+export function shellCatalog(language: 'fr' | 'en'): Readonly<Record<string, string>> {
+    return SHELL_STRINGS[language];
 }
 
 /**

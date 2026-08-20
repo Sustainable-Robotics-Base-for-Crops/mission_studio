@@ -103,7 +103,8 @@ describe('breakpoints (CdCF §6.2)', () => {
         expect(LAYOUT.appBar).toBe(56);
         expect(LAYOUT.contextDefault).toBe(304);
         expect(LAYOUT.inspectorDefault).toBe(360);
-        expect(LAYOUT.simulationDefault).toBe(240);
+        expect(LAYOUT.simulationDefault).toBe(160);
+        expect(LAYOUT.simulationMax).toBe(200);
         expect(LAYOUT.canvasMin).toBe(640);
     });
 });
@@ -222,6 +223,7 @@ describe('studio routes', () => {
         expect(shell).toContain('hasWorkingDocument');
         expect(shell).toContain('autoSimKeyRef');
         expect(shell).toContain("module.id === 'simulation'");
+        expect(shell).toContain('SimulationPanel');
         expect(shell).toContain('onRun={runSimulation}');
         expect(shell).toContain('app.blockers');
         expect(shell).toContain('metrics.strip');

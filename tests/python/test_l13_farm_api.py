@@ -100,6 +100,51 @@ def test_open_rejects_a_non_object_body(client):
     assert response.status_code == 400
 
 
+def test_create_and_open_existing_are_distinct_operations(client, farm_root):
+    created = client.post("/api/v1/farm/create", json={"root": farm_root, "name": "Ferme Nouvelle"})
+
+    assert created.status_code == 201
+    assert created.json()["farm"]["name"] == "Ferme Nouvelle"
+    assert (
+        client.post("/api/v1/farm/create", json={"root": farm_root, "name": "Bis"}).status_code
+        == 400
+    )
+    assert client.post("/api/v1/farm/open-existing", json={"root": farm_root}).status_code == 200
+
+
+def test_open_existing_rejects_a_plain_folder(client, tmp_path):
+    root = tmp_path / "plain"
+    root.mkdir()
+
+    response = client.post("/api/v1/farm/open-existing", json={"root": str(root)})
+
+    assert response.status_code == 400
+    assert "not a farm" in response.json()["error"]
+
+
+def test_create_rejects_a_non_empty_folder(client, tmp_path):
+    root = tmp_path / "not-empty"
+    root.mkdir()
+    (root / "notes.txt").write_text("keep", encoding="utf-8")
+
+    response = client.post(
+        "/api/v1/farm/create", json={"root": str(root), "name": "Ferme Nouvelle"}
+    )
+
+    assert response.status_code == 400
+    assert "empty folder" in response.json()["error"]
+    assert not (root / "farm.json").exists()
+
+
+def test_pick_folder_returns_the_native_selection(client, monkeypatch):
+    monkeypatch.setattr("backend.api.v1.farm.pick_folder", lambda: "/tmp/Ferme")
+
+    response = client.post("/api/v1/farm/pick-folder")
+
+    assert response.status_code == 200
+    assert response.json() == {"path": "/tmp/Ferme", "cancelled": False}
+
+
 # -- writing settings --------------------------------------------------------
 
 
@@ -229,6 +274,45 @@ def test_farm_file_rejects_paths_outside_mission_order(client, farm_root):
 
     assert response.status_code == 400
     assert "mission_order" in response.json()["error"]
+
+
+def test_farm_file_reads_work_performed(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+    relative = "work_performed/2026-08-20_parcelle-04_semis.json"
+    payload = _mission(field_id="field-4")
+    _write(os.path.join(farm_root, relative), payload)
+
+    response = client.get("/api/v1/farm/file", params={"path": relative})
+
+    assert response.status_code == 200
+    assert response.json()["document"]["metadata"]["srbc_mission_brief"]["field_id"] == "field-4"
+
+
+def test_farm_missions_lists_only_the_requested_field(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+    _write(
+        os.path.join(farm_root, "mission_order", "a.json"),
+        _mission(field_id="field-4", simulated=True),
+    )
+    _write(
+        os.path.join(farm_root, "work_performed", "b.json"),
+        _mission(field_id="field-4"),
+    )
+    _write(os.path.join(farm_root, "mission_order", "other.json"), _mission(field_id="other"))
+
+    response = client.get("/api/v1/farm/missions", params={"field_id": "field-4"})
+
+    assert response.status_code == 200
+    kinds = {item["kind"]: item["name"] for item in response.json()["missions"]}
+    assert kinds["mission_order"] == "a.json"
+    assert kinds["work_performed"] == "b.json"
+    assert "other.json" not in kinds.values()
+
+
+def test_farm_missions_requires_a_field_id(client, farm_root):
+    client.post("/api/v1/farm/open", json={"root": farm_root})
+
+    assert client.get("/api/v1/farm/missions").status_code == 400
 
 
 def test_put_farm_file_writes_a_mission_order(client, farm_root):

@@ -7,6 +7,11 @@
 
 export type FarmType = 'market_garden' | 'vineyard' | 'open_field' | 'livestock' | 'mixed';
 export type UiMode = 'basic' | 'advanced';
+
+/** Expert chrome is shown unless the farm explicitly asks for basic tools. */
+export function isAdvancedUi(mode: UiMode | null | undefined): boolean {
+    return mode !== 'basic';
+}
 export type FarmKind = 'parcel_map' | 'mission_order' | 'work_performed' | 'equipment';
 
 export const FARM_TYPES: readonly FarmType[] = [
@@ -65,6 +70,7 @@ export interface FarmEntry {
     path: string;
     size: number;
     modified: number;
+    kind?: FarmKind;
     field_id?: string | null;
     operation?: string | null;
     campaign?: string | null;
@@ -149,10 +155,40 @@ export async function openFarm(root: string, name?: string): Promise<FarmSnapsho
     });
 }
 
+export async function openExistingFarm(root: string): Promise<FarmSnapshot> {
+    return request<FarmSnapshot>('/api/v1/farm/open-existing', {
+        method: 'POST',
+        body: JSON.stringify({ root }),
+    });
+}
+
+export async function createFarm(root: string, name: string): Promise<FarmSnapshot> {
+    return request<FarmSnapshot>('/api/v1/farm/create', {
+        method: 'POST',
+        body: JSON.stringify({ root, name }),
+    });
+}
+
+export async function pickFarmFolder(): Promise<string | null> {
+    const body = await request<{ path?: unknown; cancelled?: unknown }>(
+        '/api/v1/farm/pick-folder',
+        {
+            method: 'POST',
+        },
+    );
+    return typeof body.path === 'string' && body.path ? body.path : null;
+}
+
 export async function fetchFarmTree(kind?: FarmKind): Promise<FarmTree> {
     const query = kind ? `?kind=${encodeURIComponent(kind)}` : '';
     const body = await request<{ tree?: FarmTree }>(`/api/v1/farm/tree${query}`);
     return body.tree ?? {};
+}
+
+export async function fetchFarmMissionsForField(fieldId: string): Promise<FarmEntry[]> {
+    const query = `?field_id=${encodeURIComponent(fieldId)}`;
+    const body = await request<{ missions?: FarmEntry[] }>(`/api/v1/farm/missions${query}`);
+    return body.missions ?? [];
 }
 
 export async function fetchFarmMission(path: string): Promise<unknown> {

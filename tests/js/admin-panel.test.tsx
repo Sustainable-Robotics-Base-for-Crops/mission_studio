@@ -48,6 +48,8 @@ function farmState(overrides: Partial<FarmState> = {}): FarmState {
         reload: vi.fn(),
         save: vi.fn().mockResolvedValue(undefined),
         open: vi.fn().mockResolvedValue(undefined),
+        openExisting: vi.fn().mockResolvedValue(undefined),
+        create: vi.fn().mockResolvedValue(undefined),
         reindex: vi.fn().mockResolvedValue(undefined),
         ...overrides,
     } as FarmState;
@@ -72,6 +74,7 @@ describe('administration sections (CdC L13 §8)', () => {
         expect(screen.getByText('Dossier de travail')).toBeDefined();
         expect(screen.getByText('Préférences')).toBeDefined();
         expect(screen.getByLabelText('Nom de la ferme')).toBeDefined();
+        expect(screen.getByLabelText('Niveau d’outils')).toBeDefined();
         expect(document.querySelector('.studio-admin-root')?.textContent).toBe(
             '/farms/grands-champs',
         );
@@ -93,7 +96,8 @@ describe('administration sections (CdC L13 §8)', () => {
             }),
         );
         expect(screen.getByText('Aucun dossier de ferme ouvert')).toBeDefined();
-        expect(screen.getByLabelText('Ouvrir une autre ferme')).toBeDefined();
+        expect(screen.getByLabelText('Dossier sélectionné')).toBeDefined();
+        expect(screen.getByText(/Créez ou ouvrez d’abord une ferme/)).toBeDefined();
         expect(screen.queryByLabelText('Nom de la ferme')).toBeNull();
         expect(screen.queryByText('Préférences')).toBeNull();
     });
@@ -138,6 +142,14 @@ describe('administration saves through the farm API', () => {
         );
     });
 
+    it('switches visibly between basic and advanced tool levels', async () => {
+        const state = farmState();
+        renderAdmin(state);
+        fireEvent.click(screen.getByLabelText('Niveau d’outils'));
+        fireEvent.click(screen.getByRole('option', { name: 'Basique' }));
+        await waitFor(() => expect(state.save).toHaveBeenCalledWith({ ui_mode: 'basic' }));
+    });
+
     it('says so when no map is mounted rather than saving a wrong view', async () => {
         const state = farmState();
         renderAdmin(state, { readMapView: () => null });
@@ -152,11 +164,11 @@ describe('administration switches farm without a page reload', () => {
         const state = farmState();
         const onFarmChanged = vi.fn();
         renderAdmin(state, { onFarmChanged });
-        fireEvent.change(screen.getByLabelText('Ouvrir une autre ferme'), {
+        fireEvent.change(screen.getByLabelText('Dossier sélectionné'), {
             target: { value: '  /farms/nouvelle  ' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir' }));
-        await waitFor(() => expect(state.open).toHaveBeenCalledWith('/farms/nouvelle'));
+        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la ferme' }));
+        await waitFor(() => expect(state.openExisting).toHaveBeenCalledWith('/farms/nouvelle'));
         expect(onFarmChanged).toHaveBeenCalledTimes(1);
     });
 
@@ -164,17 +176,34 @@ describe('administration switches farm without a page reload', () => {
         const state = farmState();
         renderAdmin(state);
         fireEvent.click(screen.getByRole('button', { name: '/farms/coteaux' }));
-        await waitFor(() => expect(state.open).toHaveBeenCalledWith('/farms/coteaux'));
+        await waitFor(() => expect(state.openExisting).toHaveBeenCalledWith('/farms/coteaux'));
     });
 
     it('refuses an empty path and keeps the button out of reach', () => {
         const state = farmState();
         renderAdmin(state);
-        const open = screen.getByRole('button', { name: 'Ouvrir' });
+        const open = screen.getByRole('button', { name: 'Ouvrir la ferme' });
         expect(open.hasAttribute('disabled')).toBe(true);
-        fireEvent.keyDown(screen.getByLabelText('Ouvrir une autre ferme'), { key: 'Enter' });
+        fireEvent.keyDown(screen.getByLabelText('Dossier sélectionné'), { key: 'Enter' });
         expect(screen.getByText('Indiquez le chemin du dossier de la ferme.')).toBeDefined();
-        expect(state.open).not.toHaveBeenCalled();
+        expect(state.openExisting).not.toHaveBeenCalled();
+    });
+
+    it('creates a named farm in the selected empty folder', async () => {
+        const state = farmState();
+        const onFarmChanged = vi.fn();
+        renderAdmin(state, { onFarmChanged });
+        fireEvent.change(screen.getByLabelText('Dossier sélectionné'), {
+            target: { value: '/farms/nouvelle' },
+        });
+        fireEvent.change(screen.getByLabelText('Nom de la nouvelle ferme'), {
+            target: { value: 'Ferme Nouvelle' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Créer la ferme ici' }));
+        await waitFor(() =>
+            expect(state.create).toHaveBeenCalledWith('/farms/nouvelle', 'Ferme Nouvelle'),
+        );
+        expect(onFarmChanged).toHaveBeenCalledTimes(1);
     });
 
     it('rebuilds the index on demand', async () => {
@@ -219,12 +248,15 @@ describe('admin i18n keys', () => {
             'admin.farmName',
             'admin.farmType.hint',
             'admin.folder.openAction',
+            'admin.folder.pickAction',
+            'admin.create.action',
             'admin.folder.recent',
             'admin.index.rebuild',
             'admin.preferences',
             'admin.startView.useCurrent',
             'admin.theme.hint',
             'admin.uiMode.hint',
+            'admin.uiMode.needFarm',
         ];
         for (const key of keys) {
             expect(translate(key, {}, 'fr')).not.toBe(key);

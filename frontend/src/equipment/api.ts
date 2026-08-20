@@ -84,10 +84,12 @@ export async function patchVehicle(
 }
 
 export async function createVehicle(payload: {
+    id?: string;
     name: string;
     kinematics?: Kinematics;
     length_m: number;
     width_m: number;
+    mass_kg?: number | null;
 }): Promise<VehicleTwin> {
     return request<VehicleTwin>('/api/v1/equipment/vehicles', {
         method: 'POST',
@@ -110,11 +112,13 @@ export async function patchImplement(
 }
 
 export async function createImplement(payload: {
+    id?: string;
     name: string;
     kind?: ImplementKind;
     physical_width_m: number;
     working_width_m: number;
     length_m?: number;
+    drawbar_length_m?: number | null;
 }): Promise<ImplementTwin> {
     return request<ImplementTwin>('/api/v1/equipment/implements', {
         method: 'POST',

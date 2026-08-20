@@ -271,7 +271,7 @@ describe('MissionPanel (T13.11)', () => {
     it('exports a naked Agri document', () => {
         renderPanel(panelProps({ document: sampleDocument }));
         fireEvent.focus(screen.getByRole('tab', { name: 'Publier' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Exporter Agri' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Exporter le fichier mission' }));
 
         expect(agriDownload).toHaveBeenCalledWith(sampleDocument, expect.stringMatching(/\.json$/));
     });

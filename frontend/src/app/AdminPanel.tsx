@@ -3,7 +3,13 @@ import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-react';
 
 import { Banner, Button, Chip, Input, Select } from '../design-system';
 import { SUPPORTED_LANGUAGES } from '../i18n/adapter';
-import { FARM_TYPES, type FarmStartView, type FarmType, type UiMode } from './farm-api';
+import {
+    FARM_TYPES,
+    pickFarmFolder,
+    type FarmStartView,
+    type FarmType,
+    type UiMode,
+} from './farm-api';
 import type { FarmState } from './useFarm';
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -52,8 +58,8 @@ function SaveChip({
 
 /**
  * Administration panel (L13 §8): the farm, its working folder, and the preferences
- * that live in `farm.json`. `ui_mode` is only stored here — applying it to the tools
- * is a later task, so this panel does not pretend otherwise.
+ * that live in `farm.json`, including `ui_mode` which hides expert tools in the rest
+ * of the shell.
  */
 export function AdminPanel({
     t,
@@ -66,6 +72,8 @@ export function AdminPanel({
     const document = farm.farm;
     const [name, setName] = useState(document?.name ?? '');
     const [rootDraft, setRootDraft] = useState('');
+    const [newFarmName, setNewFarmName] = useState('');
+    const [pickingFolder, setPickingFolder] = useState(false);
     const [saveState, setSaveState] = useState<SaveState>('idle');
     const [problem, setProblem] = useState<string | null>(null);
 
@@ -99,7 +107,7 @@ export function AdminPanel({
             setProblem(null);
             setSaveState('saving');
             try {
-                await farm.open(trimmed);
+                await farm.openExisting(trimmed);
                 setSaveState('saved');
                 setRootDraft('');
                 onFarmChanged?.();
@@ -110,6 +118,46 @@ export function AdminPanel({
         },
         [farm, onFarmChanged, t],
     );
+
+    const createAtRoot = useCallback(async () => {
+        const root = rootDraft.trim();
+        const farmName = newFarmName.trim();
+        if (!root) {
+            setProblem(t('admin.folder.required'));
+            return;
+        }
+        if (!farmName) {
+            setProblem(t('admin.create.nameRequired'));
+            return;
+        }
+        setProblem(null);
+        setSaveState('saving');
+        try {
+            await farm.create(root, farmName);
+            setSaveState('saved');
+            setRootDraft('');
+            setNewFarmName('');
+            onFarmChanged?.();
+        } catch (reason: unknown) {
+            setSaveState('error');
+            setProblem(reason instanceof Error ? reason.message : t('admin.create.failed'));
+        }
+    }, [farm, newFarmName, onFarmChanged, rootDraft, t]);
+
+    const chooseRoot = useCallback(async () => {
+        setProblem(null);
+        setPickingFolder(true);
+        try {
+            const selected = await pickFarmFolder();
+            if (selected) {
+                setRootDraft(selected);
+            }
+        } catch (reason: unknown) {
+            setProblem(reason instanceof Error ? reason.message : t('admin.folder.pickFailed'));
+        } finally {
+            setPickingFolder(false);
+        }
+    }, [t]);
 
     const reindex = useCallback(async () => {
         setProblem(null);
@@ -196,13 +244,34 @@ export function AdminPanel({
                 ) : null}
 
                 <section className="studio-admin-section">
+                    <h3>{t('admin.uiMode')}</h3>
+                    {document ? (
+                        <>
+                            <Select
+                                id="admin-ui-mode"
+                                label={t('admin.uiMode')}
+                                value={document.ui_mode}
+                                onValueChange={(value) => void commit({ ui_mode: value as UiMode })}
+                                options={[
+                                    { value: 'basic', label: t('admin.uiMode.basic') },
+                                    { value: 'advanced', label: t('admin.uiMode.advanced') },
+                                ]}
+                            />
+                            <p className="studio-muted">{t('admin.uiMode.hint')}</p>
+                        </>
+                    ) : (
+                        <p className="studio-muted">{t('admin.uiMode.needFarm')}</p>
+                    )}
+                </section>
+
+                <section className="studio-admin-section">
                     <h3>{t('admin.folder')}</h3>
                     <p className="studio-admin-root" title={farm.root ?? undefined}>
                         {farm.root ?? t('admin.folder.none')}
                     </p>
                     <Input
                         id="admin-farm-root"
-                        label={t('admin.folder.open')}
+                        label={t('admin.folder.selected')}
                         placeholder="/Users/moi/fermes/ferme-xy"
                         value={rootDraft}
                         onChange={(event) => setRootDraft(event.target.value)}
@@ -215,7 +284,16 @@ export function AdminPanel({
                     <p className="studio-muted">{t('admin.folder.hint')}</p>
                     <div className="studio-admin-actions">
                         <Button
-                            variant="primary"
+                            variant="secondary"
+                            disabled={!farm.available || pickingFolder}
+                            onClick={() => void chooseRoot()}
+                        >
+                            {pickingFolder
+                                ? t('admin.folder.picking')
+                                : t('admin.folder.pickAction')}
+                        </Button>
+                        <Button
+                            variant="secondary"
                             disabled={!farm.available || rootDraft.trim().length === 0}
                             onClick={() => void openRoot(rootDraft)}
                         >
@@ -229,6 +307,33 @@ export function AdminPanel({
                         >
                             {t('admin.index.rebuild')}
                         </Button>
+                    </div>
+                    <div className="studio-admin-create">
+                        <Input
+                            id="admin-new-farm-name"
+                            label={t('admin.create.name')}
+                            placeholder={t('admin.create.namePlaceholder')}
+                            value={newFarmName}
+                            onChange={(event) => setNewFarmName(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    void createAtRoot();
+                                }
+                            }}
+                        />
+                        <Button
+                            variant="primary"
+                            disabled={
+                                !farm.available ||
+                                !rootDraft.trim() ||
+                                !newFarmName.trim() ||
+                                pickingFolder
+                            }
+                            onClick={() => void createAtRoot()}
+                        >
+                            {t('admin.create.action')}
+                        </Button>
+                        <p className="studio-muted">{t('admin.create.hint')}</p>
                     </div>
                     {farm.recent.length > 0 ? (
                         <>
@@ -293,17 +398,6 @@ export function AdminPanel({
                             ]}
                         />
                         <p className="studio-muted">{t('admin.theme.hint')}</p>
-                        <Select
-                            id="admin-ui-mode"
-                            label={t('admin.uiMode')}
-                            value={document.ui_mode}
-                            onValueChange={(value) => void commit({ ui_mode: value as UiMode })}
-                            options={[
-                                { value: 'basic', label: t('admin.uiMode.basic') },
-                                { value: 'advanced', label: t('admin.uiMode.advanced') },
-                            ]}
-                        />
-                        <p className="studio-muted">{t('admin.uiMode.hint')}</p>
                     </section>
                 ) : null}
             </div>

@@ -104,18 +104,52 @@ class FarmRepository:
     def recent_roots(self) -> List[str]:
         return self.read_app_state().get("recent_roots") or []
 
+    def _remember_root(self, absolute: str) -> None:
+        state = self.read_app_state()
+        recent = [item for item in state.get("recent_roots") or [] if item != absolute]
+        recent.insert(0, absolute)
+        self.write_app_state({"current_root": absolute, "recent_roots": recent})
+
     def open_farm(self, root: str, name: Optional[str] = None) -> Dict[str, Any]:
-        """Initialise the folder if needed, make it current, and remember it."""
+        """Legacy operation: initialise if needed, make current, and remember."""
         if not root or not root.strip():
             raise ValueError("farm root must not be empty")
 
         absolute = _normalise_root(root)
         farm = ensure_farm(absolute, name)
+        self._remember_root(absolute)
+        return farm
 
-        state = self.read_app_state()
-        recent = [item for item in state.get("recent_roots") or [] if item != absolute]
-        recent.insert(0, absolute)
-        self.write_app_state({"current_root": absolute, "recent_roots": recent})
+    def open_existing_farm(self, root: str) -> Dict[str, Any]:
+        """Open a folder that already contains a valid ``farm.json``."""
+        if not root or not root.strip():
+            raise ValueError("farm root must not be empty")
+        absolute = _normalise_root(root)
+        if not is_farm(absolute):
+            raise ValueError("this folder is not a farm; create a farm there first")
+        farm = read_farm_json(absolute)
+        if farm is None:
+            raise ValueError("farm.json is unreadable")
+        problems = validate_farm_json(farm)
+        if problems:
+            raise ValueError("; ".join(problems))
+        self._remember_root(absolute)
+        return farm
+
+    def create_farm(self, root: str, name: Optional[str] = None) -> Dict[str, Any]:
+        """Create a new farm only in a new or empty directory."""
+        if not root or not root.strip():
+            raise ValueError("farm root must not be empty")
+        absolute = _normalise_root(root)
+        if is_farm(absolute):
+            raise ValueError("this folder already contains a farm")
+        if os.path.exists(absolute):
+            if not os.path.isdir(absolute):
+                raise ValueError("farm root must be a directory")
+            if os.listdir(absolute):
+                raise ValueError("a new farm must be created in an empty folder")
+        farm = ensure_farm(absolute, name)
+        self._remember_root(absolute)
         return farm
 
     def read_farm(self) -> Optional[Dict[str, Any]]:
@@ -184,9 +218,7 @@ class FarmRepository:
             extensions = FARM_DIR_EXTENSIONS[folder]
             path = os.path.join(root, folder)
             try:
-                names = [
-                    name for name in os.listdir(path) if name.lower().endswith(extensions)
-                ]
+                names = [name for name in os.listdir(path) if name.lower().endswith(extensions)]
             except OSError:
                 names = []
             key = {"parcel_map": "fields", "mission_order": "missions"}.get(folder, folder)

@@ -34,6 +34,7 @@ describe('i18n adapter', () => {
         expect(translate('tool.drawPolygonHint', {}, 'fr')).toContain('segment');
         expect(translate('tool.drawLineHint', {}, 'fr')).toContain('Glissez');
         expect(translate('tool.workingZone', {}, 'fr')).toContain('travail');
+        expect(translate('tool.workingZone', {}, 'en')).toContain('Work area');
         expect(translate('tool.fillParcel', {}, 'fr')).toContain('parcelle');
         expect(translate('tool.coverageStrategy.best_nswath', {}, 'fr')).toContain('passes');
         expect(translate('assist.new', {}, 'fr')).toBe('Nouvelle mission');
@@ -46,7 +47,7 @@ describe('i18n adapter', () => {
         expect(translate('tool.connectTurns', {}, 'fr')).toContain('demi-tours');
         expect(translate('tool.ruler', {}, 'fr')).toBe('Règle');
         expect(translate('tool.editSpeed', {}, 'fr')).toContain('vitesse');
-        expect(translate('tool.selectZone', {}, 'fr')).toContain('sections');
+        expect(translate('tool.selectZone', {}, 'fr')).toContain('passe');
         expect(translate('tool.selectZoneHint', {}, 'fr')).toContain('Glissez');
         expect(translate('tool.offset', {}, 'fr')).toBe('Décaler');
         expect(translate('tool.offset', {}, 'en')).toBe('Offset');
@@ -66,6 +67,9 @@ describe('i18n adapter', () => {
         expect(translate('pack.vineyard', {}, 'fr')).toBe('Vigne');
         expect(translate('teach.open', {}, 'en')).toBe('Teach-and-repeat');
         expect(translate('fields.kind.gnss_degraded', {}, 'fr')).toContain('GNSS');
+        expect(translate('pub.confirm', { version: 3 }, 'fr')).toBe('Approuver la mission v3');
+        expect(translate('equipment.deleteConfirm', {}, 'fr')).toBe('Confirmer la suppression');
+        expect(translate('mission.publish.export', {}, 'fr')).toBe('Exporter le fichier mission');
     });
 
     it('never returns a blank string for a missing key', () => {

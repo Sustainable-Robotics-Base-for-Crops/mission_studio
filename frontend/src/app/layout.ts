@@ -43,7 +43,7 @@ export const LAYOUT = {
     inspectorMin: 320,
     inspectorMax: 440,
     canvasMin: 640,
-    simulationDefault: 240,
-    simulationMax: 320,
+    simulationDefault: 160,
+    simulationMax: 200,
     handle: 6,
 } as const;

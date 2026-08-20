@@ -1,26 +1,11 @@
-import {
-    CircleCheck,
-    CircleMinus,
-    CirclePlay,
-    MapPin,
-    Pause,
-    TriangleAlert,
-    X,
-} from 'lucide-react';
+import { CirclePlay, Pause, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 
 import { Button, IconButton } from '../design-system/Button';
 import { Banner } from '../design-system/Feedback';
 import { ICON_SIZE, STROKE } from '../design-system/icons';
 import { formatDurationCompact } from '../missions/tree';
-import {
-    CHECK_GROUPS,
-    playbackIndexAtTime,
-    type CheckStatus,
-    type PoseSample,
-    type SimulationCheck,
-    type SimulationReport,
-} from '../domain/simulation';
+import { playbackIndexAtTime, type PoseSample, type SimulationReport } from '../domain/simulation';
 
 const RATES = [1, 2, 5, 10, 20] as const;
 
@@ -32,31 +17,7 @@ interface SimulationDrawerProps {
     onRun?: () => void;
     onCursor: (sample: PoseSample | null) => void;
     onLocate: (sample: PoseSample) => void;
-}
-
-function statusIcon(status: CheckStatus): typeof CircleCheck {
-    if (status === 'pass') {
-        return CircleCheck;
-    }
-    if (status === 'warn') {
-        return TriangleAlert;
-    }
-    if (status === 'block') {
-        return X;
-    }
-    return CircleMinus;
-}
-
-function measuredLabel(check: SimulationCheck): string {
-    if (check.measured === null) {
-        return '—';
-    }
-    if (typeof check.measured === 'number') {
-        return Number.isInteger(check.measured)
-            ? String(check.measured)
-            : check.measured.toFixed(2);
-    }
-    return check.measured;
+    onOpenResults?: () => void;
 }
 
 export function SimulationDrawer({
@@ -66,7 +27,7 @@ export function SimulationDrawer({
     seekIndex = null,
     onRun,
     onCursor,
-    onLocate,
+    onOpenResults,
 }: SimulationDrawerProps): ReactElement {
     const [index, setIndex] = useState(0);
     const [playing, setPlaying] = useState(false);
@@ -192,59 +153,15 @@ export function SimulationDrawer({
                             </Button>
                         ))}
                     </div>
-                    <ul className="studio-sim-checks">
-                        {CHECK_GROUPS.map((group) => {
-                            const items = report.checks.filter((check) => check.group === group);
-                            const worst = items.reduce<CheckStatus>((status, check) => {
-                                if (check.status === 'block' || status === 'block') {
-                                    return 'block';
-                                }
-                                if (check.status === 'warn' || status === 'warn') {
-                                    return 'warn';
-                                }
-                                if (check.status === 'pass' || status === 'pass') {
-                                    return 'pass';
-                                }
-                                return status;
-                            }, 'skip');
-                            const Icon = statusIcon(worst);
-                            const locatable = items.find(
-                                (check) => check.at && check.sampleIndex !== null,
-                            );
-                            return (
-                                <li key={group} data-status={worst}>
-                                    <Icon size={ICON_SIZE.table} strokeWidth={STROKE} aria-hidden />
-                                    <div>
-                                        <p>{t(`sim.group.${group}`)}</p>
-                                        {items.map((check) => (
-                                            <p key={check.id} className="studio-muted">
-                                                {t(`sim.check.${check.id}`)} ·{' '}
-                                                {measuredLabel(check)}
-                                                {check.source
-                                                    ? ` · ${t(`sim.source.${check.source}`)}`
-                                                    : ''}
-                                            </p>
-                                        ))}
-                                    </div>
-                                    {locatable && report.samples[locatable.sampleIndex ?? -1] ? (
-                                        <IconButton
-                                            label={t('sim.locate')}
-                                            onClick={() => {
-                                                const target =
-                                                    report.samples[locatable.sampleIndex ?? 0];
-                                                if (target) {
-                                                    setIndex(locatable.sampleIndex ?? 0);
-                                                    onLocate(target);
-                                                }
-                                            }}
-                                        >
-                                            <MapPin size={ICON_SIZE.button} strokeWidth={STROKE} />
-                                        </IconButton>
-                                    ) : null}
-                                </li>
-                            );
-                        })}
-                    </ul>
+                    {onOpenResults ? (
+                        <button
+                            type="button"
+                            className="studio-sim-all-checks"
+                            onClick={onOpenResults}
+                        >
+                            {t('sim.allChecks')}
+                        </button>
+                    ) : null}
                 </>
             )}
         </section>

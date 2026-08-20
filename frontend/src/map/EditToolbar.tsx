@@ -21,10 +21,13 @@ import type { ReactElement } from 'react';
 
 import { IconButton } from '../design-system/Button';
 import { ICON_SIZE, STROKE } from '../design-system/icons';
+import { AdvancedModeLink } from '../app/AdvancedModeLink';
+import { isAdvancedUi, type UiMode } from '../app/farm-api';
 import { isPolygonTool, type EditTool } from './useMissionEditor';
 
 interface EditToolbarProps {
     t: (key: string, params?: Record<string, string | number>) => string;
+    uiMode?: UiMode;
     tool: EditTool;
     draftCount: number;
     selectedCount: number;
@@ -51,6 +54,7 @@ interface EditToolbarProps {
 
 export function EditToolbar({
     t,
+    uiMode,
     tool,
     draftCount,
     selectedCount,
@@ -76,6 +80,7 @@ export function EditToolbar({
 }: EditToolbarProps): ReactElement {
     const drawing = tool !== 'none';
     const polygon = isPolygonTool(tool);
+    const advanced = isAdvancedUi(uiMode);
     const canFinish = polygon ? draftCount >= 3 : draftCount >= 2;
     const showFinishCheck =
         drawing && tool !== 'edit_working_zone' && tool !== 'ruler' && tool !== 'select_zone';
@@ -167,14 +172,20 @@ export function EditToolbar({
             >
                 <Scissors size={ICON_SIZE.button} strokeWidth={STROKE} aria-hidden="true" />
             </IconButton>
-            <IconButton
-                label={t('tool.offset')}
-                data-tool="offset"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={onOffset}
-            >
-                <MoveHorizontal size={ICON_SIZE.button} strokeWidth={STROKE} aria-hidden="true" />
-            </IconButton>
+            {advanced ? (
+                <IconButton
+                    label={t('tool.offset')}
+                    data-tool="offset"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={onOffset}
+                >
+                    <MoveHorizontal
+                        size={ICON_SIZE.button}
+                        strokeWidth={STROKE}
+                        aria-hidden="true"
+                    />
+                </IconButton>
+            ) : null}
             <IconButton
                 label={t('tool.connectTurns')}
                 data-tool="connect_turns"
@@ -271,6 +282,7 @@ export function EditToolbar({
             >
                 <Redo2 size={ICON_SIZE.button} strokeWidth={STROKE} aria-hidden="true" />
             </IconButton>
+            {advanced ? null : <AdvancedModeLink t={t} />}
         </div>
     );
 }

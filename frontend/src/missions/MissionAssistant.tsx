@@ -3,6 +3,7 @@ import { useState, type ReactElement } from 'react';
 import { Button } from '../design-system/Button';
 import { Accordion } from '../design-system/Disclosure';
 import { Input, Select } from '../design-system/Field';
+import { isAdvancedUi, type UiMode } from '../app/farm-api';
 import type { AgriDocument } from '../domain/agri';
 import { readCropPack, workSectionIndices, writeCropPack } from '../domain/crop-pack';
 import type { CombinationEnvelope, CombinationTwin, ImplementTwin } from '../domain/equipment';
@@ -59,6 +60,7 @@ export interface MissionAssistantProps {
     canGenerateBeds?: boolean;
     onGenerate18Beds?: () => void;
     onApplyDocument?: (document: AgriDocument) => void;
+    uiMode?: UiMode;
 }
 
 const STRATEGIES = ['boustrophedon', 'perpendicular', 'best_nswath'] as const;
@@ -372,6 +374,7 @@ export function MissionAssistant({
     canGenerateBeds = false,
     onGenerate18Beds,
     onApplyDocument,
+    uiMode,
 }: MissionAssistantProps): ReactElement {
     const [teachOpen, setTeachOpen] = useState(false);
     const [applyFieldsOpen, setApplyFieldsOpen] = useState(false);
@@ -571,7 +574,8 @@ export function MissionAssistant({
                     </ul>
                 )}
             </div>
-            {tree &&
+            {isAdvancedUi(uiMode) &&
+            tree &&
             tree.leaves.length > 0 &&
             onSelectSection &&
             onReorderSelected &&

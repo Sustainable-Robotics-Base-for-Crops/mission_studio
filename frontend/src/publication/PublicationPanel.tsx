@@ -18,9 +18,9 @@ export function PublicationPanel({
 }): ReactElement {
     const inspectorClass = overlay ? 'studio-context is-overlay' : 'studio-context';
     return (
-        <aside className={inspectorClass} aria-label={t('nav.publication')}>
+        <aside className={inspectorClass} aria-label={t('mission.tab.publish')}>
             <header className="studio-panel-header">
-                <h2>{t('nav.publication')}</h2>
+                <h2>{t('mission.tab.publish')}</h2>
             </header>
             <p className="studio-muted">{t('pub.panelHint')}</p>
             {!catalogue.available ? (

@@ -4,6 +4,7 @@ import { Pentagon, TriangleAlert } from 'lucide-react';
 import { Banner, Button, Chip, Input, Tabs } from '../design-system';
 import { formatDistanceMeters } from '../domain/geometry';
 import { lineLengthM, polygonAreaM2 } from './geojson';
+import { FieldMissionsTab } from './FieldMissionsTab';
 import {
     ZONE_KINDS,
     TRAFFIC_NODE_KINDS,
@@ -720,6 +721,18 @@ export function FieldInspector({
                                     </Button>
                                 </div>
                             </div>
+                        ),
+                    },
+                    {
+                        value: 'missions',
+                        label: t('fields.tab.missions'),
+                        content: (
+                            <FieldMissionsTab
+                                t={t}
+                                language={language}
+                                fieldId={field?.id ?? null}
+                                onOpenMission={onOpenMission}
+                            />
                         ),
                     },
                 ]}

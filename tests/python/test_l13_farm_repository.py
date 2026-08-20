@@ -114,6 +114,36 @@ def test_open_farm_rejects_a_blank_root(repo):
         repo.open_farm("  ")
 
 
+def test_create_farm_requires_an_empty_folder(repo, tmp_path):
+    root = tmp_path / "new-farm"
+    root.mkdir()
+    (root / "notes.txt").write_text("keep me", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="empty folder"):
+        repo.create_farm(str(root), "Ferme Nouvelle")
+
+    assert not (root / FARM_FILE).exists()
+
+
+def test_create_then_open_existing_farm(repo, tmp_path):
+    root = str(tmp_path / "new-farm")
+
+    created = repo.create_farm(root, "Ferme Nouvelle")
+    reopened = repo.open_existing_farm(root)
+
+    assert created["name"] == "Ferme Nouvelle"
+    assert reopened["name"] == "Ferme Nouvelle"
+    assert repo.resolve_root() == root
+
+
+def test_open_existing_rejects_a_plain_folder(repo, tmp_path):
+    root = tmp_path / "plain"
+    root.mkdir()
+
+    with pytest.raises(ValueError, match="not a farm"):
+        repo.open_existing_farm(str(root))
+
+
 def test_recent_farms_are_capped_deduplicated_and_ordered(repo, tmp_path):
     roots = [str(tmp_path / f"farm-{index}") for index in range(RECENT_LIMIT + 2)]
     for root in roots:

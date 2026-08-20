@@ -35,12 +35,14 @@ import {
 } from 'lucide-react';
 
 import { CompareDialog } from '../simulation/CompareDialog';
+import { SimulationPanel } from '../simulation/SimulationPanel';
 import { PublishDialog } from '../publication/PublishDialog';
 import { usePublications } from '../publication/usePublications';
 import { AdminPanel } from './AdminPanel';
 import { CommandPalette } from './CommandPalette';
 import { HomeDashboard } from './HomeDashboard';
 import type { FarmEntry } from './farm-api';
+import { fetchFarmMission, type UiMode } from './farm-api';
 import { useFarm } from './useFarm';
 import { breakpointFromWidth, LAYOUT, shellTracks, type Breakpoint } from './layout';
 import { MODULES, moduleByPath, redirectFor, type LucideIconName } from './modules';
@@ -166,6 +168,7 @@ export function AppShell(): ReactElement {
     const fields = useFieldCatalogue();
     const equipment = useEquipmentCatalogue();
     const farm = useFarm();
+    const uiMode: UiMode = farm.farm?.ui_mode ?? 'basic';
     const keepoutM = equipment.envelope ? geofenceMarginM(equipment.envelope) : null;
     const editor = useMissionEditor({
         workingWidthM: equipment.preview.implement?.working_width_m ?? null,
@@ -336,10 +339,13 @@ export function AppShell(): ReactElement {
     const publications = usePublications(editor.activePath);
     const workingWidthM = equipment.preview.implement?.working_width_m ?? null;
     const oddContext = useMemo((): OddContext => {
-        const combo = missionContext?.combination_id
-            ? (equipment.combinations.find((item) => item.id === missionContext.combination_id) ??
-              null)
-            : equipment.selectedCombination;
+        const combo =
+            equipment.selectedCombination ??
+            (missionContext?.combination_id
+                ? (equipment.combinations.find(
+                      (item) => item.id === missionContext.combination_id,
+                  ) ?? null)
+                : null);
         const profile = combo?.odd ?? readOddFromDocument(editor.document);
         const fieldId = missionContext?.field_id;
         const field = fieldId ? (fields.fields.find((item) => item.id === fieldId) ?? null) : null;
@@ -676,6 +682,7 @@ export function AppShell(): ReactElement {
                 {
                     '--context-width': `${contextWidth}px`,
                     '--inspector-width': `${inspectorWidth}px`,
+                    '--simulation-height': `${LAYOUT.simulationDefault}px`,
                 } as CSSProperties
             }
         >
@@ -879,6 +886,7 @@ export function AppShell(): ReactElement {
                         t={t}
                         catalogue={fields}
                         overlay={overlayLeft}
+                        uiMode={uiMode}
                         onDrawStarted={() => {
                             if (breakpoint === 'review') {
                                 setLeftOpen(false);
@@ -887,10 +895,27 @@ export function AppShell(): ReactElement {
                     />
                 ) : onEquipment ? (
                     <EquipmentContextPanel t={t} catalogue={equipment} overlay={overlayLeft} />
+                ) : onSimulation ? (
+                    <SimulationPanel
+                        t={t}
+                        overlay={overlayLeft}
+                        uiMode={uiMode}
+                        document={editor.document}
+                        activePath={editor.activePath}
+                        combinations={equipment.combinations}
+                        selectedCombinationId={equipment.selectedCombinationId}
+                        onSelectCombination={equipment.selectCombination}
+                        onSaveCombination={equipment.saveCombination}
+                        onLoadFarmMission={editor.adopt}
+                        report={simReport}
+                        publications={publications.items}
+                        onLocate={locateSample}
+                    />
                 ) : onMissions ? (
                     <MissionPanel
                         t={t}
                         overlay={overlayLeft}
+                        uiMode={uiMode}
                         assistant={assistant}
                         fields={fields.fields}
                         selectedField={fields.selected}
@@ -1143,6 +1168,7 @@ export function AppShell(): ReactElement {
                         ) : (
                             <EditToolbar
                                 t={t}
+                                uiMode={uiMode}
                                 tool={editor.tool}
                                 draftCount={editor.draft.length}
                                 selectedCount={editor.selectedIndices.length}
@@ -1294,13 +1320,27 @@ export function AppShell(): ReactElement {
                         missionPath={editor.activePath}
                         onOpenMission={(path) => {
                             if (path) {
+                                const farmFile =
+                                    path.startsWith('mission_order/') ||
+                                    path.startsWith('work_performed/');
+                                if (farmFile) {
+                                    void fetchFarmMission(path)
+                                        .then((document) => editor.adopt(path, document))
+                                        .then(() => navigate('/missions'));
+                                    return;
+                                }
                                 editor.select(path);
                             }
                             navigate('/missions');
                         }}
                     />
                 ) : onEquipment ? (
-                    <EquipmentInspector t={t} catalogue={equipment} overlay={overlayRight} />
+                    <EquipmentInspector
+                        t={t}
+                        catalogue={equipment}
+                        overlay={overlayRight}
+                        uiMode={uiMode}
+                    />
                 ) : (
                     <InspectorPanel
                         t={t}
@@ -1347,6 +1387,7 @@ export function AppShell(): ReactElement {
                                                 ) : null}
                                                 <SectionEditPanel
                                                     t={t}
+                                                    uiMode={uiMode}
                                                     locked={selectionLocked}
                                                     selectedCount={editor.selectedIndices.length}
                                                     moveStep={editor.moveStep}
@@ -1453,6 +1494,7 @@ export function AppShell(): ReactElement {
                     onRun={runSimulation}
                     onCursor={onSimCursor}
                     onLocate={locateSample}
+                    onOpenResults={() => navigate({ pathname: '/simulation', hash: 'results' })}
                 />
             ) : null}
 

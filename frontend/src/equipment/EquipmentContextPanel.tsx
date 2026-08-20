@@ -1,6 +1,7 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 
 import { Button } from '../design-system/Button';
+import { EquipmentAddDialog } from './EquipmentAddDialog';
 import type { useEquipmentCatalogue } from './useEquipmentCatalogue';
 
 type Catalogue = ReturnType<typeof useEquipmentCatalogue>;
@@ -20,6 +21,7 @@ export function EquipmentContextPanel({
     catalogue: Catalogue;
     overlay?: boolean;
 }): ReactElement {
+    const [addOpen, setAddOpen] = useState(false);
     const items =
         catalogue.nav === 'vehicles'
             ? catalogue.vehicles.map((item) => ({
@@ -58,12 +60,6 @@ export function EquipmentContextPanel({
                     selected: item.id === catalogue.selectedCombinationId,
                     onSelect: () => catalogue.selectCombination(item.id),
                 }));
-    const onAdd =
-        catalogue.nav === 'vehicles'
-            ? catalogue.addVehicle
-            : catalogue.nav === 'implements'
-              ? catalogue.addImplement
-              : catalogue.addCombination;
 
     return (
         <aside
@@ -95,7 +91,7 @@ export function EquipmentContextPanel({
                         </ul>
                     </nav>
                     <div className="studio-field-create">
-                        <Button type="button" variant="secondary" onClick={onAdd}>
+                        <Button type="button" variant="secondary" onClick={() => setAddOpen(true)}>
                             {t('equipment.add')}
                         </Button>
                     </div>
@@ -126,6 +122,18 @@ export function EquipmentContextPanel({
                                 : catalogue.error}
                         </p>
                     ) : null}
+                    <EquipmentAddDialog
+                        open={addOpen}
+                        onOpenChange={setAddOpen}
+                        t={t}
+                        nav={catalogue.nav}
+                        vehicles={catalogue.vehicles}
+                        implements={catalogue.implements}
+                        onCreateVehicle={catalogue.addVehicle}
+                        onCreateImplement={catalogue.addImplement}
+                        onCreateCombination={catalogue.addCombination}
+                        onImportFile={catalogue.importEquipmentFile}
+                    />
                 </>
             )}
         </aside>

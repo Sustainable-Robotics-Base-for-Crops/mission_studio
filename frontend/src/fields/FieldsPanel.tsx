@@ -1,5 +1,7 @@
 import { useState, type ChangeEvent, type ReactElement } from 'react';
 
+import { AdvancedModeLink } from '../app/AdvancedModeLink';
+import { isAdvancedUi, type UiMode } from '../app/farm-api';
 import { Input, Select } from '../design-system/Field';
 import { Tabs } from '../design-system/Disclosure';
 import { DEFAULT_ROW_SPACING_M } from '../domain/coverage';
@@ -26,6 +28,7 @@ export interface FieldsPanelProps {
     catalogue: Catalogue;
     overlay?: boolean;
     onDrawStarted?: () => void;
+    uiMode?: UiMode;
 }
 
 export interface FieldNavigationGroup {
@@ -306,7 +309,42 @@ export function FieldsPanel({
     catalogue,
     overlay = false,
     onDrawStarted,
+    uiMode,
 }: FieldsPanelProps): ReactElement {
+    const advanced = isAdvancedUi(uiMode);
+    const tabs = [
+        {
+            value: 'navigate',
+            label: t('fields.tab.navigate'),
+            content: (
+                <div className="studio-panel-tab">
+                    <FieldNavigator t={t} catalogue={catalogue} />
+                </div>
+            ),
+        },
+        {
+            value: 'edit',
+            label: t('fields.tab.edit'),
+            content: (
+                <FieldsContextPanel
+                    t={t}
+                    catalogue={catalogue}
+                    overlay={false}
+                    onDrawStarted={onDrawStarted}
+                />
+            ),
+        },
+        {
+            value: 'work',
+            label: t('fields.tab.workPerformed'),
+            content: <WorkPerformedImporter t={t} catalogue={catalogue} />,
+        },
+        {
+            value: 'third-party',
+            label: t('fields.tab.thirdParty'),
+            content: <ThirdPartyImporter t={t} catalogue={catalogue} />,
+        },
+    ].filter((item) => advanced || (item.value !== 'work' && item.value !== 'third-party'));
     return (
         <aside
             className={overlay ? 'studio-context is-overlay' : 'studio-context'}
@@ -315,42 +353,8 @@ export function FieldsPanel({
             <header className="studio-panel-header">
                 <h2>{t('nav.fields')}</h2>
             </header>
-            <Tabs
-                defaultValue="navigate"
-                items={[
-                    {
-                        value: 'navigate',
-                        label: t('fields.tab.navigate'),
-                        content: (
-                            <div className="studio-panel-tab">
-                                <FieldNavigator t={t} catalogue={catalogue} />
-                            </div>
-                        ),
-                    },
-                    {
-                        value: 'edit',
-                        label: t('fields.tab.edit'),
-                        content: (
-                            <FieldsContextPanel
-                                t={t}
-                                catalogue={catalogue}
-                                overlay={false}
-                                onDrawStarted={onDrawStarted}
-                            />
-                        ),
-                    },
-                    {
-                        value: 'work',
-                        label: t('fields.tab.workPerformed'),
-                        content: <WorkPerformedImporter t={t} catalogue={catalogue} />,
-                    },
-                    {
-                        value: 'third-party',
-                        label: t('fields.tab.thirdParty'),
-                        content: <ThirdPartyImporter t={t} catalogue={catalogue} />,
-                    },
-                ]}
-            />
+            {advanced ? null : <AdvancedModeLink t={t} />}
+            <Tabs defaultValue="navigate" items={tabs} />
         </aside>
     );
 }
