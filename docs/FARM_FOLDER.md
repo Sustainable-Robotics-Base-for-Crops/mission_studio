@@ -70,6 +70,10 @@ La racine courante est résolue dans cet ordre :
   "theme": "light",
   "ui_mode": "basic",
   "units": "metric",
+  "field_geofence_inset_cm": 25,
+  "speed_color_low_kmh": 0.5,
+  "speed_color_mid_kmh": 1.75,
+  "speed_color_high_kmh": 3,
   "created_at": "2026-08-20T10:00:00Z",
   "updated_at": "2026-08-20T10:00:00Z"
 }
@@ -85,6 +89,10 @@ La racine courante est résolue dans cet ordre :
 | `theme` | `light`, `dark` | Préférence stockée ; le thème sombre peint reste hors L13. |
 | `ui_mode` | `basic`, `advanced` | Masque ou affiche les outils experts. |
 | `units` | `metric` | Seul système pris en charge actuellement. |
+| `field_geofence_inset_cm` | nombre ≥ 0, défaut `25` | Retrait appliqué aux nouvelles géo-clôtures créées depuis une parcelle ; `0` suit exactement la limite. |
+| `speed_color_low_kmh` | nombre ≥ 0, défaut `0,5` | Seuil bas du dégradé de vitesse (Cambridge blue et en-dessous). |
+| `speed_color_mid_kmh` | nombre ≥ 0, défaut `1,75` | Seuil médian (Air Force blue). |
+| `speed_color_high_kmh` | nombre ≥ 0, défaut `3` | Seuil haut (Yale blue et au-dessus). Les trois doivent respecter bas ≤ médian ≤ haut. |
 | `created_at`, `updated_at` | ISO 8601 UTC | Dates gérées par le serveur. |
 
 Correspondance du type de ferme au pack : `market_garden → market_garden`,
@@ -187,3 +195,6 @@ uniquement dans `.studio/`.
 Attention : `.studio/index.sqlite` n’est pas `backend/data/studio.sqlite`. Cette seconde
 base (schéma 7) appartient au catalogue et à la file de tâches de l’application ; elle
 n’est ni portable avec la ferme ni source de vérité pour son dossier.
+
+État produit au 24/08/2026 : [`AUDIT_MISSION_STUDIO_2026-08-24.md`](AUDIT_MISSION_STUDIO_2026-08-24.md).
+Recette L13 du 20/08 : [`L13_ACCEPTANCE_REPORT.md`](L13_ACCEPTANCE_REPORT.md) (parcelle alors à 4 onglets).

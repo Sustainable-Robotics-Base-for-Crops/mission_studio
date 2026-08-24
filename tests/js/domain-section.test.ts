@@ -334,7 +334,7 @@ describe('working zone', () => {
         ]);
     });
 
-    it('also tags the two vertices of a row_line whose segment crosses the polygon', () => {
+    it('recuts a crossing row_line and sets working_zone only on the inside piece', () => {
         const doc = documentOf([section([row(0, 0, 0.5, 1), row(20, 0, 0.5, 1)])]);
         const belt: [number, number][] = [
             [8, -2],
@@ -343,10 +343,31 @@ describe('working zone', () => {
             [8, 2],
         ];
         const result = applyWorkingZoneInPolygon(doc, belt, 0);
-        expect(result.count).toBe(2);
-        expect(result.document.points[0]?.values[0]?.[3]).toBe(0);
-        expect(result.document.points[0]?.values[1]?.[3]).toBe(0);
+        expect(result.document.points).toHaveLength(3);
+        expect(result.document.points[0]?.values[0]?.[3]).toBe(1);
+        expect(result.document.points[1]?.values.every((row) => row[3] === 0)).toBe(true);
+        expect(result.document.points[2]?.values.at(-1)?.[3]).toBe(1);
+        expect(result.count).toBe(result.document.points[1]?.values.length);
         expect(getPointsInPolygon(doc.points, belt)).toEqual([]);
+    });
+
+    it('toggling working_zone on the same ring does not spawn extra sections', () => {
+        const doc = documentOf([section([row(0, 0, 0.5, 1), row(20, 0, 0.5, 1)])]);
+        const belt: [number, number][] = [
+            [8, -2],
+            [12, -2],
+            [12, 2],
+            [8, 2],
+        ];
+        let current = applyWorkingZoneInPolygon(doc, belt, 0);
+        expect(current.document.points).toHaveLength(3);
+        for (const value of [1, 0, 1, 0] as const) {
+            current = applyWorkingZoneInPolygon(current.document, belt, value);
+            expect(current.document.points).toHaveLength(3);
+            expect(current.document.points[1]?.values.every((row) => row[3] === value)).toBe(true);
+            expect(current.document.points[0]?.values[0]?.[3]).toBe(1);
+            expect(current.document.points[2]?.values.at(-1)?.[3]).toBe(1);
+        }
     });
 
     it('builds a local polygon from lat/lng the same way as getPolygonLocalFromLatLngs', () => {

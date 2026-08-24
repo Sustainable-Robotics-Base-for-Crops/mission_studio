@@ -34,10 +34,14 @@ def _mission_context(document: Dict[str, Any]) -> Dict[str, Any]:
     brief = brief if isinstance(brief, dict) else {}
 
     field_id = brief.get("field_id")
+    field_name = brief.get("field_name")
+    display_name = brief.get("name")
     operation = brief.get("operation")
     campaign = brief.get("campaign")
     return {
         "field_id": field_id if isinstance(field_id, str) and field_id else None,
+        "field_name": field_name if isinstance(field_name, str) and field_name else None,
+        "display_name": display_name if isinstance(display_name, str) and display_name else None,
         "operation": operation if isinstance(operation, str) and operation else None,
         "campaign": campaign if isinstance(campaign, str) and campaign else None,
         "simulated": bool(metadata.get("srbc_simulation")),
@@ -48,6 +52,8 @@ def _mission_context(document: Dict[str, Any]) -> Dict[str, Any]:
 def _unreadable_context() -> Dict[str, Any]:
     return {
         "field_id": None,
+        "field_name": None,
+        "display_name": None,
         "operation": None,
         "campaign": None,
         "simulated": False,

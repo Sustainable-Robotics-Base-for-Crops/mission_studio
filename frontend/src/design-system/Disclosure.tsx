@@ -65,12 +65,20 @@ function firstOpenable(items: readonly TabItem[], preferred: string): string {
 export function Tabs({
     items,
     defaultValue,
+    value,
+    onValueChange,
 }: {
     items: readonly TabItem[];
     defaultValue: string;
+    value?: string;
+    onValueChange?: (value: string) => void;
 }): ReactElement {
     return (
-        <TabsPrimitive.Root defaultValue={firstOpenable(items, defaultValue)}>
+        <TabsPrimitive.Root
+            defaultValue={value === undefined ? firstOpenable(items, defaultValue) : undefined}
+            value={value}
+            onValueChange={onValueChange}
+        >
             <TabsPrimitive.List className="ds-tabs">
                 {items.map((item) => {
                     const trigger = (

@@ -115,6 +115,43 @@ describe('farm mission naming (CdC §2.3)', () => {
         ).toBe('2026-08-20_parcelle-04_semis-3.json');
     });
 
+    it('uses the human field name instead of its technical identifier when available', () => {
+        const document = {
+            metadata: {
+                srbc_mission_brief: {
+                    field_id: '5be973c6a487488699e25ad340fdfb34',
+                    field_name: 'SABI expérience',
+                    operation: 'hoeing',
+                },
+            },
+        };
+
+        expect(farmMissionFilename(document, [], new Date('2026-08-20T09:00:00'))).toBe(
+            '2026-08-20_sabi-experience_hoeing.json',
+        );
+    });
+
+    it('prefers the mission name typed by the operator', () => {
+        const document = {
+            metadata: {
+                srbc_mission_brief: {
+                    name: 'Binage SABI expérience',
+                    field_id: '5be973c6a487488699e25ad340fdfb34',
+                    field_name: 'SABI expérience',
+                    operation: 'hoeing',
+                },
+            },
+        };
+        const now = new Date('2026-08-20T09:00:00');
+
+        expect(farmMissionFilename(document, [], now)).toBe(
+            '2026-08-20_binage-sabi-experience.json',
+        );
+        expect(farmMissionFilename(document, ['2026-08-20_binage-sabi-experience.json'], now)).toBe(
+            '2026-08-20_binage-sabi-experience-2.json',
+        );
+    });
+
     it('treats only two-segment mission_order paths as farm files', () => {
         expect(isFarmMissionPath('mission_order/demo.json')).toBe(true);
         expect(isFarmMissionPath('mission_order/v1/demo.json')).toBe(false);

@@ -47,6 +47,7 @@ const tree: MissionTreeModel = {
         },
     ],
     leaves: [],
+    geofence: [],
     metrics: {
         length_m: 20,
         duration_s: 40,
@@ -67,11 +68,8 @@ function renderTree(): ReactElement {
                 hiddenIndices={[]}
                 lockedIndices={[]}
                 onSelect={vi.fn()}
-                onMove={vi.fn()}
-                onReorderTo={vi.fn()}
                 onToggleHidden={vi.fn()}
                 onToggleLocked={vi.fn()}
-                onReverse={vi.fn()}
             />
         </StudioProviders>
     );
@@ -80,6 +78,107 @@ function renderTree(): ReactElement {
 }
 
 describe('mission tree collapse', () => {
+    it('does not expose pass reordering controls or drag-and-drop', () => {
+        renderTree();
+        expect(screen.queryByText('Monter')).toBeNull();
+        expect(screen.queryByText('Descendre')).toBeNull();
+        expect(screen.queryByText('Inverser le sens')).toBeNull();
+        expect(screen.getByText('Passe 1').closest('li')?.getAttribute('draggable')).toBeNull();
+    });
+
+    it('shows the outer geofence area with visibility, lock and exclusion creation', () => {
+        const onSelectGeofence = vi.fn();
+        const onAddExclusion = vi.fn();
+        render(
+            <StudioProviders>
+                <MissionTree
+                    t={t}
+                    tree={{
+                        ...tree,
+                        geofence: [
+                            {
+                                id: 'outer',
+                                role: 'outer',
+                                ordinal: 1,
+                                area_m2: 1240.4,
+                            },
+                        ],
+                    }}
+                    selectedIndices={[]}
+                    hiddenIndices={[]}
+                    lockedIndices={[]}
+                    onSelect={vi.fn()}
+                    onToggleHidden={vi.fn()}
+                    onToggleLocked={vi.fn()}
+                    selectedGeofenceId="outer"
+                    onSelectGeofence={onSelectGeofence}
+                    onToggleGeofenceHidden={vi.fn()}
+                    onToggleGeofenceLocked={vi.fn()}
+                    onAddGeofenceExclusion={onAddExclusion}
+                />
+            </StudioProviders>,
+        );
+        expect(screen.getByText('Géo-clôture')).toBeDefined();
+        expect(screen.getByText('Limite extérieure')).toBeDefined();
+        expect(screen.getByText('1240 m²')).toBeDefined();
+        fireEvent.click(screen.getByText('Limite extérieure'));
+        expect(onSelectGeofence).toHaveBeenCalledWith('outer');
+        fireEvent.click(screen.getByText('Ajouter une zone d’exclusion'));
+        expect(onAddExclusion).toHaveBeenCalledOnce();
+    });
+
+    it('deletes a pass from its row, and never the outer geofence', () => {
+        const onDelete = vi.fn();
+        const onDeleteExclusion = vi.fn();
+        render(
+            <StudioProviders>
+                <MissionTree
+                    t={t}
+                    tree={{
+                        ...tree,
+                        leaves: tree.groups[0]!.children,
+                        geofence: [
+                            { id: 'outer', role: 'outer', ordinal: 1, area_m2: 1240.4 },
+                            {
+                                id: 'exclusion:0',
+                                role: 'exclusion',
+                                ordinal: 1,
+                                area_m2: 12.5,
+                            },
+                        ],
+                    }}
+                    selectedIndices={[]}
+                    hiddenIndices={[]}
+                    lockedIndices={[1]}
+                    onSelect={vi.fn()}
+                    onToggleHidden={vi.fn()}
+                    onToggleLocked={vi.fn()}
+                    onDelete={onDelete}
+                    onSelectGeofence={vi.fn()}
+                    onToggleGeofenceHidden={vi.fn()}
+                    onToggleGeofenceLocked={vi.fn()}
+                    onDeleteGeofenceExclusion={onDeleteExclusion}
+                />
+            </StudioProviders>,
+        );
+        const trashOf = (label: string): HTMLButtonElement =>
+            screen
+                .getByText(label)
+                .closest('li')!
+                .querySelector('button[aria-label="Supprimer (Suppr)"]') as HTMLButtonElement;
+        // Two passes and one exclusion carry a trash; the outer fence does not.
+        expect(screen.getAllByRole('button', { name: 'Supprimer (Suppr)' })).toHaveLength(3);
+        expect(trashOf('Limite extérieure')).toBeNull();
+
+        fireEvent.click(trashOf('Passe 1'));
+        expect(onDelete).toHaveBeenCalledWith(0);
+
+        expect(trashOf('Passe 2').disabled).toBe(true);
+
+        fireEvent.click(trashOf('Zone d’exclusion 1'));
+        expect(onDeleteExclusion).toHaveBeenCalledWith('exclusion:0');
+    });
+
     it('collapses a pass group so the list no longer occupies the panel', () => {
         renderTree();
         expect(screen.getByText('Passe 1')).toBeDefined();

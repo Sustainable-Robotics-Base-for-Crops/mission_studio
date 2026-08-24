@@ -21,6 +21,7 @@ const FARM: FarmDocument = {
     theme: 'light',
     ui_mode: 'advanced',
     units: 'metric',
+    field_geofence_inset_cm: 25,
     created_at: '2026-08-01T08:00:00Z',
     updated_at: '2026-08-19T08:00:00Z',
 };
@@ -75,6 +76,7 @@ describe('administration sections (CdC L13 §8)', () => {
         expect(screen.getByText('Préférences')).toBeDefined();
         expect(screen.getByLabelText('Nom de la ferme')).toBeDefined();
         expect(screen.getByLabelText('Niveau d’outils')).toBeDefined();
+        expect(screen.getByLabelText('Retrait de la géo-clôture')).toHaveProperty('value', '25');
         expect(document.querySelector('.studio-admin-root')?.textContent).toBe(
             '/farms/grands-champs',
         );
@@ -148,6 +150,33 @@ describe('administration saves through the farm API', () => {
         fireEvent.click(screen.getByLabelText('Niveau d’outils'));
         fireEvent.click(screen.getByRole('option', { name: 'Basique' }));
         await waitFor(() => expect(state.save).toHaveBeenCalledWith({ ui_mode: 'basic' }));
+    });
+
+    it('stores zero or a custom geofence inset and rejects negative values', async () => {
+        const state = farmState();
+        renderAdmin(state);
+        const input = screen.getByLabelText('Retrait de la géo-clôture');
+
+        fireEvent.change(input, { target: { value: '0' } });
+        fireEvent.blur(input);
+        await waitFor(() =>
+            expect(state.save).toHaveBeenCalledWith({ field_geofence_inset_cm: 0 }),
+        );
+
+        vi.mocked(state.save).mockClear();
+        fireEvent.change(input, { target: { value: '42' } });
+        fireEvent.blur(input);
+        await waitFor(() =>
+            expect(state.save).toHaveBeenCalledWith({ field_geofence_inset_cm: 42 }),
+        );
+
+        vi.mocked(state.save).mockClear();
+        fireEvent.change(input, { target: { value: '-1' } });
+        fireEvent.blur(input);
+        expect(
+            await screen.findByText('Le retrait doit être un nombre positif ou nul.'),
+        ).toBeDefined();
+        expect(state.save).not.toHaveBeenCalled();
     });
 
     it('says so when no map is mounted rather than saving a wrong view', async () => {
@@ -254,6 +283,9 @@ describe('admin i18n keys', () => {
             'admin.index.rebuild',
             'admin.preferences',
             'admin.startView.useCurrent',
+            'admin.fieldGeofenceInset',
+            'admin.fieldGeofenceInset.hint',
+            'admin.fieldGeofenceInset.invalid',
             'admin.theme.hint',
             'admin.uiMode.hint',
             'admin.uiMode.needFarm',

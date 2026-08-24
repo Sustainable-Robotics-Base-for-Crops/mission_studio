@@ -1,12 +1,6 @@
-import {
-    latLngToLocal,
-    pointInPolygon,
-    round3,
-    segmentIntersectsPolygon,
-    type LatLng,
-    type Wgs84Origin,
-} from './geometry';
+import { latLngToLocal, pointInPolygon, round3, type LatLng, type Wgs84Origin } from './geometry';
 import type { AgriDocument, AgriSection } from './agri';
+import { applyWorkingZoneSplit } from './section';
 
 /** Studio-only rings (Agri `metadata` is a free object). Robot ignores them. */
 export const WORKING_ZONE_RINGS_KEY = 'srbc_working_zone_rings';
@@ -29,41 +23,6 @@ export function polygonLocalFromLatLngs(
     });
 }
 
-function vertexHitsPolygon(
-    x: number,
-    y: number,
-    previous: [number, number] | null,
-    next: [number, number] | null,
-    polygon: [number, number][],
-): boolean {
-    if (pointInPolygon(x, y, polygon)) {
-        return true;
-    }
-    const here: [number, number] = [x, y];
-    if (previous && segmentIntersectsPolygon(previous, here, polygon)) {
-        return true;
-    }
-    if (next && segmentIntersectsPolygon(here, next, polygon)) {
-        return true;
-    }
-    return false;
-}
-
-function sectionXy(section: AgriSection, index: number): [number, number] | null {
-    const xIndex = section.columns.indexOf('x');
-    const yIndex = section.columns.indexOf('y');
-    const row = section.values[index];
-    if (xIndex < 0 || yIndex < 0 || !row) {
-        return null;
-    }
-    const x = Number(row[xIndex]);
-    const y = Number(row[yIndex]);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        return null;
-    }
-    return [x, y];
-}
-
 export function applyWorkingZoneInPolygon(
     document: AgriDocument,
     polygon: [number, number][] | null,
@@ -72,33 +31,8 @@ export function applyWorkingZoneInPolygon(
     if (!polygon) {
         return { count: 0, document };
     }
-    let count = 0;
-    const points = document.points.map((section) => {
-        const xIndex = section.columns.indexOf('x');
-        const yIndex = section.columns.indexOf('y');
-        const wzIndex = section.columns.indexOf('working_zone');
-        if (xIndex < 0 || yIndex < 0 || wzIndex < 0) {
-            return section;
-        }
-        return {
-            ...section,
-            values: section.values.map((row, index) => {
-                const x = Number(row[xIndex]);
-                const y = Number(row[yIndex]);
-                const previous = index > 0 ? sectionXy(section, index - 1) : null;
-                const next =
-                    index < section.values.length - 1 ? sectionXy(section, index + 1) : null;
-                if (!vertexHitsPolygon(x, y, previous, next, polygon)) {
-                    return row;
-                }
-                count += 1;
-                const nextRow = [...row];
-                nextRow[wzIndex] = value;
-                return nextRow;
-            }),
-        };
-    });
-    return { count, document: { ...document, points } };
+    const result = applyWorkingZoneSplit(document.points, polygon, value);
+    return { count: result.count, document: { ...document, points: result.sections } };
 }
 
 export function getPointsInPolygon(

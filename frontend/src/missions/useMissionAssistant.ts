@@ -128,14 +128,21 @@ export function useMissionAssistant({
 
     const patch = useCallback(
         (partial: Partial<MissionBrief>) => {
-            setBrief((current) => ({ ...current, ...partial }));
+            setBrief((current) => {
+                const next = { ...current, ...partial };
+                if (partial.field_id !== undefined && partial.field_name === undefined) {
+                    next.field_name =
+                        fields.find((item) => item.id === partial.field_id)?.name ?? '';
+                }
+                return next;
+            });
             setSummary(null);
             setError(null);
             if (partial.field_id) {
                 onSelectField(partial.field_id, { fit: true });
             }
         },
-        [onSelectField],
+        [fields, onSelectField],
     );
 
     const start = useCallback(() => {
@@ -144,6 +151,7 @@ export function useMissionAssistant({
         const firstCombination = combinations[0];
         if (firstField) {
             next.field_id = firstField.id;
+            next.field_name = firstField.name;
             if (firstField.campaign) {
                 next.campaign = firstField.campaign;
             }

@@ -13,12 +13,35 @@ import {
     TURN_PATH_SPACING_M,
     clipPolylineOutsidePolygon,
     distance,
+    pointInPolygon,
     latLngToLocal,
     leftPerpendicular,
     round3,
+    splitPolylineByPolygon,
     type LatLng,
+    type PolygonRun,
     type Wgs84Origin,
 } from './geometry';
+
+/** Drop numerical slivers left by a previous clip (round3 on the ring). */
+const MIN_WORKING_ZONE_RUN_M = 0.02;
+
+function polylineLength(points: [number, number][]): number {
+    let length = 0;
+    for (let index = 0; index < points.length - 1; index += 1) {
+        const a = points[index];
+        const b = points[index + 1];
+        if (!a || !b) {
+            continue;
+        }
+        length += distance(a[0], a[1], b[0], b[1]);
+    }
+    return length;
+}
+
+function meaningfulWorkingZoneRuns(runs: PolygonRun[]): PolygonRun[] {
+    return runs.filter((run) => polylineLength(run.points) >= MIN_WORKING_ZONE_RUN_M);
+}
 
 export function interpolateRowLinePoint(
     rowA: SectionRow,
@@ -457,6 +480,88 @@ export function clipSectionsOutsidePolygon(
         }
     }
     return { sections: out, changed };
+}
+
+function withWorkingZoneValue(section: AgriSection, value: 0 | 1): AgriSection {
+    let columns = section.columns;
+    let wzIndex = columns.indexOf('working_zone');
+    if (wzIndex < 0) {
+        columns = [...columns, 'working_zone'];
+        wzIndex = columns.length - 1;
+    }
+    return {
+        ...section,
+        columns,
+        values: section.values.map((row) => {
+            const next = [...row];
+            next[wzIndex] = value;
+            return next;
+        }),
+    };
+}
+
+/**
+ * Recut sections at the polygon boundary and set `working_zone` only on the
+ * pieces that lie inside the ring. Crossing a 2-vertex `row_line` yields
+ * outside / inside / outside sections instead of marking the whole row.
+ */
+export function applyWorkingZoneSplit(
+    sections: AgriSection[],
+    polygon: [number, number][],
+    value: 0 | 1,
+): { sections: AgriSection[]; count: number } {
+    let count = 0;
+    const out: AgriSection[] = [];
+    for (const section of sections) {
+        const xi = section.columns.indexOf('x');
+        const yi = section.columns.indexOf('y');
+        if (xi < 0 || yi < 0) {
+            out.push(cloneJson(section));
+            continue;
+        }
+        if (section.values.length < 2) {
+            const row = section.values[0];
+            if (row && pointInPolygon(Number(row[xi]), Number(row[yi]), polygon)) {
+                const tagged = withWorkingZoneValue(cloneJson(section), value);
+                count += tagged.values.length;
+                out.push(tagged);
+            } else {
+                out.push(cloneJson(section));
+            }
+            continue;
+        }
+        const xy = section.values.map(
+            (row) => [Number(row[xi]), Number(row[yi])] as [number, number],
+        );
+        const runs = meaningfulWorkingZoneRuns(splitPolylineByPolygon(xy, polygon));
+        const onlyOutside = runs.length === 1 && runs[0]?.inside === false;
+        if (onlyOutside) {
+            out.push(cloneJson(section));
+            continue;
+        }
+        const onlyInside = runs.length === 1 && runs[0]?.inside === true;
+        if (onlyInside) {
+            const tagged = withWorkingZoneValue(cloneJson(section), value);
+            count += tagged.values.length;
+            out.push(tagged);
+            continue;
+        }
+        for (const run of runs) {
+            if (run.points.length < 2 || polylineLength(run.points) < MIN_WORKING_ZONE_RUN_M) {
+                continue;
+            }
+            let piece: AgriSection = {
+                ...cloneJson(section),
+                values: run.points.map((pt) => rowForClippedPoint(section, xi, yi, xy, pt)),
+            };
+            if (run.inside) {
+                piece = withWorkingZoneValue(piece, value);
+                count += piece.values.length;
+            }
+            out.push(piece);
+        }
+    }
+    return { sections: out, count };
 }
 
 export function moveSections(

@@ -3,6 +3,7 @@ import type {
     FieldDiff,
     FieldGuidanceLine,
     FieldImpact,
+    FieldLandmark,
     FieldObstacle,
     FieldRow,
     FieldRowSet,
@@ -14,6 +15,7 @@ import type {
     GeoJSONLineString,
     GeoJSONPoint,
     GeoJSONPolygon,
+    LandmarkKind,
 } from './types';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -139,6 +141,39 @@ export async function addZone(
     });
 }
 
+export async function addLandmark(
+    id: string,
+    payload: {
+        kind: LandmarkKind;
+        geometry: GeoJSONLineString | GeoJSONPolygon | GeoJSONPoint;
+        name?: string;
+        radius_m?: number | null;
+    },
+): Promise<FieldLandmark> {
+    return request(`/api/v1/fields/${encodeURIComponent(id)}/landmarks`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+}
+
+export async function patchLandmark(
+    fieldId: string,
+    landmarkId: string,
+    payload: Record<string, unknown>,
+): Promise<FieldLandmark> {
+    return request(
+        `/api/v1/fields/${encodeURIComponent(fieldId)}/landmarks/${encodeURIComponent(landmarkId)}`,
+        { method: 'PATCH', body: JSON.stringify(payload) },
+    );
+}
+
+export async function deleteLandmark(fieldId: string, landmarkId: string): Promise<void> {
+    await request(
+        `/api/v1/fields/${encodeURIComponent(fieldId)}/landmarks/${encodeURIComponent(landmarkId)}`,
+        { method: 'DELETE' },
+    );
+}
+
 export async function addObstacle(
     id: string,
     payload: { geometry: GeoJSONPolygon; name?: string; category?: string },
@@ -225,6 +260,7 @@ export async function addTrafficWay(
         kind?: string;
         oneway?: boolean;
         speed_mps?: number | null;
+        width_m?: number | null;
     },
 ): Promise<FieldTrafficWay> {
     return request(`/api/v1/fields/${encodeURIComponent(id)}/traffic-ways`, {
@@ -304,6 +340,21 @@ export async function deleteRowSet(fieldId: string, setId: string): Promise<void
     await request(
         `/api/v1/fields/${encodeURIComponent(fieldId)}/row-sets/${encodeURIComponent(setId)}`,
         { method: 'DELETE' },
+    );
+}
+
+export async function addRow(
+    fieldId: string,
+    setId: string,
+    payload: {
+        geometry: GeoJSONLineString | GeoJSONPolygon;
+        number?: number | null;
+        name?: string | null;
+    },
+): Promise<FieldRow> {
+    return request(
+        `/api/v1/fields/${encodeURIComponent(fieldId)}/row-sets/${encodeURIComponent(setId)}/rows`,
+        { method: 'POST', body: JSON.stringify(payload) },
     );
 }
 

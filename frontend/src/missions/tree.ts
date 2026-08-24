@@ -6,6 +6,12 @@ import {
     type AgriSection,
 } from '../domain/agri';
 import { distance } from '../domain/geometry';
+import {
+    polygonAreaM2,
+    readGeofenceExclusions,
+    readGeofenceExterior,
+    type GeofenceId,
+} from '../domain/geofence';
 
 export type MissionRole = 'headland' | 'work' | 'turn' | 'other';
 export type MissionBucket = 'headland' | 'work' | 'other';
@@ -38,9 +44,17 @@ export interface MissionMetrics {
     sections: number;
 }
 
+export interface GeofenceLeaf {
+    id: GeofenceId;
+    role: 'outer' | 'exclusion';
+    ordinal: number;
+    area_m2: number;
+}
+
 export interface MissionTreeModel {
     groups: MissionGroup[];
     leaves: MissionLeaf[];
+    geofence: GeofenceLeaf[];
     metrics: MissionMetrics;
 }
 
@@ -172,9 +186,28 @@ export function buildMissionTree(document: AgriDocument | null | undefined): Mis
         length_m += leaf.length_m;
         duration_s += leaf.speed_mps > 0 ? leaf.length_m / leaf.speed_mps : 0;
     }
+    const geofence: GeofenceLeaf[] = [];
+    const exterior = readGeofenceExterior(document);
+    if (exterior.length >= 3) {
+        geofence.push({
+            id: 'outer',
+            role: 'outer',
+            ordinal: 1,
+            area_m2: polygonAreaM2(exterior),
+        });
+    }
+    readGeofenceExclusions(document).forEach((ring, index) => {
+        geofence.push({
+            id: `exclusion:${index}`,
+            role: 'exclusion',
+            ordinal: index + 1,
+            area_m2: polygonAreaM2(ring),
+        });
+    });
     return {
         groups,
         leaves,
+        geofence,
         metrics: {
             length_m,
             duration_s,

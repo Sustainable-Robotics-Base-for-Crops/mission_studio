@@ -26,7 +26,12 @@ from backend.farm.layout import (
 
 
 def test_default_farm_json_is_valid():
-    assert validate_farm_json(default_farm_json("Ferme XY")) == []
+    document = default_farm_json("Ferme XY")
+    assert validate_farm_json(document) == []
+    assert document["field_geofence_inset_cm"] == 25
+    assert document["speed_color_low_kmh"] == 0.5
+    assert document["speed_color_mid_kmh"] == 1.75
+    assert document["speed_color_high_kmh"] == 3.0
 
 
 def test_default_farm_json_falls_back_on_a_blank_name():
@@ -99,6 +104,15 @@ def test_read_farm_json_survives_a_corrupted_file(tmp_path):
         ({"theme": "solarized"}, "theme"),
         ({"ui_mode": "expert"}, "ui_mode"),
         ({"units": "imperial"}, "units"),
+        ({"field_geofence_inset_cm": -1}, "field_geofence_inset_cm"),
+        ({"field_geofence_inset_cm": "25"}, "field_geofence_inset_cm"),
+        ({"field_geofence_inset_cm": True}, "field_geofence_inset_cm"),
+        ({"speed_color_low_kmh": -1}, "speed_color_low_kmh"),
+        ({"speed_color_mid_kmh": True}, "speed_color_mid_kmh"),
+        (
+            {"speed_color_low_kmh": 3, "speed_color_mid_kmh": 1.75, "speed_color_high_kmh": 0.5},
+            "speed colour thresholds",
+        ),
         ({"start_view": {"lat": 46.6, "lon": 1.9}}, "start_view.zoom"),
         ({"start_view": {"lat": 200, "lon": 1.9, "zoom": 6}}, "start_view.lat"),
         ({"start_view": {"lat": 46.6, "lon": "1.9", "zoom": 6}}, "start_view.lon"),
@@ -117,6 +131,15 @@ def test_validate_farm_json_reports_what_to_fix(patch, expected_fragment):
 
 def test_validate_farm_json_rejects_a_non_object():
     assert validate_farm_json(["not", "an", "object"])
+
+
+def test_validate_farm_json_accepts_zero_and_legacy_documents_without_inset():
+    document = default_farm_json("Ferme XY")
+    document["field_geofence_inset_cm"] = 0
+    assert validate_farm_json(document) == []
+
+    del document["field_geofence_inset_cm"]
+    assert validate_farm_json(document) == []
 
 
 def test_validate_farm_json_rejects_a_boolean_coordinate():

@@ -5,6 +5,7 @@ import { Accordion } from '../design-system/Disclosure';
 import { Input, Select } from '../design-system/Field';
 import { isAdvancedUi, type UiMode } from '../app/farm-api';
 import type { AgriDocument } from '../domain/agri';
+import type { GeofenceId } from '../domain/geofence';
 import { readCropPack, workSectionIndices, writeCropPack } from '../domain/crop-pack';
 import type { CombinationEnvelope, CombinationTwin, ImplementTwin } from '../domain/equipment';
 import type { OddProfile } from '../domain/odd';
@@ -17,6 +18,7 @@ import {
     ASSISTANT_STEPS,
     OPERATIONS,
     PRIORITIES,
+    suggestedMissionName,
     type AssistantStep,
     type MissionBrief,
 } from './brief';
@@ -46,11 +48,17 @@ export interface MissionAssistantProps {
     hiddenIndices?: number[];
     lockedIndices?: number[];
     onSelectSection?: (index: number, additive: boolean) => void;
-    onReorderSelected?: (delta: -1 | 1) => void;
-    onReorderTo?: (fromIndex: number, toIndex: number) => void;
     onToggleHidden?: (index: number) => void;
     onToggleLocked?: (index: number) => void;
-    onReverseSelected?: () => void;
+    selectedGeofenceId?: GeofenceId | null;
+    hiddenGeofenceIds?: GeofenceId[];
+    lockedGeofenceIds?: GeofenceId[];
+    onSelectGeofence?: (id: GeofenceId) => void;
+    onToggleGeofenceHidden?: (id: GeofenceId) => void;
+    onToggleGeofenceLocked?: (id: GeofenceId) => void;
+    onAddGeofenceExclusion?: () => void;
+    onDeleteSection?: (index: number) => void;
+    onDeleteGeofenceExclusion?: (id: GeofenceId) => void;
     document?: AgriDocument | null;
     envelope?: CombinationEnvelope | null;
     equipmentSnapshot?: Record<string, unknown> | null;
@@ -87,8 +95,21 @@ function StepFields({
     implements: ImplementTwin[];
 }): ReactElement {
     if (step === 'objective') {
+        const fieldName =
+            brief.field_name || fields.find((item) => item.id === brief.field_id)?.name || '';
+        const suggestion = suggestedMissionName(
+            t(`assist.operation.${brief.operation}`),
+            fieldName,
+        );
         return (
             <>
+                <Input
+                    id="assist-name"
+                    label={t('assist.field.name')}
+                    value={brief.name || suggestion}
+                    onChange={(event) => patch({ name: event.target.value })}
+                    help={t('assist.help.name')}
+                />
                 <Select
                     id="assist-operation"
                     label={t('assist.field.operation')}
@@ -360,11 +381,17 @@ export function MissionAssistant({
     hiddenIndices = [],
     lockedIndices = [],
     onSelectSection,
-    onReorderSelected,
-    onReorderTo,
     onToggleHidden,
     onToggleLocked,
-    onReverseSelected,
+    selectedGeofenceId = null,
+    hiddenGeofenceIds = [],
+    lockedGeofenceIds = [],
+    onSelectGeofence,
+    onToggleGeofenceHidden,
+    onToggleGeofenceLocked,
+    onAddGeofenceExclusion,
+    onDeleteSection,
+    onDeleteGeofenceExclusion,
     document = null,
     envelope = null,
     equipmentSnapshot = null,
@@ -399,9 +426,11 @@ export function MissionAssistant({
                 <h2>{t('nav.missions')}</h2>
             </header>
             <div className="studio-assist-toolbar">
-                <Button type="button" variant="primary" onClick={assistant.start}>
-                    {t('assist.new')}
-                </Button>
+                {view === 'create' ? null : (
+                    <Button type="button" variant="primary" onClick={assistant.start}>
+                        {t('assist.new')}
+                    </Button>
+                )}
                 {assistant.open ? (
                     <Button type="button" variant="secondary" onClick={assistant.close}>
                         {t('assist.close')}
@@ -576,13 +605,10 @@ export function MissionAssistant({
             </div>
             {isAdvancedUi(uiMode) &&
             tree &&
-            tree.leaves.length > 0 &&
+            (tree.leaves.length > 0 || tree.geofence.length > 0) &&
             onSelectSection &&
-            onReorderSelected &&
-            onReorderTo &&
             onToggleHidden &&
-            onToggleLocked &&
-            onReverseSelected ? (
+            onToggleLocked ? (
                 <div className="studio-tree-panel">
                     <Accordion
                         defaultValue="tree"
@@ -598,11 +624,17 @@ export function MissionAssistant({
                                         hiddenIndices={hiddenIndices}
                                         lockedIndices={lockedIndices}
                                         onSelect={onSelectSection}
-                                        onMove={onReorderSelected}
-                                        onReorderTo={onReorderTo}
                                         onToggleHidden={onToggleHidden}
                                         onToggleLocked={onToggleLocked}
-                                        onReverse={onReverseSelected}
+                                        selectedGeofenceId={selectedGeofenceId}
+                                        hiddenGeofenceIds={hiddenGeofenceIds}
+                                        lockedGeofenceIds={lockedGeofenceIds}
+                                        onSelectGeofence={onSelectGeofence}
+                                        onToggleGeofenceHidden={onToggleGeofenceHidden}
+                                        onToggleGeofenceLocked={onToggleGeofenceLocked}
+                                        onAddGeofenceExclusion={onAddGeofenceExclusion}
+                                        onDelete={onDeleteSection}
+                                        onDeleteGeofenceExclusion={onDeleteGeofenceExclusion}
                                     />
                                 ),
                             },

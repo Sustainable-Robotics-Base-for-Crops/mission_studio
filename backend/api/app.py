@@ -16,6 +16,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 
 from backend.api.http import client_address, handler_headers, json_from_handler
+from backend.config.static_assets import studio_asset_headers
 from backend.api.legacy import build_legacy_router
 from backend.api.v1 import build_v1_router
 from backend.config.flags import wants_ui_shell_v2
@@ -65,11 +66,15 @@ def _html(content: str) -> HTMLResponse:
     return HTMLResponse(content, status_code=HTTPStatus.OK)
 
 
-def _file_response(file_path: str) -> Response:
+def _file_response(file_path: str, headers: dict[str, str] | None = None) -> Response:
     if not os.path.exists(file_path) or not os.path.isfile(file_path):
         return Response(status_code=HTTPStatus.NOT_FOUND)
     media_type, _ = mimetypes.guess_type(file_path)
-    return FileResponse(file_path, media_type=media_type or "application/octet-stream")
+    return FileResponse(
+        file_path,
+        media_type=media_type or "application/octet-stream",
+        headers=headers,
+    )
 
 
 def _serve_plugin_or_public(runtime: EditorRuntime, path: str) -> Response:
@@ -94,7 +99,7 @@ def _serve_studio_asset(path: str) -> Response | None:
     asset_path = os.path.join(Settings.WEB_ROOT, "studio", relative)
     if not os.path.isfile(asset_path):
         return Response(status_code=HTTPStatus.NOT_FOUND)
-    return _file_response(asset_path)
+    return _file_response(asset_path, headers=studio_asset_headers(basename))
 
 
 def create_app(runtime: EditorRuntime | None = None) -> FastAPI:
@@ -181,9 +186,12 @@ def create_app(runtime: EditorRuntime | None = None) -> FastAPI:
         asset = _serve_studio_asset(request.url.path)
         if asset is not None:
             return asset
-        return _html(
+        response = _html(
             runtime.html_generation_service.generate_studio_html(user_id or "anonymous")
         )
+        # The shell carries the build stamp of the bundle, so it must never be cached.
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.get("/app-logo")
     def app_logo() -> Response:

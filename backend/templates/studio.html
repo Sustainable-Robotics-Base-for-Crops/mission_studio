@@ -48,7 +48,7 @@
         );
     </script>
 
-    <link rel="stylesheet" href="/studio/assets/studio.css">
+    <link rel="stylesheet" href="/studio/assets/studio.css?v={{ studio_build_version }}">
 </head>
 <body>
     {% block plugin_body_pre %}
@@ -69,7 +69,7 @@
         {% endfor %}
     </span>
 
-    <script type="module" src="/studio/assets/studio.js"></script>
+    <script type="module" src="/studio/assets/studio.js?v={{ studio_build_version }}"></script>
 
     <script>
         window.setLanguage = function(lang) {

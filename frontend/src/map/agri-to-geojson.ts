@@ -1,6 +1,13 @@
 import { localToLngLat, type Wgs84Origin } from '../domain/geometry';
 import { readWorkingZoneRings } from '../domain/working-zone';
+import { readGeofenceExclusions, readGeofenceExterior, type GeofenceId } from '../domain/geofence';
 import type { AgriDocument } from '../domain/agri';
+import {
+    DEFAULT_SPEED_STOPS,
+    distinctSpeedsMps,
+    speedColor,
+    type SpeedColorStops,
+} from '../domain/speed-style';
 
 export type { Wgs84Origin };
 export { localToLngLat };
@@ -109,6 +116,11 @@ export function agriToGeoJSON(
     document: unknown,
     selectedIndices: readonly number[] = [],
     hiddenIndices: readonly number[] = [],
+    geofenceState: {
+        selectedId?: GeofenceId | null;
+        hiddenIds?: readonly GeofenceId[];
+    } = {},
+    speedStops: SpeedColorStops = DEFAULT_SPEED_STOPS,
 ): MissionGeoJSON {
     const doc = asRecord(document);
     if (!doc) {
@@ -120,11 +132,51 @@ export function agriToGeoJSON(
     }
 
     const result = emptyMission();
-    let bounds: MissionGeoJSON['bounds'] = null;
+    let lineBounds: MissionGeoJSON['bounds'] = null;
+    let polygonBounds: MissionGeoJSON['bounds'] = null;
 
+    const sections = Array.isArray(doc.points) ? doc.points : [];
+    const hidden = new Set(hiddenIndices);
     const workOrdinalBySection = new Map<number, number>();
     let nextWorkOrdinal = 0;
-    const pushLine = (kind: LineKind, coords: [number, number][], sectionIndex: number) => {
+    const workSpeeds: number[] = [];
+    sections.forEach((raw, sectionIndex) => {
+        if (hidden.has(sectionIndex)) {
+            return;
+        }
+        const section = asRecord(raw);
+        if (
+            !section ||
+            !Array.isArray(section.values) ||
+            TURN_TYPES.has(String(section.section_type))
+        ) {
+            return;
+        }
+        const xIndex = columnIndex(section.columns, 'x');
+        const yIndex = columnIndex(section.columns, 'y');
+        const wzIndex = columnIndex(section.columns, 'working_zone');
+        const speedIndex = columnIndex(section.columns, 'speed');
+        if (xIndex < 0 || yIndex < 0 || speedIndex < 0) {
+            return;
+        }
+        for (const row of section.values) {
+            if (!Array.isArray(row)) {
+                continue;
+            }
+            const working = wzIndex < 0 || row[wzIndex] === 1 || row[wzIndex] === true;
+            const speed = Number(row[speedIndex]);
+            if (working && Number.isFinite(speed)) {
+                workSpeeds.push(speed);
+            }
+        }
+    });
+    const colourBySpeed = distinctSpeedsMps(workSpeeds).length > 1;
+    const pushLine = (
+        kind: LineKind,
+        coords: [number, number][],
+        sectionIndex: number,
+        speedMps?: number,
+    ) => {
         if (coords.length < 2) {
             return;
         }
@@ -137,16 +189,18 @@ export function agriToGeoJSON(
                 workOrdinalBySection.set(sectionIndex, ordinal);
             }
             properties.label = ordinal;
+            if (colourBySpeed && speedMps !== undefined && Number.isFinite(speedMps)) {
+                properties.lineColor = speedColor(speedMps, speedStops);
+                properties.speed_mps = speedMps;
+            }
         }
         const feature = lineFeature(coords, properties);
         result[kind].features.push(feature);
         for (const [lng, lat] of coords) {
-            bounds = extendBounds(bounds, lng, lat);
+            lineBounds = extendBounds(lineBounds, lng, lat);
         }
     };
 
-    const sections = Array.isArray(doc.points) ? doc.points : [];
-    const hidden = new Set(hiddenIndices);
     sections.forEach((raw, sectionIndex) => {
         if (hidden.has(sectionIndex)) {
             return;
@@ -158,6 +212,7 @@ export function agriToGeoJSON(
         const xIndex = columnIndex(section.columns, 'x');
         const yIndex = columnIndex(section.columns, 'y');
         const wzIndex = columnIndex(section.columns, 'working_zone');
+        const speedIndex = columnIndex(section.columns, 'speed');
         if (xIndex < 0 || yIndex < 0) {
             return;
         }
@@ -174,10 +229,12 @@ export function agriToGeoJSON(
                 }
                 const wzRaw = wzIndex >= 0 ? row[wzIndex] : 1;
                 const working = wzRaw === 1 || wzRaw === true;
-                return { lngLat: localToLngLat(x, y, origin), working };
+                const speed = speedIndex >= 0 ? Number(row[speedIndex]) : Number.NaN;
+                return { lngLat: localToLngLat(x, y, origin), working, speed };
             })
             .filter(
-                (point): point is { lngLat: [number, number]; working: boolean } => point !== null,
+                (point): point is { lngLat: [number, number]; working: boolean; speed: number } =>
+                    point !== null,
             );
 
         if (points.length < 2) {
@@ -200,26 +257,40 @@ export function agriToGeoJSON(
 
         let segment: [number, number][] = [first.lngLat];
         let currentWorking = first.working;
+        let currentSpeed = first.speed;
         for (let index = 1; index < points.length; index += 1) {
             const point = points[index];
             if (!point) {
                 continue;
             }
-            if (point.working === currentWorking) {
+            const sameSpeed = !colourBySpeed || point.speed === currentSpeed;
+            if (point.working === currentWorking && sameSpeed) {
                 segment.push(point.lngLat);
             } else {
-                pushLine(currentWorking ? 'work' : 'transit', segment, sectionIndex);
+                pushLine(
+                    currentWorking ? 'work' : 'transit',
+                    segment,
+                    sectionIndex,
+                    currentWorking ? currentSpeed : undefined,
+                );
                 segment = [point.lngLat];
                 currentWorking = point.working;
+                currentSpeed = point.speed;
             }
         }
-        pushLine(currentWorking ? 'work' : 'transit', segment, sectionIndex);
+        pushLine(
+            currentWorking ? 'work' : 'transit',
+            segment,
+            sectionIndex,
+            currentWorking ? currentSpeed : undefined,
+        );
     });
 
     const pushPolygon = (
         collection: PolygonFeatureCollection,
         localValues: unknown[],
         kind: string,
+        properties: Record<string, string | number | boolean> = {},
     ) => {
         const ring: [number, number][] = [];
         for (const row of localValues) {
@@ -233,7 +304,7 @@ export function agriToGeoJSON(
             }
             const lngLat = localToLngLat(x, y, origin);
             ring.push(lngLat);
-            bounds = extendBounds(bounds, lngLat[0], lngLat[1]);
+            polygonBounds = extendBounds(polygonBounds, lngLat[0], lngLat[1]);
         }
         if (ring.length < 3) {
             return;
@@ -245,15 +316,31 @@ export function agriToGeoJSON(
         }
         collection.features.push({
             type: 'Feature',
-            properties: { kind },
+            properties: { kind, ...properties },
             geometry: { type: 'Polygon', coordinates: [ring] },
         });
     };
 
-    const geofencing = asRecord(doc.geofencing);
-    const geoValues = Array.isArray(geofencing?.values) ? geofencing.values : [];
-    if (geoValues.length >= 3) {
-        pushPolygon(result.geofence, geoValues, 'geofence');
+    const agriDocument = {
+        ...doc,
+        points: Array.isArray(doc.points) ? doc.points : [],
+    } as AgriDocument;
+    const hiddenGeofence = new Set(geofenceState.hiddenIds ?? []);
+    const exterior = readGeofenceExterior(agriDocument);
+    if (exterior.length >= 3 && !hiddenGeofence.has('outer')) {
+        pushPolygon(result.geofence, exterior, 'geofence', {
+            geofenceId: 'outer',
+            selected: geofenceState.selectedId === 'outer',
+        });
+        readGeofenceExclusions(agriDocument).forEach((ring, index) => {
+            const id = `exclusion:${index}` as GeofenceId;
+            if (!hiddenGeofence.has(id)) {
+                pushPolygon(result.geofence, ring, 'geofence_exclusion', {
+                    geofenceId: id,
+                    selected: geofenceState.selectedId === id,
+                });
+            }
+        });
     }
 
     for (const zone of readWorkingZoneRings({
@@ -279,7 +366,7 @@ export function agriToGeoJSON(
         }
     }
 
-    result.bounds = bounds;
+    result.bounds = lineBounds ?? polygonBounds;
     return result;
 }
 

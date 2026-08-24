@@ -10,7 +10,7 @@ import {
     CATALOGUE_ZONE_KINDS,
     type CatalogueOverlayId,
 } from './catalogue-style';
-import { LAYER_CATALOG, type BasemapId, type OverlayId } from './styles';
+import { LAYER_CATALOG, MAP_STYLE, type BasemapId, type OverlayId } from './styles';
 
 interface LayersPopoverProps {
     t: (key: string, params?: Record<string, string | number>) => string;
@@ -87,7 +87,13 @@ export function LayersPopover({
                                                 aria-hidden
                                             />
                                         )}
-                                        {layer.id in CATALOGUE_OVERLAY_SWATCH ? (
+                                        {layer.id === 'geofence' ? (
+                                            <span
+                                                className="studio-layers-swatch"
+                                                style={{ background: MAP_STYLE.geofenceLine }}
+                                                aria-hidden="true"
+                                            />
+                                        ) : layer.id in CATALOGUE_OVERLAY_SWATCH ? (
                                             <span
                                                 className="studio-layers-swatch"
                                                 style={{

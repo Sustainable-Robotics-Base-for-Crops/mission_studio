@@ -61,6 +61,39 @@ describe('agriToGeoJSON', () => {
         expect(geojson.work.features[0]?.properties.label).toBe(1);
     });
 
+    it('fits the camera on the trajectory, not a larger geofence', () => {
+        const origin = { lat: 45.85, lon: 3.17 };
+        const empty = createEmptyDocument();
+        empty.origin = { coordinates: { lat: origin.lat, lon: origin.lon } };
+        const withLine = appendDrawnLine(empty, [
+            { lat: origin.lat, lng: origin.lon },
+            { lat: origin.lat + 5 / 111320, lng: origin.lon },
+        ]);
+        expect(withLine.ok).toBe(true);
+        if (!withLine.ok) {
+            return;
+        }
+        const withFence = setDrawnGeofence(withLine.document, [
+            { lat: origin.lat - 200 / 111320, lng: origin.lon - 200 / 111320 },
+            { lat: origin.lat + 200 / 111320, lng: origin.lon - 200 / 111320 },
+            { lat: origin.lat + 200 / 111320, lng: origin.lon + 200 / 111320 },
+            { lat: origin.lat - 200 / 111320, lng: origin.lon + 200 / 111320 },
+        ]);
+        expect(withFence.ok).toBe(true);
+        if (!withFence.ok) {
+            return;
+        }
+        const geojson = agriToGeoJSON(withFence.document);
+        expect(geojson.geofence.features).toHaveLength(1);
+        const [sw, ne] = geojson.bounds ?? [
+            [0, 0],
+            [0, 0],
+        ];
+        const heightM = (ne[1] - sw[1]) * 111320;
+        expect(heightM).toBeLessThan(20);
+        expect(heightM).toBeGreaterThan(1);
+    });
+
     it('copies selected section features into the selection halo collection', () => {
         const document = loadGolden('synthetic_minimal.v3.json');
         const none = agriToGeoJSON(document);
@@ -117,6 +150,48 @@ describe('agriToGeoJSON', () => {
         expect(geojson.transit.features[0]?.geometry.coordinates).toHaveLength(2);
     });
 
+    it('colours work lines by speed only when several speeds coexist', () => {
+        const mixed = agriToGeoJSON({
+            origin: { coordinates: { lat: 45.85, lon: 3.17 } },
+            points: [
+                {
+                    section_type: 'row_line',
+                    columns: ['x', 'y', 'speed', 'working_zone'],
+                    values: [
+                        [0, 0, 0.1, 1],
+                        [0, 1, 0.1, 1],
+                    ],
+                },
+                {
+                    section_type: 'row_line',
+                    columns: ['x', 'y', 'speed', 'working_zone'],
+                    values: [
+                        [2, 0, 1, 1],
+                        [2, 1, 1, 1],
+                    ],
+                },
+            ],
+        });
+        expect(mixed.work.features).toHaveLength(2);
+        expect(mixed.work.features[0]?.properties.lineColor).toBe('#7F9C96');
+        expect(mixed.work.features[1]?.properties.lineColor).toBe('#1B4079');
+
+        const uniform = agriToGeoJSON({
+            origin: { coordinates: { lat: 45.85, lon: 3.17 } },
+            points: [
+                {
+                    section_type: 'row_line',
+                    columns: ['x', 'y', 'speed', 'working_zone'],
+                    values: [
+                        [0, 0, 1, 1],
+                        [0, 1, 1, 1],
+                    ],
+                },
+            ],
+        });
+        expect(uniform.work.features[0]?.properties.lineColor).toBeUndefined();
+    });
+
     it('projects a line drawn on an empty draft (origin 48,2) back onto the clicks', () => {
         const start = { lat: 45.85, lng: 3.17 };
         const end = { lat: start.lat + 1 / 111320, lng: start.lng };
@@ -170,7 +245,42 @@ describe('agriToGeoJSON', () => {
         expect(polygonRing?.[0]).toEqual(polygonRing?.[polygonRing.length - 1]);
     });
 
-    it('keeps a working-zone polygon after apply so it does not vanish on validate', () => {
+    it('renders geofence exclusions and applies their eye visibility independently', () => {
+        const document = {
+            origin: { coordinates: { lat: 45.85, lon: 3.17 } },
+            points: [],
+            geofencing: {
+                columns: ['x', 'y'],
+                values: [
+                    [0, 0],
+                    [20, 0],
+                    [20, 10],
+                    [0, 10],
+                ],
+            },
+            metadata: {
+                srbc_geofence_exclusions: [
+                    [
+                        [2, 2],
+                        [4, 2],
+                        [4, 5],
+                        [2, 5],
+                    ],
+                ],
+            },
+        };
+        const visible = agriToGeoJSON(document, [], [], { selectedId: 'exclusion:0' });
+        expect(visible.geofence.features).toHaveLength(2);
+        expect(visible.geofence.features[1]?.properties.selected).toBe(true);
+
+        const hidden = agriToGeoJSON(document, [], [], { hiddenIds: ['exclusion:0'] });
+        expect(hidden.geofence.features).toHaveLength(1);
+
+        const outerHidden = agriToGeoJSON(document, [], [], { hiddenIds: ['outer'] });
+        expect(outerHidden.geofence.features).toHaveLength(0);
+    });
+
+    it('does not keep a working-zone polygon overlay after apply', () => {
         const line = appendDrawnLine(createEmptyDocument(), [
             { lat: 45.85, lng: 3.17 },
             { lat: 45.8502, lng: 3.17 },
@@ -191,7 +301,7 @@ describe('agriToGeoJSON', () => {
             return;
         }
         const geojson = agriToGeoJSON(result.document);
-        expect(geojson.traversable.features).toHaveLength(1);
+        expect(geojson.traversable.features).toHaveLength(0);
         expect(geojson.workable.features).toHaveLength(0);
         expect(geojson.transit.features.length + geojson.work.features.length).toBeGreaterThan(0);
     });
@@ -332,13 +442,14 @@ describe('MAP_STYLE (CdCF §5.2)', () => {
         expect(MAP_STYLE.workWidth).toBe(3);
         expect(MAP_STYLE.transit).toBe('#FF2EC8');
         expect(MAP_STYLE.transitWidth).toBe(3);
-        expect(MAP_STYLE.transitDash).toEqual([8 / 3, 6 / 3]);
         expect(MAP_STYLE.turn).toBe('#FF2EC8');
         expect(MAP_STYLE.turnWidth).toBe(3);
         expect(MAP_STYLE.selectedHalo).toBe('#E8FF00');
         expect(MAP_STYLE.selectedHaloWidth).toBe(14);
-        expect(MAP_STYLE.geofenceLine).toBe('#14532D');
-        expect(MAP_STYLE.geofenceWidth).toBe(2);
+        // Neon orange, distinct from the catalogue field boundary they overlap with.
+        expect(MAP_STYLE.geofenceLine).toBe('#FF7A00');
+        expect(MAP_STYLE.geofenceLine).not.toBe(CATALOGUE_KIND_PAINT.field.line);
+        expect(MAP_STYLE.geofenceWidth).toBe(3);
         expect(MAP_STYLE.satelliteHalo).toBe('#FFFFFF');
         expect(MAP_STYLE.satelliteHaloExtra).toBe(2);
     });
@@ -352,6 +463,7 @@ describe('MAP_STYLE (CdCF §5.2)', () => {
     it('paints typed zones from CdCF §5.2', () => {
         expect(CATALOGUE_KIND_PAINT.workable.fill).toBe('#15803D');
         expect(CATALOGUE_KIND_PAINT.traversable.fill).toBe('#64748B');
+        expect(CATALOGUE_KIND_PAINT.traversable.fillOpacity).toBeLessThanOrEqual(0.15);
         expect(CATALOGUE_KIND_PAINT.autonomy.fill).toBe('#0E7490');
         expect(CATALOGUE_KIND_PAINT.forbidden.fill).toBe('#B91C1C');
         expect(CATALOGUE_KIND_PAINT.headland.fill).toBe('#B45309');
@@ -366,20 +478,34 @@ describe('MAP_STYLE (CdCF §5.2)', () => {
         const live = LAYER_CATALOG.filter((layer) => layer.lot === null).map((layer) => layer.id);
         expect(live).toEqual([
             'trajectories',
+            'geofence',
             'parcels',
             'zones',
             'obstacles',
             'rows',
             'guidance',
             'traffic',
+            'landmarks',
             'labels',
         ]);
         expect(CATALOGUE_KIND_PAINT.guidance_line.lineWidth).toBe(1.5);
         expect(CATALOGUE_KIND_PAINT.guidance_line.fillOpacity).toBe(0);
         expect(CATALOGUE_KIND_PAINT.row.line).toBe('#78350F');
-        expect(CATALOGUE_KIND_PAINT.bed.fillOpacity).toBeGreaterThan(0);
+        expect(CATALOGUE_KIND_PAINT.bed.line).toBe('#8B5E3C');
+        expect(CATALOGUE_KIND_PAINT.bed.lineWidth).toBeGreaterThan(0);
         expect(CATALOGUE_KIND_PAINT.traffic_way.dash).toEqual([4, 3]);
         expect(CATALOGUE_KIND_PAINT.traffic_way.line).toBe('#0F766E');
+    });
+
+    it('paints swept bands without an outline', () => {
+        for (const band of [CATALOGUE_KIND_PAINT.bed_band, CATALOGUE_KIND_PAINT.traffic_band]) {
+            expect(band.lineWidth).toBe(0);
+            expect(band.dash).toBeNull();
+            expect(band.fillOpacity).toBeGreaterThan(0);
+            expect(band.fillOpacity).toBeLessThanOrEqual(0.2);
+        }
+        expect(CATALOGUE_KIND_PAINT.bed_band.fill).toBe('#8B5E3C');
+        expect(CATALOGUE_KIND_PAINT.traffic_band.fill).toBe('#334155');
     });
 });
 
@@ -487,9 +613,25 @@ describe('map canvas layout', () => {
         expect(source).toContain('showCompass: true');
         expect(source).toContain('visualizePitch: true');
         expect(source).not.toMatch(/if\s*\(\s*!map\?\.isStyleLoaded\(\)\s*\)\s*\{/);
+        expect(source).not.toContain("once('load', apply)");
+        expect(source).toContain("instance.once('idle', apply)");
         expect(source).not.toContain('instanceof GeoJSONSource');
         const overlay = readFileSync(resolve(ROOT, 'frontend/src/map/svg-overlay.ts'), 'utf8');
         expect(overlay).toContain('studio-map-svg');
         expect(overlay).toContain('coordinatesToSvgPath');
+    });
+
+    it('fits the camera on the rendered trajectory when a mission fitKey arrives', () => {
+        const canvas = readFileSync(resolve(ROOT, 'frontend/src/map/MapCanvas.tsx'), 'utf8');
+        expect(canvas).toContain('engine.renderMission(geojson)');
+        expect(canvas).toContain('engine.fitBounds(geojson.bounds)');
+        expect(canvas).toContain('if (fitKey)');
+        const shell = readFileSync(resolve(ROOT, 'frontend/src/app/AppShell.tsx'), 'utf8');
+        expect(shell).toContain('editor.missionFitNonce');
+        expect(shell).toContain("editor.activePath ?? 'draft'");
+        const editor = readFileSync(resolve(ROOT, 'frontend/src/map/useMissionEditor.ts'), 'utf8');
+        expect(editor).toMatch(
+            /missions\.adopt\(path, payload\);\s*setMissionFitNonce\(\(value\) => value \+ 1\);/s,
+        );
     });
 });

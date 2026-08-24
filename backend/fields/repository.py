@@ -36,6 +36,16 @@ def _as_linestring(geometry: Any) -> dict[str, Any]:
     return geometry
 
 
+def _positive_width(raw: Any) -> float | None:
+    """A width is optional; when given it must be a strictly positive number of metres."""
+    if raw is None or raw == "":
+        return None
+    value = float(raw)
+    if value <= 0:
+        raise ValueError("width_m must be greater than 0")
+    return value
+
+
 def _as_point(geometry: Any) -> dict[str, Any]:
     if not isinstance(geometry, dict) or geometry.get("type") != "Point":
         raise ValueError("geometry must be a Point")
@@ -99,6 +109,7 @@ class FieldRepository:
             field["row_sets"] = self.list_row_sets(field_id)
             field["traffic_ways"] = self.list_traffic_ways(field_id)
             field["traffic_nodes"] = self.list_traffic_nodes(field_id)
+            field["landmarks"] = self.list_landmarks(field_id)
             field["version"] = self.latest_version_number(field_id)
         return field
 
@@ -329,6 +340,73 @@ class FieldRepository:
             self._touch_field(field_id)
         return cursor.rowcount > 0
 
+    def list_landmarks(self, field_id: str) -> list[dict[str, Any]]:
+        rows = self.db.execute(
+            "SELECT * FROM landmarks WHERE field_id = ? ORDER BY created_at", (field_id,)
+        ).fetchall()
+        return [self._landmark_row(row) for row in rows]
+
+    def add_landmark(
+        self,
+        field_id: str,
+        kind: str,
+        geometry: dict[str, Any],
+        name: str | None = None,
+        radius_m: float | None = None,
+        provenance: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if self.get_field(field_id, with_children=False) is None:
+            raise KeyError(field_id)
+        allowed = {"measure", "circle", "polygon", "point"}
+        if kind not in allowed:
+            raise ValueError(f"unknown landmark kind: {kind}")
+        if not isinstance(geometry, dict) or not geometry.get("type"):
+            raise ValueError("geometry is required")
+        landmark_id = uuid.uuid4().hex
+        self.db.execute(
+            """
+            INSERT INTO landmarks (
+                id, field_id, kind, name, geometry, radius_m, provenance, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                landmark_id,
+                field_id,
+                kind,
+                name,
+                _dump(geometry),
+                radius_m,
+                _dump(provenance or {}),
+                utc_now(),
+            ),
+        )
+        return self._get_landmark(landmark_id)
+
+    def update_landmark(
+        self,
+        field_id: str,
+        landmark_id: str,
+        patch: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        current = self._find_landmark(landmark_id)
+        if current is None or current["field_id"] != field_id:
+            return None
+        name = patch.get("name", current["name"])
+        geometry = patch.get("geometry", current["geometry"])
+        radius_raw = patch.get("radius_m", current["radius_m"])
+        radius_m = float(radius_raw) if radius_raw is not None and radius_raw != "" else None
+        self.db.execute(
+            "UPDATE landmarks SET name = ?, geometry = ?, radius_m = ? WHERE id = ? AND field_id = ?",
+            (name, _dump(geometry), radius_m, landmark_id, field_id),
+        )
+        return self._get_landmark(landmark_id)
+
+    def delete_landmark(self, field_id: str, landmark_id: str) -> bool:
+        cursor = self.db.execute(
+            "DELETE FROM landmarks WHERE id = ? AND field_id = ?", (landmark_id, field_id)
+        )
+        return cursor.rowcount > 0
+
     def list_guidance_lines(self, field_id: str) -> list[dict[str, Any]]:
         rows = self.db.execute(
             "SELECT * FROM guidance_lines WHERE field_id = ? ORDER BY created_at",
@@ -403,6 +481,7 @@ class FieldRepository:
         kind: str = "path",
         oneway: bool = False,
         speed_mps: float | None = None,
+        width_m: float | None = None,
         provenance: dict[str, Any] | None = None,
         author: str | None = None,
     ) -> dict[str, Any]:
@@ -417,8 +496,9 @@ class FieldRepository:
         self.db.execute(
             """
             INSERT INTO traffic_ways (
-                id, field_id, name, kind, oneway, speed_mps, geometry, provenance, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, field_id, name, kind, oneway, speed_mps, width_m,
+                geometry, provenance, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 way_id,
@@ -427,6 +507,7 @@ class FieldRepository:
                 way_kind,
                 1 if oneway else 0,
                 speed_mps,
+                _positive_width(width_m),
                 _dump(geometry),
                 _dump(provenance),
                 utc_now(),
@@ -456,16 +537,28 @@ class FieldRepository:
         if "speed_mps" in patch:
             raw = patch["speed_mps"]
             speed_mps = None if raw is None or raw == "" else float(raw)
+        width_m = current["width_m"]
+        if "width_m" in patch:
+            width_m = _positive_width(patch["width_m"])
         geometry = patch.get("geometry", current["geometry"])
         if "geometry" in patch:
             geometry = _as_linestring(geometry)
         self.db.execute(
             """
             UPDATE traffic_ways
-            SET name = ?, kind = ?, oneway = ?, speed_mps = ?, geometry = ?
+            SET name = ?, kind = ?, oneway = ?, speed_mps = ?, width_m = ?, geometry = ?
             WHERE id = ? AND field_id = ?
             """,
-            (name, kind, 1 if oneway else 0, speed_mps, _dump(geometry), way_id, field_id),
+            (
+                name,
+                kind,
+                1 if oneway else 0,
+                speed_mps,
+                width_m,
+                _dump(geometry),
+                way_id,
+                field_id,
+            ),
         )
         self._touch_field(field_id, author=author)
         return self._get_traffic_way(way_id)
@@ -643,6 +736,56 @@ class FieldRepository:
         if cursor.rowcount:
             self._touch_field(field_id)
         return cursor.rowcount > 0
+
+    def add_row(
+        self,
+        field_id: str,
+        set_id: str,
+        geometry: Any,
+        number: int | None = None,
+        name: str | None = None,
+        author: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Put one row back into an existing set — the inverse of ``delete_row``."""
+        row_set = self.db.execute(
+            "SELECT id FROM row_sets WHERE id = ? AND field_id = ?", (set_id, field_id)
+        ).fetchone()
+        if row_set is None:
+            return None
+        parsed = _as_row_geometry(geometry)
+        taken = {
+            int(item["number"])
+            for item in self.db.execute(
+                "SELECT number FROM rows WHERE row_set_id = ?", (set_id,)
+            ).fetchall()
+        }
+        if len(taken) >= 200:
+            raise ValueError("row set cannot exceed 200 rows")
+        wanted = int(number) if number is not None else (max(taken) + 1 if taken else 1)
+        if wanted < 1:
+            raise ValueError("row number must be >= 1")
+        if wanted in taken:
+            raise ValueError(f"duplicate row number: {wanted}")
+        row_id = uuid.uuid4().hex
+        self.db.execute(
+            """
+            INSERT INTO rows (
+                id, row_set_id, field_id, number, name, geometry, state, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                row_id,
+                set_id,
+                field_id,
+                wanted,
+                str(name) if name else None,
+                _dump(parsed),
+                "active",
+                utc_now(),
+            ),
+        )
+        self._touch_field(field_id, author=author)
+        return self._get_row(row_id)
 
     def update_row(
         self,
@@ -866,6 +1009,28 @@ class FieldRepository:
             "created_at": row["created_at"],
         }
 
+    def _landmark_row(self, row: Any) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "field_id": row["field_id"],
+            "kind": row["kind"],
+            "name": row["name"],
+            "geometry": _load(row["geometry"], {}),
+            "radius_m": row["radius_m"],
+            "provenance": _load(row["provenance"], {}),
+            "created_at": row["created_at"],
+        }
+
+    def _find_landmark(self, landmark_id: str) -> dict[str, Any] | None:
+        row = self.db.execute("SELECT * FROM landmarks WHERE id = ?", (landmark_id,)).fetchone()
+        return self._landmark_row(row) if row else None
+
+    def _get_landmark(self, landmark_id: str) -> dict[str, Any]:
+        landmark = self._find_landmark(landmark_id)
+        if landmark is None:
+            raise KeyError(landmark_id)
+        return landmark
+
     def _line_row(self, row: Any) -> dict[str, Any]:
         return {
             "id": row["id"],
@@ -914,6 +1079,7 @@ class FieldRepository:
             "kind": row["kind"],
             "oneway": bool(row["oneway"]),
             "speed_mps": row["speed_mps"],
+            "width_m": row["width_m"],
             "geometry": _load(row["geometry"], {}),
             "provenance": _load(row["provenance"], {}),
             "created_at": row["created_at"],

@@ -146,6 +146,7 @@ def test_geojson_import_export_roundtrip(tmp_path):
         "rows": 0,
         "traffic_ways": 0,
         "traffic_nodes": 0,
+        "landmarks": 0,
     }
     exported = export_geojson(report["field"])
     kinds = [feature["properties"]["srbc_kind"] for feature in exported["features"]]

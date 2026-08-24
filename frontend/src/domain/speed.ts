@@ -1,4 +1,5 @@
 import type { AgriDocument, AgriSection } from './agri';
+import { pointInPolygon } from './geometry';
 import { normalizeSectionToColumns } from './section';
 
 export function getCurrentTrajectorySpeed(
@@ -42,6 +43,41 @@ export function applySpeedToAllPoints(
         return {
             ...section,
             values: section.values.map((row) => {
+                const next = [...row];
+                next[speedIndex] = value;
+                count += 1;
+                return next;
+            }),
+        };
+    });
+    return { count, document: { ...document, points } };
+}
+
+/** Set speed on vertices that sit inside `polygon` (local metres). */
+export function applySpeedInPolygon(
+    document: AgriDocument,
+    polygon: [number, number][] | null,
+    value: number,
+): { count: number; document: AgriDocument } {
+    if (!polygon || polygon.length < 3) {
+        return { count: 0, document };
+    }
+    let count = 0;
+    const points = document.points.map((section) => {
+        const xIndex = section.columns.indexOf('x');
+        const yIndex = section.columns.indexOf('y');
+        const speedIndex = section.columns.indexOf('speed');
+        if (xIndex < 0 || yIndex < 0 || speedIndex < 0 || !Array.isArray(section.values)) {
+            return section;
+        }
+        return {
+            ...section,
+            values: section.values.map((row) => {
+                const x = Number(row[xIndex]);
+                const y = Number(row[yIndex]);
+                if (!Number.isFinite(x) || !Number.isFinite(y) || !pointInPolygon(x, y, polygon)) {
+                    return row;
+                }
                 const next = [...row];
                 next[speedIndex] = value;
                 count += 1;

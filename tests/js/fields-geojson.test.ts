@@ -356,6 +356,7 @@ describe('field geojson helpers', () => {
                         kind: 'path',
                         oneway: false,
                         speed_mps: null,
+                        width_m: null,
                         geometry: path,
                         provenance: {},
                         created_at: '',
@@ -414,6 +415,7 @@ describe('field geojson helpers', () => {
                             kind: 'path',
                             oneway: false,
                             speed_mps: null,
+                            width_m: null,
                             geometry: {
                                 type: 'LineString',
                                 coordinates: [
@@ -431,6 +433,97 @@ describe('field geojson helpers', () => {
             'w1',
         );
         expect(collection.features.map((feature) => feature.properties.kind)).toEqual(['field']);
+    });
+
+    it('sweeps a grey band under a path that has a width', () => {
+        const collection = fieldsToCollection([{ id: 'a', name: 'A', geometry: SQUARE }], null, {
+            a: {
+                zones: [],
+                obstacles: [],
+                guidance_lines: [],
+                traffic_ways: [
+                    {
+                        id: 'w1',
+                        field_id: 'a',
+                        name: 'Allée',
+                        kind: 'path',
+                        oneway: false,
+                        speed_mps: null,
+                        width_m: 3,
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: [
+                                [0, 0.0003],
+                                [0.001, 0.0003],
+                            ],
+                        },
+                        provenance: {},
+                        created_at: '',
+                    },
+                ],
+                traffic_nodes: [],
+            },
+        });
+        expect(collection.features.map((feature) => feature.properties.kind)).toEqual([
+            'field',
+            'traffic_band',
+            'traffic_way',
+        ]);
+        const band = collection.features[1];
+        expect(band?.id).toBe('w1:band');
+        expect(band?.geometry.type).toBe('Polygon');
+        expect(band?.properties.overlay).toBe('traffic');
+        expect(band?.properties.label).toBe('');
+    });
+
+    it('keeps the bed median line above its cultivated band', () => {
+        const collection = fieldsToCollection([{ id: 'a', name: 'A', geometry: SQUARE }], null, {
+            a: {
+                zones: [],
+                obstacles: [],
+                guidance_lines: [],
+                row_sets: [
+                    {
+                        id: 'rs1',
+                        field_id: 'a',
+                        name: 'Planches',
+                        kind: 'beds',
+                        spacing_m: 1.6,
+                        width_m: 1.2,
+                        preferred_direction: null,
+                        axis_line_id: null,
+                        geometry: null,
+                        provenance: {},
+                        created_at: '',
+                        rows: [
+                            {
+                                id: 'b1',
+                                row_set_id: 'rs1',
+                                field_id: 'a',
+                                number: 1,
+                                name: 'Planche 1',
+                                geometry: {
+                                    type: 'LineString',
+                                    coordinates: [
+                                        [0, 0.0004],
+                                        [0.001, 0.0004],
+                                    ],
+                                },
+                                state: 'active',
+                                created_at: '',
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+        expect(collection.features.map((feature) => feature.properties.kind)).toEqual([
+            'field',
+            'bed_band',
+            'bed',
+        ]);
+        expect(collection.features[1]?.id).toBe('b1:band');
+        expect(collection.features[2]?.properties.label).toBe('Planche 1');
     });
 
     it('builds a safe GeoJSON download name', () => {

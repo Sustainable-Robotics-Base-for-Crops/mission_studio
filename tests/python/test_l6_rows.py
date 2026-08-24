@@ -81,6 +81,48 @@ def test_row_set_create_patch_delete_via_api():
         assert after["row_sets"] == []
 
 
+def test_deleted_row_can_be_put_back_in_its_set():
+    """Undoing a deletion needs a way in: the set keeps its number free."""
+    with _client() as client:
+        created = client.post("/api/v1/fields", json={"name": "Vigne", "geometry": SQUARE})
+        field_id = created.json()["id"]
+        row_set = client.post(
+            f"/api/v1/fields/{field_id}/row-sets",
+            json={
+                "name": "Rangs",
+                "spacing_m": 2.5,
+                "rows": [
+                    {"number": 1, "name": "Rang 1", "geometry": LINE_A},
+                    {"number": 2, "name": "Rang 2", "geometry": LINE_B},
+                ],
+            },
+        ).json()
+        set_id = row_set["id"]
+        row_id = row_set["rows"][0]["id"]
+        assert client.delete(f"/api/v1/fields/{field_id}/rows/{row_id}").status_code == 200
+
+        restored = client.post(
+            f"/api/v1/fields/{field_id}/row-sets/{set_id}/rows",
+            json={"number": 1, "name": "Rang 1", "geometry": LINE_A},
+        )
+        assert restored.status_code == 201
+        assert restored.json()["id"] != row_id
+        assert restored.json()["number"] == 1
+        field = client.get(f"/api/v1/fields/{field_id}").json()
+        assert len(field["row_sets"][0]["rows"]) == 2
+
+        duplicate = client.post(
+            f"/api/v1/fields/{field_id}/row-sets/{set_id}/rows",
+            json={"number": 1, "geometry": LINE_A},
+        )
+        assert duplicate.status_code == 400
+        unknown = client.post(
+            f"/api/v1/fields/{field_id}/row-sets/nope/rows",
+            json={"geometry": LINE_A},
+        )
+        assert unknown.status_code == 404
+
+
 def test_bed_set_accepts_polygon_geometry():
     with _client() as client:
         created = client.post("/api/v1/fields", json={"name": "Maraichage", "geometry": SQUARE})

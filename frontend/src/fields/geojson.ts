@@ -1,6 +1,7 @@
 import { METERS_PER_DEGREE, getDistanceMeters } from '../domain/geometry';
 import { numberedMapLabel, userMapLabel } from '../map/catalogue-labels';
 import { catalogueOverlayForKind } from '../map/catalogue-style';
+import { sweepPolygonFromLine } from './sweep';
 import type { FieldDetail, GeoJSONLineString, GeoJSONPoint, GeoJSONPolygon } from './types';
 
 export type LngLat = [number, number];
@@ -190,7 +191,12 @@ function isPoint(
 }
 
 export type FieldChildren = Pick<FieldDetail, 'zones' | 'obstacles'> &
-    Partial<Pick<FieldDetail, 'guidance_lines' | 'row_sets' | 'traffic_ways' | 'traffic_nodes'>>;
+    Partial<
+        Pick<
+            FieldDetail,
+            'guidance_lines' | 'row_sets' | 'traffic_ways' | 'traffic_nodes' | 'landmarks'
+        >
+    >;
 
 export function emptyFieldChildren(): FieldChildren {
     return {
@@ -200,13 +206,17 @@ export function emptyFieldChildren(): FieldChildren {
         row_sets: [],
         traffic_ways: [],
         traffic_nodes: [],
+        landmarks: [],
     };
 }
 
 export function childrenFromField(
     field: Pick<FieldDetail, 'zones' | 'obstacles'> &
         Partial<
-            Pick<FieldDetail, 'guidance_lines' | 'row_sets' | 'traffic_ways' | 'traffic_nodes'>
+            Pick<
+                FieldDetail,
+                'guidance_lines' | 'row_sets' | 'traffic_ways' | 'traffic_nodes' | 'landmarks'
+            >
         >,
 ): FieldChildren {
     return {
@@ -216,6 +226,7 @@ export function childrenFromField(
         row_sets: field.row_sets ?? [],
         traffic_ways: field.traffic_ways ?? [],
         traffic_nodes: field.traffic_nodes ?? [],
+        landmarks: field.landmarks ?? [],
     };
 }
 
@@ -247,7 +258,7 @@ function lineFeature(
     name: string,
     geometry: GeoJSONLineString,
     selected: boolean,
-    kind: 'guidance_line' | 'row' | 'bed' | 'traffic_way',
+    kind: 'guidance_line' | 'row' | 'bed' | 'traffic_way' | 'landmark_measure',
     label: string,
 ): FeatureCollection['features'][number] {
     return {
@@ -270,7 +281,7 @@ function pointFeature(
     name: string,
     geometry: GeoJSONPoint,
     selected: boolean,
-    kind: 'traffic_node',
+    kind: 'traffic_node' | 'landmark_point',
     label: string,
 ): FeatureCollection['features'][number] {
     return {
@@ -288,6 +299,49 @@ function pointFeature(
             type: 'Point',
             coordinates: [Number(geometry.coordinates[0]), Number(geometry.coordinates[1])],
         },
+    };
+}
+
+/**
+ * Bands are derived from the line and its width: they are never stored, so
+ * editing the line keeps the swept area in sync. The line keeps the label.
+ */
+function pushBand(
+    features: FeatureCollection['features'],
+    ownerId: string,
+    name: string,
+    line: GeoJSONLineString,
+    options: { widthM: number | null | undefined; kind: 'bed_band' | 'traffic_band' },
+): void {
+    const width = Number(options.widthM);
+    if (!(width > 0)) {
+        return;
+    }
+    const band = sweepPolygonFromLine(line, width);
+    if (!band) {
+        return;
+    }
+    features.push(polygonFeature(`${ownerId}:band`, name, band, options.kind, false, ''));
+}
+
+/**
+ * Hiding an object from the tree also hides what is derived from it: a bed band
+ * carries the id of its median line suffixed by `:band`.
+ */
+export function withoutHiddenFeatures(
+    collection: FeatureCollection,
+    hiddenIds: readonly string[],
+): FeatureCollection {
+    if (hiddenIds.length === 0) {
+        return collection;
+    }
+    const hidden = new Set(hiddenIds);
+    return {
+        type: 'FeatureCollection',
+        features: collection.features.filter((feature) => {
+            const id = String(feature.properties.id ?? feature.id ?? '');
+            return !hidden.has(id) && !hidden.has(id.replace(/:band$/, ''));
+        }),
     };
 }
 
@@ -371,7 +425,7 @@ function appendChildren(
                         row.id,
                         row.name ?? `row ${row.number}`,
                         row.geometry,
-                        asBed ? 'bed' : 'row',
+                        asBed ? 'bed_band' : 'row',
                         row.id === selectedFeatureId,
                         numberedMapLabel(row.name, row.number),
                     ),
@@ -379,6 +433,12 @@ function appendChildren(
                 continue;
             }
             if (isLineString(row.geometry)) {
+                if (asBed) {
+                    pushBand(features, row.id, row.name ?? `row ${row.number}`, row.geometry, {
+                        widthM: rowSet.width_m,
+                        kind: 'bed_band',
+                    });
+                }
                 features.push(
                     lineFeature(
                         row.id,
@@ -397,6 +457,10 @@ function appendChildren(
             continue;
         }
         if (isLineString(way.geometry)) {
+            pushBand(features, way.id, way.name ?? 'path', way.geometry, {
+                widthM: way.width_m,
+                kind: 'traffic_band',
+            });
             features.push(
                 lineFeature(
                     way.id,
@@ -422,6 +486,46 @@ function appendChildren(
                     node.id === selectedFeatureId,
                     'traffic_node',
                     userMapLabel(node.name),
+                ),
+            );
+        }
+    }
+    for (const landmark of children?.landmarks ?? []) {
+        if (hideFeatureId && landmark.id === hideFeatureId) {
+            continue;
+        }
+        const label = userMapLabel(landmark.name);
+        if (isPolygon(landmark.geometry)) {
+            features.push(
+                polygonFeature(
+                    landmark.id,
+                    landmark.name ?? landmark.kind,
+                    landmark.geometry,
+                    landmark.kind === 'circle' ? 'landmark_circle' : 'landmark_polygon',
+                    landmark.id === selectedFeatureId,
+                    label,
+                ),
+            );
+        } else if (isLineString(landmark.geometry)) {
+            features.push(
+                lineFeature(
+                    landmark.id,
+                    landmark.name ?? landmark.kind,
+                    landmark.geometry,
+                    landmark.id === selectedFeatureId,
+                    'landmark_measure',
+                    label,
+                ),
+            );
+        } else if (isPoint(landmark.geometry)) {
+            features.push(
+                pointFeature(
+                    landmark.id,
+                    landmark.name ?? landmark.kind,
+                    landmark.geometry,
+                    landmark.id === selectedFeatureId,
+                    'landmark_point',
+                    label,
                 ),
             );
         }
@@ -472,7 +576,8 @@ export type CatalogueHit =
     | { type: 'guidance'; fieldId: string; id: string }
     | { type: 'row'; fieldId: string; rowSetId: string; id: string }
     | { type: 'traffic_way'; fieldId: string; id: string }
-    | { type: 'traffic_node'; fieldId: string; id: string };
+    | { type: 'traffic_node'; fieldId: string; id: string }
+    | { type: 'landmark'; fieldId: string; id: string };
 
 const HIT_RANK = { obstacle: 0, zone: 1, field: 2 } as const;
 const HIT_LINE_M = 12;
@@ -537,7 +642,8 @@ export function hitCatalogue(
         | { type: 'guidance'; fieldId: string; id: string; dist: number }
         | { type: 'row'; fieldId: string; rowSetId: string; id: string; dist: number }
         | { type: 'traffic_way'; fieldId: string; id: string; dist: number }
-        | { type: 'traffic_node'; fieldId: string; id: string; dist: number };
+        | { type: 'traffic_node'; fieldId: string; id: string; dist: number }
+        | { type: 'landmark'; fieldId: string; id: string; dist: number };
     const lineHits: LineHit[] = [];
     for (const field of fields) {
         for (const line of childrenByField[field.id]?.guidance_lines ?? []) {
@@ -576,6 +682,29 @@ export function hitCatalogue(
                 dist: lineDistanceM(way.geometry, lng, lat),
             });
         }
+        for (const landmark of childrenByField[field.id]?.landmarks ?? []) {
+            if (isLineString(landmark.geometry)) {
+                lineHits.push({
+                    type: 'landmark',
+                    fieldId: field.id,
+                    id: landmark.id,
+                    dist: lineDistanceM(landmark.geometry, lng, lat),
+                });
+            } else if (isPoint(landmark.geometry)) {
+                lineHits.push({
+                    type: 'landmark',
+                    fieldId: field.id,
+                    id: landmark.id,
+                    dist: getDistanceMeters(
+                        { lng, lat },
+                        {
+                            lng: Number(landmark.geometry.coordinates[0]),
+                            lat: Number(landmark.geometry.coordinates[1]),
+                        },
+                    ),
+                });
+            }
+        }
         for (const node of childrenByField[field.id]?.traffic_nodes ?? []) {
             if (!isPoint(node.geometry)) {
                 continue;
@@ -609,7 +738,7 @@ export function hitCatalogue(
         return { type: bestLine.type, fieldId: bestLine.fieldId, id: bestLine.id };
     }
     const candidates: Array<
-        Extract<CatalogueHit, { type: 'field' | 'zone' | 'obstacle' | 'row' }> & {
+        Extract<CatalogueHit, { type: 'field' | 'zone' | 'obstacle' | 'row' | 'landmark' }> & {
             area: number;
             rank: number;
         }
@@ -626,6 +755,20 @@ export function hitCatalogue(
                     fieldId: field.id,
                     id: obstacle.id,
                     area: polygonAreaM2(obstacle.geometry) ?? Number.POSITIVE_INFINITY,
+                    rank: HIT_RANK.obstacle,
+                });
+            }
+        }
+        for (const landmark of children?.landmarks ?? []) {
+            if (
+                isPolygon(landmark.geometry) &&
+                polygonContainsLngLat(landmark.geometry, lng, lat)
+            ) {
+                candidates.push({
+                    type: 'landmark',
+                    fieldId: field.id,
+                    id: landmark.id,
+                    area: polygonAreaM2(landmark.geometry) ?? Number.POSITIVE_INFINITY,
                     rank: HIT_RANK.obstacle,
                 });
             }

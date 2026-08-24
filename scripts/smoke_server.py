@@ -169,6 +169,12 @@ def main() -> int:
             check(studio_status == 200, f"GET /studio returns 200 (got {studio_status})", failures)
             for marker in STUDIO_MARKERS:
                 check(marker in studio_body, f"studio page contains {marker!r}", failures)
+            stamp = f"/studio/assets/studio.js?v={int(studio_js.stat().st_mtime)}"
+            check(
+                stamp in studio_body,
+                "studio page stamps the bundle URL with the build version",
+                failures,
+            )
             for asset in STUDIO_ASSETS:
                 try:
                     asset_status, _ = fetch(f"{base_url}{asset}")
@@ -215,7 +221,7 @@ def main() -> int:
             )
             check(
                 "data-field-inspector" in studio_js_text
-                and "data-fields-toolbar" in studio_js_text,
+                and "data-fields-edit-toolbar" in studio_js_text,
                 "studio bundle contains the field inspector",
                 failures,
             )

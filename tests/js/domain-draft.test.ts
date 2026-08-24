@@ -15,7 +15,6 @@ import {
     setDrawnGeofence,
 } from '../../frontend/src/domain/draft';
 import { DEFAULT_CONNECT_TURNS } from '../../frontend/src/domain/turns';
-import { WORKING_ZONE_RINGS_KEY } from '../../frontend/src/domain/working-zone';
 import { METERS_PER_DEGREE } from '../../frontend/src/domain/geometry';
 
 const ORIGIN = { lat: 45.85, lon: 3.17 };
@@ -194,9 +193,6 @@ describe('applyDrawnWorkingZone', () => {
         expect(result.count).toBe(2);
         expect(result.document.points[0]?.values[0]?.[3]).toBe(0);
         expect(result.document.points[0]?.values[1]?.[3]).toBe(0);
-        const rings = (result.document.metadata as Record<string, unknown>)[WORKING_ZONE_RINGS_KEY];
-        expect(Array.isArray(rings)).toBe(true);
-        expect((rings as unknown[]).length).toBe(1);
     });
 });
 

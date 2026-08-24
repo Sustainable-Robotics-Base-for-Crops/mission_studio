@@ -14,6 +14,7 @@ import {
     type FarmEntry,
 } from '../../frontend/src/app/farm-api';
 import type { FarmState } from '../../frontend/src/app/useFarm';
+import type { FieldSummary } from '../../frontend/src/fields/types';
 import { translate } from '../../frontend/src/i18n/adapter';
 
 afterEach(() => {
@@ -73,7 +74,11 @@ function farmState(overrides: Partial<FarmState> = {}): FarmState {
     } as FarmState;
 }
 
-function renderHome(state: FarmState, onOpenMission?: (entry: FarmEntry) => void): ReactElement {
+function renderHome(
+    state: FarmState,
+    onOpenMission?: (entry: FarmEntry) => void,
+    mappedFields?: FieldSummary[],
+): ReactElement {
     const element = (
         <MemoryRouter>
             <HomeDashboard
@@ -81,6 +86,7 @@ function renderHome(state: FarmState, onOpenMission?: (entry: FarmEntry) => void
                 language="fr"
                 farm={state}
                 combinationCount={0}
+                mappedFields={mappedFields}
                 onOpenMission={onOpenMission}
             />
         </MemoryRouter>
@@ -126,6 +132,35 @@ describe('home dashboard figures (CdC L13 §7.2)', () => {
         expect(screen.getByText('Combinaisons de matériel').closest('div')?.textContent).toContain(
             '0',
         );
+    });
+
+    it('computes hectares from the fields currently visible in the catalogue', () => {
+        const field: FieldSummary = {
+            id: 'field-1',
+            name: 'Parcelle test',
+            campaign: null,
+            geometry: {
+                type: 'Polygon',
+                coordinates: [
+                    [
+                        [0, 0],
+                        [0.0009, 0],
+                        [0.0009, 0.0009],
+                        [0, 0.0009],
+                        [0, 0],
+                    ],
+                ],
+            },
+            crs: 'EPSG:4326',
+            provenance: {},
+            qualified_for_autonomy: false,
+            created_at: '2026-08-20T10:00:00Z',
+            updated_at: '2026-08-20T10:00:00Z',
+        };
+
+        renderHome(farmState(), undefined, [field]);
+
+        expect(screen.getByText('1 ha')).toBeDefined();
     });
 });
 

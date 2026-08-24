@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import {
+    ChevronUp,
     CircleCheck,
     CircleHelp,
     CirclePlay,
@@ -42,18 +43,25 @@ import { AdminPanel } from './AdminPanel';
 import { CommandPalette } from './CommandPalette';
 import { HomeDashboard } from './HomeDashboard';
 import type { FarmEntry } from './farm-api';
-import { fetchFarmMission, type UiMode } from './farm-api';
+import {
+    DEFAULT_FIELD_GEOFENCE_INSET_CM,
+    fetchFarmMission,
+    isAdvancedUi,
+    type UiMode,
+} from './farm-api';
 import { useFarm } from './useFarm';
 import { breakpointFromWidth, LAYOUT, shellTracks, type Breakpoint } from './layout';
 import { MODULES, moduleByPath, redirectFor, type LucideIconName } from './modules';
-import { ContextPanel, InspectorPanel, SimulationDrawer } from './PlaceholderModule';
+import { ContextPanel, SimulationDrawer } from './PlaceholderModule';
 import { FieldInspector } from '../fields/FieldInspector';
 import { FieldsPanel } from '../fields/FieldsPanel';
-import { FieldsToolbar } from '../fields/FieldsToolbar';
+import { FieldsActionPanel } from '../fields/FieldsActionPanel';
+import { FieldsEditToolbar } from '../fields/FieldsEditToolbar';
 import { DEFAULT_BED_COUNT, DEFAULT_BED_PATH_M, DEFAULT_BED_WIDTH_M } from '../fields/rows';
-import { fieldsCanvasTool, fieldsDrawKind, fieldsDrawTarget } from '../fields/draw-target';
-import { fieldsToCollection } from '../fields/geojson';
+import { fieldsCanvasTool, fieldsDrawKind } from '../fields/draw-target';
+import { fieldsToCollection, withoutHiddenFeatures } from '../fields/geojson';
 import { useFieldCatalogue } from '../fields/useFieldCatalogue';
+import { useFieldsFollowUpForm } from '../fields/useFieldsFollowUpForm';
 import { EquipmentContextPanel } from '../equipment/EquipmentContextPanel';
 import { EquipmentInspector } from '../equipment/EquipmentInspector';
 import { EquipmentTwinView } from '../equipment/EquipmentTwinView';
@@ -81,7 +89,7 @@ import {
 } from '../domain/simulation';
 import { MissionPanel } from '../missions/MissionPanel';
 import { useMissionAssistant } from '../missions/useMissionAssistant';
-import { readMissionContext } from '../missions/brief';
+import { readMissionContext, suggestedMissionName } from '../missions/brief';
 import {
     buildMissionTree,
     formatDurationCompact,
@@ -89,7 +97,12 @@ import {
     indexListIntersects,
 } from '../missions/tree';
 import { EditToolbar } from '../map/EditToolbar';
-import { FillParcelDialog } from '../map/FillParcelDialog';
+import { FillGeofencePrompt, FillParcelDialog } from '../map/FillParcelDialog';
+import { EntitySelectionActions, ZoneActionPanel } from '../map/ZoneActionPanel';
+import { ConnectEndsPanel } from '../map/ConnectEndsPanel';
+import { ConnectFreeDialog } from '../map/ConnectFreeDialog';
+import { listRowEndpoints } from '../domain/selection';
+import { resolveSpeedStops } from '../domain/speed-style';
 import { ConnectTurnsDialog } from '../map/ConnectTurnsDialog';
 import { SpeedDialog } from '../map/SpeedDialog';
 import { OffsetDialog } from '../map/OffsetDialog';
@@ -98,13 +111,14 @@ import { LayersPopover } from '../map/LayersPopover';
 import { MapCanvas } from '../map/MapCanvas';
 import type { PolygonFeatureCollection } from '../map/agri-to-geojson';
 import type { BasemapId, MapView, OverlayId } from '../map/styles';
-import { useMissionEditor, type SaveState } from '../map/useMissionEditor';
+import { isTypingTarget, useMissionEditor, type SaveState } from '../map/useMissionEditor';
 import { suggestedMissionPath } from '../map/missions-api';
 import { useI18n } from '../i18n/useI18n';
 import { SUPPORTED_LANGUAGES } from '../i18n/adapter';
 import { PluginHeaderHost } from '../plugins/PluginHeaderHost';
 import {
     Accordion,
+    Tabs,
     Banner,
     Button,
     Chip,
@@ -114,7 +128,7 @@ import {
     NativeSelect,
 } from '../design-system';
 import { ICON_SIZE, Machine, STROKE } from '../design-system/icons';
-import { Tooltip } from '../design-system/Overlay';
+import { Dialog, Tooltip } from '../design-system/Overlay';
 
 const ICONS: Record<LucideIconName, typeof House> = {
     House,
@@ -160,6 +174,211 @@ function saveChip(state: SaveState): {
     return { tone: 'valid', icon: Clock3, labelKey: 'app.status' };
 }
 
+function MissionToolsPanel({
+    t,
+    overlay,
+    editor,
+    selectionLocked,
+    entityTools,
+}: {
+    t: (key: string, params?: Record<string, string | number>) => string;
+    overlay: boolean;
+    editor: ReturnType<typeof useMissionEditor>;
+    selectionLocked: boolean;
+    entityTools: ReactElement;
+}): ReactElement {
+    const title =
+        editor.tool === 'connect_ends'
+            ? t('connect.panel')
+            : editor.zoneMode
+              ? t('zone.panel')
+              : t('tools.panel');
+    const showPointerTools =
+        editor.tool !== 'connect_ends' && !editor.zoneMode && editor.selectedIndices.length > 0;
+    return (
+        <aside
+            className={overlay ? 'studio-inspector is-overlay' : 'studio-inspector'}
+            aria-label={title}
+        >
+            <header className="studio-panel-header">
+                <h2>{title}</h2>
+            </header>
+            {editor.tool === 'connect_ends' ? (
+                <ConnectEndsPanel
+                    t={t}
+                    picked={editor.connectPicked}
+                    kind={editor.connectKind}
+                    waypointCount={editor.draft.length}
+                    onKind={editor.setConnectKind}
+                    onConfirm={editor.requestConnectEnds}
+                    onCancel={editor.cancelTool}
+                />
+            ) : null}
+            {editor.zoneMode ? (
+                <ZoneActionPanel
+                    t={t}
+                    mode={editor.zoneMode}
+                    locked={selectionLocked}
+                    workingZoneOn={editor.zoneWorkingOn}
+                    speedDraft={editor.zoneSpeedDraft}
+                    entityTools={entityTools}
+                    onMode={editor.setZoneMode}
+                    onCut={editor.applyZoneCut}
+                    onWorkingZone={editor.applyZoneWorking}
+                    onSpeedDraft={editor.setZoneSpeedDraft}
+                    onApplySpeed={editor.applyZoneSpeed}
+                    onConnectTurns={editor.startConnectTurns}
+                    onReverse={editor.reverseSelected}
+                    onDelete={editor.deleteSelected}
+                />
+            ) : null}
+            {showPointerTools ? (
+                <div className="studio-inspector-block">
+                    <EntitySelectionActions
+                        t={t}
+                        locked={selectionLocked}
+                        onConnectTurns={editor.startConnectTurns}
+                        onReverse={editor.reverseSelected}
+                        onDelete={editor.deleteSelected}
+                    />
+                    {entityTools}
+                </div>
+            ) : null}
+            {editor.tool !== 'connect_ends' && !editor.zoneMode && !showPointerTools ? (
+                <p className="studio-muted">{t('tools.empty')}</p>
+            ) : null}
+        </aside>
+    );
+}
+
+function MissionInspectorBody({
+    t,
+    editor,
+    uiMode,
+    selectionLocked,
+    selectedSpeedMps,
+    comboLabel,
+    missionContext,
+}: {
+    t: (key: string, params?: Record<string, string | number>) => string;
+    editor: ReturnType<typeof useMissionEditor>;
+    uiMode: UiMode;
+    selectionLocked: boolean;
+    selectedSpeedMps: number | null;
+    comboLabel: string | null;
+    missionContext: ReturnType<typeof readMissionContext>;
+}): ReactElement {
+    return (
+        <>
+            {editor.selectedIndices.length > 0 && editor.zoneMode !== 'portions' ? (
+                <Accordion
+                    items={[
+                        {
+                            value: 'geometry',
+                            title: t('inspector.accordion.geometry'),
+                            content: (
+                                <>
+                                    {selectionLocked ? (
+                                        <p className="studio-muted studio-inspector-block">
+                                            {t('tree.lockedHint')}
+                                        </p>
+                                    ) : null}
+                                    <SectionEditPanel
+                                        t={t}
+                                        uiMode={uiMode}
+                                        locked={selectionLocked}
+                                        selectedCount={editor.selectedIndices.length}
+                                        moveStep={editor.moveStep}
+                                        onMoveStep={editor.setMoveStep}
+                                        onMove={editor.moveSelected}
+                                        rotationStep={editor.rotationStep}
+                                        onRotationStep={editor.setRotationStep}
+                                        onRotate={editor.rotateSelected}
+                                        duplicateCount={editor.duplicateCount}
+                                        onDuplicateCount={editor.setDuplicateCount}
+                                        duplicateDistance={editor.duplicateDistance}
+                                        onDuplicateDistance={editor.setDuplicateDistance}
+                                        duplicateSide={editor.duplicateSide}
+                                        onDuplicateSide={editor.setDuplicateSide}
+                                        onDuplicate={editor.duplicateSelected}
+                                        extendDirection={editor.extendDirection}
+                                        onStartExtend={editor.startExtend}
+                                        onCancelExtend={editor.cancelExtend}
+                                    />
+                                </>
+                            ),
+                        },
+                        {
+                            value: 'order',
+                            title: t('inspector.accordion.order'),
+                            content: (
+                                <div className="studio-inspector-block">
+                                    <p className="studio-muted">{t('inspector.orderHint')}</p>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        disabled={selectionLocked}
+                                        onClick={editor.reverseSelected}
+                                    >
+                                        {t('tree.reverse')}
+                                    </Button>
+                                </div>
+                            ),
+                        },
+                        {
+                            value: 'speed',
+                            title: t('inspector.accordion.speed'),
+                            content: (
+                                <p className="studio-muted studio-inspector-block">
+                                    {t('inspector.speedHint', {
+                                        speed:
+                                            selectedSpeedMps == null
+                                                ? '—'
+                                                : selectedSpeedMps.toFixed(2),
+                                    })}
+                                </p>
+                            ),
+                        },
+                        {
+                            value: 'tool',
+                            title: t('inspector.accordion.tool'),
+                            content: (
+                                <p className="studio-muted studio-inspector-block">
+                                    {t('inspector.toolHint', {
+                                        combo: comboLabel ?? t('assist.none'),
+                                        width:
+                                            missionContext?.working_width_m == null
+                                                ? '—'
+                                                : missionContext.working_width_m,
+                                    })}
+                                </p>
+                            ),
+                        },
+                        {
+                            value: 'metadata',
+                            title: t('inspector.accordion.metadata'),
+                            content: (
+                                <p className="studio-muted studio-inspector-block">
+                                    {missionContext
+                                        ? t('inspector.briefHint', {
+                                              campaign: missionContext.campaign ?? '—',
+                                              operation: missionContext.operation
+                                                  ? t(
+                                                        `assist.operation.${missionContext.operation}`,
+                                                    )
+                                                  : '—',
+                                          })
+                                        : t('inspector.noBrief')}
+                                </p>
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+        </>
+    );
+}
+
 export function AppShell(): ReactElement {
     const { t, language, setLanguage } = useI18n();
     const location = useLocation();
@@ -189,7 +408,33 @@ export function AppShell(): ReactElement {
         geofenceMarginM: keepoutM,
         onSelectField: (id, options) => fields.select(id, options),
         onApply: (document, summary) => {
-            editor.applyGeneratedDocument(document, {
+            const context = readMissionContext(document);
+            const field = fields.fields.find((item) => item.id === context?.field_id);
+            const operation = context?.operation
+                ? t(`assist.operation.${context.operation}`)
+                : t('assist.operation.other');
+            const metadata =
+                document.metadata && typeof document.metadata === 'object'
+                    ? { ...(document.metadata as Record<string, unknown>) }
+                    : {};
+            const brief =
+                metadata.srbc_mission_brief && typeof metadata.srbc_mission_brief === 'object'
+                    ? { ...(metadata.srbc_mission_brief as Record<string, unknown>) }
+                    : {};
+            const fieldName = context?.field_name || field?.name || '';
+            const namedDocument = {
+                ...document,
+                metadata: {
+                    ...metadata,
+                    srbc_mission_brief: {
+                        ...brief,
+                        field_name: fieldName || null,
+                        // The operator may have typed their own name in the assistant.
+                        name: context?.name || suggestedMissionName(operation, fieldName),
+                    },
+                },
+            };
+            editor.startNewDocument(namedDocument, {
                 key: 'assist.summary',
                 params: {
                     rows: summary.rows,
@@ -210,6 +455,7 @@ export function AppShell(): ReactElement {
         guidance: true,
         rows: true,
         traffic: true,
+        landmarks: true,
         labels: true,
         envelopes: true,
         simulation: true,
@@ -268,10 +514,13 @@ export function AppShell(): ReactElement {
                   .join(' · ')
             : null;
     fields.setInteractive(onFields);
+    editor.setInteractive(!onFields);
     const fieldsDrawing =
         fields.tool === 'draw_polygon' ||
         fields.tool === 'draw_line' ||
-        fields.tool === 'draw_point';
+        fields.tool === 'draw_point' ||
+        fields.tool === 'select_polygon' ||
+        fields.tool === 'ruler';
     const fieldsDraw =
         fields.tool === 'draw_point'
             ? 'point'
@@ -286,17 +535,21 @@ export function AppShell(): ReactElement {
     const catalogueGeoJSON = useMemo(
         () =>
             showCatalogue
-                ? (fieldsToCollection(
-                      fields.fields,
-                      onFields || onMissions ? fields.selectedFeatureId : null,
-                      fields.childrenByField,
-                      onFields && fields.editingGeometry ? fields.selectedFeatureId : null,
+                ? (withoutHiddenFeatures(
+                      fieldsToCollection(
+                          fields.fields,
+                          onFields || onMissions ? fields.selectedFeatureId : null,
+                          fields.childrenByField,
+                          onFields && fields.editingGeometry ? fields.selectedFeatureId : null,
+                      ),
+                      fields.hiddenIds,
                   ) as PolygonFeatureCollection)
                 : null,
         [
             fields.childrenByField,
             fields.editingGeometry,
             fields.fields,
+            fields.hiddenIds,
             fields.selectedFeatureId,
             onFields,
             showCatalogue,
@@ -322,6 +575,12 @@ export function AppShell(): ReactElement {
     }, []);
     const [compareOpen, setCompareOpen] = useState(false);
     const [publishOpen, setPublishOpen] = useState(false);
+    const [missionTab, setMissionTab] = useState('explore');
+    const [fieldsTab, setFieldsTab] = useState('explore');
+    const [fieldsGeofencePrompt, setFieldsGeofencePrompt] = useState(false);
+    const [fieldsLassoTab, setFieldsLassoTab] = useState<'entities' | 'portions'>('entities');
+    const fieldsFollowUpForm = useFieldsFollowUpForm();
+    const [drawerTab, setDrawerTab] = useState('inspector');
     const [simSeekIndex, setSimSeekIndex] = useState<number | null>(null);
     /** Show a check on the map and move the timeline cursor onto it. */
     const locateSample = useCallback(
@@ -494,6 +753,7 @@ export function AppShell(): ReactElement {
     }, [equipment.envelope, missionOrigin, poseSample]);
     const runSimulation = useCallback(() => {
         setSimOpen(true);
+        setDrawerTab('simulation');
         setOverlays((current) => ({ ...current, envelopes: true, simulation: true }));
         if (!editor.document || editor.sectionCount === 0) {
             return;
@@ -612,19 +872,53 @@ export function AppShell(): ReactElement {
                 setPaletteOpen(false);
                 return;
             }
+            if (
+                onFields &&
+                (event.metaKey || event.ctrlKey) &&
+                event.key.toLowerCase() === 'z' &&
+                !isTypingTarget(event.target)
+            ) {
+                event.preventDefault();
+                if (event.shiftKey) {
+                    fields.redo();
+                } else {
+                    fields.undo();
+                }
+                return;
+            }
+            // Mac keyboards send Backspace for the key labelled "delete".
+            if (
+                onFields &&
+                !fieldsDrawing &&
+                (event.key === 'Delete' || event.key === 'Backspace') &&
+                !isTypingTarget(event.target) &&
+                fields.focus &&
+                fields.focus.kind !== 'draft'
+            ) {
+                if (fields.focus.kind === 'field' && !window.confirm(t('fields.confirmDelete'))) {
+                    return;
+                }
+                event.preventDefault();
+                void fields.deleteEntity(fields.focus);
+                return;
+            }
             if (event.key === 'Escape' && onFields && fieldsDrawing) {
                 event.preventDefault();
                 fields.cancelDraft();
                 return;
             }
-            if (
-                event.key === 'Enter' &&
-                onFields &&
-                fieldsDrawing &&
-                fields.draft.length >= (fieldsPointDraw ? 1 : fieldsLineDraw ? 2 : 3)
-            ) {
-                event.preventDefault();
-                void fields.finishDraft();
+            if (event.key === 'Enter' && onFields && fieldsDrawing) {
+                if (fields.tool === 'ruler') {
+                    if (fields.canPinLandmark) {
+                        event.preventDefault();
+                        void fields.pinLandmark();
+                    }
+                    return;
+                }
+                if (fields.draft.length >= (fieldsPointDraw ? 1 : fieldsLineDraw ? 2 : 3)) {
+                    event.preventDefault();
+                    void fields.finishDraft();
+                }
             }
         };
         window.addEventListener('keydown', onKey);
@@ -640,6 +934,36 @@ export function AppShell(): ReactElement {
             setRightOpen(true);
         }
     }, [breakpoint]);
+
+    useEffect(() => {
+        if (editor.zoneMode || editor.tool === 'connect_ends') {
+            setRightOpen(true);
+            if (breakpoint === 'review') {
+                setLeftOpen(false);
+            }
+        }
+    }, [breakpoint, editor.tool, editor.zoneMode]);
+
+    useEffect(() => {
+        if (onFields && fields.followUp) {
+            setRightOpen(true);
+            if (breakpoint === 'review') {
+                setLeftOpen(false);
+            }
+        }
+    }, [breakpoint, fields.followUp, onFields]);
+
+    useEffect(() => {
+        if (onFields && fields.editIntent === 'landmark') {
+            setRightOpen(true);
+        }
+    }, [fields.editIntent, onFields]);
+
+    const showMissionToolbar =
+        onMissions && (isAdvancedUi(uiMode) ? missionTab === 'edit' : Boolean(editor.document));
+    const showFieldsToolbar =
+        onFields &&
+        (fieldsTab === 'edit' || fields.tool !== 'select' || fields.editIntent === 'create_field');
 
     const overlayLeft = leftOpen && breakpoint === 'review';
     const overlayRight = rightOpen && (breakpoint === 'review' || breakpoint === 'drawer');
@@ -869,6 +1193,7 @@ export function AppShell(): ReactElement {
                         language={language}
                         farm={farm}
                         combinationCount={equipment.combinations.length}
+                        mappedFields={fields.fields}
                         onOpenMission={openFarmMission}
                         overlay={overlayLeft}
                     />
@@ -887,6 +1212,8 @@ export function AppShell(): ReactElement {
                         catalogue={fields}
                         overlay={overlayLeft}
                         uiMode={uiMode}
+                        tab={fieldsTab}
+                        onTabChange={setFieldsTab}
                         onDrawStarted={() => {
                             if (breakpoint === 'review') {
                                 setLeftOpen(false);
@@ -916,6 +1243,15 @@ export function AppShell(): ReactElement {
                         t={t}
                         overlay={overlayLeft}
                         uiMode={uiMode}
+                        onTabChange={(tab) => {
+                            setMissionTab(tab);
+                            if (tab !== 'edit' && editor.tool !== 'none') {
+                                editor.cancelTool();
+                            }
+                        }}
+                        fieldGeofenceInsetCm={
+                            farm.farm?.field_geofence_inset_cm ?? DEFAULT_FIELD_GEOFENCE_INSET_CM
+                        }
                         assistant={assistant}
                         fields={fields.fields}
                         selectedField={fields.selected}
@@ -928,6 +1264,7 @@ export function AppShell(): ReactElement {
                         hasWorkingDocument={Boolean(editor.document)}
                         onSelectMission={editor.select}
                         onLoadFarmMission={editor.adopt}
+                        onStartNewDocument={editor.startNewDocument}
                         publications={publications}
                         onPublish={() => setPublishOpen(true)}
                         tree={missionTree}
@@ -935,13 +1272,19 @@ export function AppShell(): ReactElement {
                         onSelectSection={(index, additive) =>
                             editor.selectIndices([index], additive)
                         }
-                        onReorderSelected={editor.reorderSelected}
-                        onReorderTo={editor.reorderTo}
                         hiddenIndices={editor.hiddenIndices}
                         lockedIndices={editor.lockedIndices}
                         onToggleHidden={editor.toggleHidden}
                         onToggleLocked={editor.toggleLocked}
-                        onReverseSelected={editor.reverseSelected}
+                        selectedGeofenceId={editor.selectedGeofenceId}
+                        hiddenGeofenceIds={editor.hiddenGeofenceIds}
+                        lockedGeofenceIds={editor.lockedGeofenceIds}
+                        onSelectGeofence={editor.selectGeofence}
+                        onToggleGeofenceHidden={editor.toggleGeofenceHidden}
+                        onToggleGeofenceLocked={editor.toggleGeofenceLocked}
+                        onAddGeofenceExclusion={editor.startGeofenceExclusion}
+                        onDeleteSection={editor.deleteSection}
+                        onDeleteGeofenceExclusion={editor.deleteGeofenceExclusion}
                         document={editor.document}
                         envelope={equipment.envelope}
                         equipmentSnapshot={
@@ -1027,17 +1370,16 @@ export function AppShell(): ReactElement {
                         )}
                     </IconButton>
                     <IconButton
-                        label={t('app.toggleSimulation')}
+                        label={t('app.toggleDrawer')}
                         aria-pressed={simOpen}
+                        className={
+                            simOpen ? 'studio-drawer-toggle is-open' : 'studio-drawer-toggle'
+                        }
                         onClick={() => {
-                            if (simOpen) {
-                                setSimOpen(false);
-                                return;
-                            }
-                            runSimulation();
+                            setSimOpen((open) => !open);
                         }}
                     >
-                        <CirclePlay size={ICON_SIZE.button} strokeWidth={STROKE} />
+                        <ChevronUp size={ICON_SIZE.button} strokeWidth={STROKE} />
                     </IconButton>
                     <IconButton
                         label={rightOpen ? t('app.collapseRight') : t('app.expandRight')}
@@ -1076,20 +1418,29 @@ export function AppShell(): ReactElement {
                             basemap={basemap}
                             overlays={overlays}
                             fitKey={
-                                onFields
+                                onFields || !editor.document
                                     ? null
                                     : `${editor.activePath ?? 'draft'}#${editor.missionFitNonce}`
                             }
                             tool={onFields ? fieldsCanvasTool(fields.tool) : editor.tool}
                             extendActive={onFields ? false : editor.extendDirection !== null}
-                            draft={onFields ? fields.draft : editor.draft}
-                            selectedIndices={onFields ? [] : editor.selectedIndices}
-                            draftCaption={onFields ? null : editor.rulerDistance}
+                            draft={onFields ? fields.previewDraft : editor.draft}
+                            draftHandleCount={
+                                onFields && fields.tool === 'ruler'
+                                    ? fields.draft.length
+                                    : undefined
+                            }
+                            selectedIndices={
+                                onFields || editor.zoneMode === 'portions'
+                                    ? []
+                                    : editor.selectedIndices
+                            }
+                            selectedGeofenceId={onFields ? null : editor.selectedGeofenceId}
+                            hiddenGeofenceIds={onFields ? [] : editor.hiddenGeofenceIds}
+                            draftCaption={onFields ? fields.landmarkCaption : editor.rulerDistance}
                             catalogueGeoJSON={catalogueGeoJSON}
                             catalogueFitKey={
-                                (onFields || onMissions) &&
-                                fields.cameraTargetId &&
-                                fields.cameraNonce > 0
+                                onFields && fields.cameraTargetId && fields.cameraNonce > 0
                                     ? `${fields.cameraTargetId}#${fields.cameraNonce}`
                                     : null
                             }
@@ -1103,10 +1454,11 @@ export function AppShell(): ReactElement {
                                       ? undefined
                                       : editor.handleMapClick
                             }
+                            onMapHover={onFields ? fields.handleMapHover : undefined}
                             onMapDblClick={onFields ? fields.handleMapDblClick : undefined}
                             onInsertVertex={
                                 onFields
-                                    ? fieldsDrawing
+                                    ? fieldsDrawing && fields.tool !== 'ruler'
                                         ? fields.insertVertex
                                         : undefined
                                     : editor.tool === 'none'
@@ -1115,7 +1467,8 @@ export function AppShell(): ReactElement {
                             }
                             onMoveVertex={
                                 onFields
-                                    ? fieldsDrawing
+                                    ? fieldsDrawing &&
+                                      (fields.tool !== 'ruler' || fields.landmarkKind === 'circle')
                                         ? fields.moveVertex
                                         : undefined
                                     : editor.tool === 'none'
@@ -1148,30 +1501,83 @@ export function AppShell(): ReactElement {
                             }
                             startView={farm.farm?.start_view ?? null}
                             onViewReader={onViewReader}
+                            speedStops={resolveSpeedStops({
+                                lowKmh: farm.farm?.speed_color_low_kmh,
+                                midKmh: farm.farm?.speed_color_mid_kmh,
+                                highKmh: farm.farm?.speed_color_high_kmh,
+                            })}
+                            overlayPolygon={
+                                onFields && fields.circlePreview.length >= 3
+                                    ? fields.circlePreview
+                                    : editor.zoneMode === 'choose' || editor.zoneMode === 'portions'
+                                      ? editor.zoneRing
+                                      : null
+                            }
+                            selectionHalo={editor.zoneMode === 'portions' ? 'off' : 'yellow'}
+                            endpointMarkers={
+                                editor.tool === 'connect_ends'
+                                    ? listRowEndpoints(editor.document).map((item) => ({
+                                          lngLat: [item.latlng.lng, item.latlng.lat] as [
+                                              number,
+                                              number,
+                                          ],
+                                          selected:
+                                              (editor.connectFirst?.sectionIndex ===
+                                                  item.hit.sectionIndex &&
+                                                  editor.connectFirst?.end === item.hit.end) ||
+                                              (editor.connectSecond?.sectionIndex ===
+                                                  item.hit.sectionIndex &&
+                                                  editor.connectSecond?.end === item.hit.end),
+                                      }))
+                                    : null
+                            }
                         />
-                        {onFields ? (
-                            <FieldsToolbar
+                        {showFieldsToolbar ? (
+                            <FieldsEditToolbar
                                 t={t}
                                 tool={fields.tool}
-                                drawKind={fieldsDraw ?? 'polygon'}
+                                intent={fields.editIntent}
                                 draftCount={fields.draft.length}
-                                showDraw={fieldsDrawTarget(fields.nav, fields.trafficKind) !== null}
-                                onSelect={() => fields.setTool('select')}
-                                onDraw={() => {
-                                    if (fields.startDraw() && breakpoint === 'review') {
-                                        setLeftOpen(false);
+                                editingGeometry={fields.editingGeometry}
+                                canUndo={fields.canUndo}
+                                canRedo={fields.canRedo}
+                                undoLabel={fields.undoLabelKey ? t(fields.undoLabelKey) : null}
+                                onSelect={fields.startSelectEntity}
+                                onLasso={() => {
+                                    fields.startLasso();
+                                    setRightOpen(true);
+                                }}
+                                onPolyline={() => {
+                                    fields.startPolyline();
+                                    setRightOpen(true);
+                                }}
+                                onGeofence={() => {
+                                    if (fields.geofenceZoneId) {
+                                        fields.selectExistingGeofence();
+                                        setFieldsTab('edit');
+                                        setRightOpen(true);
+                                        return;
                                     }
+                                    setFieldsGeofencePrompt(true);
+                                }}
+                                onSurface={() => {
+                                    fields.startSurface();
+                                    setRightOpen(true);
+                                }}
+                                onRuler={() => {
+                                    fields.startRuler();
+                                    setRightOpen(true);
                                 }}
                                 onFinish={() => void fields.finishDraft()}
-                                onCancel={fields.cancelDraft}
+                                onUndo={fields.undo}
+                                onRedo={fields.redo}
                             />
-                        ) : (
+                        ) : showMissionToolbar ? (
                             <EditToolbar
                                 t={t}
                                 uiMode={uiMode}
                                 tool={editor.tool}
                                 draftCount={editor.draft.length}
-                                selectedCount={editor.selectedIndices.length}
                                 canUndo={editor.canUndo}
                                 canRedo={editor.canRedo}
                                 onSelectZone={editor.startSelectZone}
@@ -1179,20 +1585,13 @@ export function AppShell(): ReactElement {
                                 onDrawLine={editor.startDrawLine}
                                 onDrawPolygon={editor.startDrawPolygon}
                                 onFillParcel={editor.startFillParcel}
-                                onWorkingZone={editor.startWorkingZone}
-                                onDeleteZone={editor.startDeleteZone}
-                                onConnectTurns={editor.startConnectTurns}
-                                onOffset={editor.startOffset}
+                                onConnectEnds={editor.startConnectEnds}
                                 onRuler={editor.startRuler}
-                                onEditSpeed={editor.startEditSpeed}
                                 onFinish={editor.finishCurrent}
-                                onFinishWorkingZone={editor.finishWorkingZone}
-                                onReverseSelected={editor.reverseSelected}
-                                onDeleteSelected={editor.deleteSelected}
                                 onUndo={editor.undo}
                                 onRedo={editor.redo}
                             />
-                        )}
+                        ) : null}
                         {onFields && fieldsDrawing ? (
                             <p className="studio-tool-hint" role="status">
                                 {t(
@@ -1230,9 +1629,11 @@ export function AppShell(): ReactElement {
                                                         ? 'tool.selectZoneHint'
                                                         : editor.tool === 'select_sections_polygon'
                                                           ? 'tool.selectPolygonHint'
-                                                          : editor.tool === 'ruler'
-                                                            ? 'tool.rulerHint'
-                                                            : 'tool.drawLineHint',
+                                                          : editor.tool === 'connect_ends'
+                                                            ? 'tool.connectEndsHint'
+                                                            : editor.tool === 'ruler'
+                                                              ? 'tool.rulerHint'
+                                                              : 'tool.drawLineHint',
                                         )}
                             </p>
                         )}
@@ -1272,6 +1673,13 @@ export function AppShell(): ReactElement {
                             onOpenChange={editor.setParcelDialogOpen}
                             onConfirm={editor.finishFillParcel}
                         />
+                        <FillGeofencePrompt
+                            t={t}
+                            open={editor.fillGeofencePrompt}
+                            onOpenChange={editor.setFillGeofencePrompt}
+                            onYes={editor.acceptFillGeofence}
+                            onNo={editor.declineFillGeofence}
+                        />
                         <ConnectTurnsDialog
                             t={t}
                             open={editor.turnsDialogOpen}
@@ -1298,6 +1706,12 @@ export function AppShell(): ReactElement {
                             onOpenChange={editor.setOffsetDialogOpen}
                             onConfirm={editor.finishOffset}
                         />
+                        <ConnectFreeDialog
+                            t={t}
+                            open={editor.freeStyleOpen}
+                            onOpenChange={editor.setFreeStyleOpen}
+                            onConfirm={editor.finishConnectEnds}
+                        />
                     </>
                 )}
             </main>
@@ -1318,6 +1732,15 @@ export function AppShell(): ReactElement {
                         catalogue={fields}
                         overlay={overlayRight}
                         missionPath={editor.activePath}
+                        actions={
+                            <FieldsActionPanel
+                                t={t}
+                                catalogue={fields}
+                                form={fieldsFollowUpForm}
+                                lassoTab={fieldsLassoTab}
+                                onLassoTab={setFieldsLassoTab}
+                            />
+                        }
                         onOpenMission={(path) => {
                             if (path) {
                                 const farmFile =
@@ -1342,160 +1765,89 @@ export function AppShell(): ReactElement {
                         uiMode={uiMode}
                     />
                 ) : (
-                    <InspectorPanel
+                    <MissionToolsPanel
                         t={t}
                         overlay={overlayRight}
-                        message={
-                            editor.noticeKey
-                                ? t(editor.noticeKey, editor.noticeParams)
-                                : editor.error
-                                  ? editor.error
-                                  : editor.selectedIndices.length > 0
-                                    ? t('inspector.selected', {
-                                          count: editor.selectedIndices.length,
-                                      })
-                                    : editor.document
-                                      ? t('inspector.points', {
-                                            sections: editor.sectionCount,
-                                            points: editor.pointCount,
-                                        })
-                                      : t('map.empty')
-                        }
-                        detail={
-                            editor.saveState === 'saving'
-                                ? t('tool.savingDetail')
-                                : editor.saveState === 'error'
-                                  ? t('tool.saveFailed', editor.noticeParams)
-                                  : editor.saveState === 'blocked'
-                                    ? t('tool.unsaved')
-                                    : editor.activePath
-                        }
-                    >
-                        {editor.selectedIndices.length > 0 ? (
-                            <Accordion
-                                defaultValue="geometry"
-                                items={[
-                                    {
-                                        value: 'geometry',
-                                        title: t('inspector.accordion.geometry'),
-                                        content: (
-                                            <>
-                                                {selectionLocked ? (
-                                                    <p className="studio-muted studio-inspector-block">
-                                                        {t('tree.lockedHint')}
-                                                    </p>
-                                                ) : null}
-                                                <SectionEditPanel
-                                                    t={t}
-                                                    uiMode={uiMode}
-                                                    locked={selectionLocked}
-                                                    selectedCount={editor.selectedIndices.length}
-                                                    moveStep={editor.moveStep}
-                                                    onMoveStep={editor.setMoveStep}
-                                                    onMove={editor.moveSelected}
-                                                    rotationStep={editor.rotationStep}
-                                                    onRotationStep={editor.setRotationStep}
-                                                    onRotate={editor.rotateSelected}
-                                                    duplicateCount={editor.duplicateCount}
-                                                    onDuplicateCount={editor.setDuplicateCount}
-                                                    duplicateDistance={editor.duplicateDistance}
-                                                    onDuplicateDistance={
-                                                        editor.setDuplicateDistance
-                                                    }
-                                                    duplicateSide={editor.duplicateSide}
-                                                    onDuplicateSide={editor.setDuplicateSide}
-                                                    onDuplicate={editor.duplicateSelected}
-                                                    extendDirection={editor.extendDirection}
-                                                    onStartExtend={editor.startExtend}
-                                                    onCancelExtend={editor.cancelExtend}
-                                                />
-                                            </>
-                                        ),
-                                    },
-                                    {
-                                        value: 'order',
-                                        title: t('inspector.accordion.order'),
-                                        content: (
-                                            <div className="studio-inspector-block">
-                                                <p className="studio-muted">
-                                                    {t('inspector.orderHint')}
-                                                </p>
-                                                <Button
-                                                    type="button"
-                                                    variant="secondary"
-                                                    disabled={selectionLocked}
-                                                    onClick={editor.reverseSelected}
-                                                >
-                                                    {t('tree.reverse')}
-                                                </Button>
-                                            </div>
-                                        ),
-                                    },
-                                    {
-                                        value: 'speed',
-                                        title: t('inspector.accordion.speed'),
-                                        content: (
-                                            <p className="studio-muted studio-inspector-block">
-                                                {t('inspector.speedHint', {
-                                                    speed:
-                                                        selectedSpeedMps == null
-                                                            ? '—'
-                                                            : selectedSpeedMps.toFixed(2),
-                                                })}
-                                            </p>
-                                        ),
-                                    },
-                                    {
-                                        value: 'tool',
-                                        title: t('inspector.accordion.tool'),
-                                        content: (
-                                            <p className="studio-muted studio-inspector-block">
-                                                {t('inspector.toolHint', {
-                                                    combo: comboLabel ?? t('assist.none'),
-                                                    width:
-                                                        missionContext?.working_width_m == null
-                                                            ? '—'
-                                                            : missionContext.working_width_m,
-                                                })}
-                                            </p>
-                                        ),
-                                    },
-                                    {
-                                        value: 'metadata',
-                                        title: t('inspector.accordion.metadata'),
-                                        content: (
-                                            <p className="studio-muted studio-inspector-block">
-                                                {missionContext
-                                                    ? t('inspector.briefHint', {
-                                                          campaign: missionContext.campaign ?? '—',
-                                                          operation: missionContext.operation
-                                                              ? t(
-                                                                    `assist.operation.${missionContext.operation}`,
-                                                                )
-                                                              : '—',
-                                                      })
-                                                    : t('inspector.noBrief')}
-                                            </p>
-                                        ),
-                                    },
-                                ]}
+                        editor={editor}
+                        selectionLocked={selectionLocked}
+                        entityTools={
+                            <MissionInspectorBody
+                                t={t}
+                                editor={editor}
+                                uiMode={uiMode}
+                                selectionLocked={selectionLocked}
+                                selectedSpeedMps={selectedSpeedMps}
+                                comboLabel={comboLabel}
+                                missionContext={missionContext}
                             />
-                        ) : null}
-                    </InspectorPanel>
+                        }
+                    />
                 )
             ) : null}
 
             {simOpen && breakpoint !== 'review' ? (
-                <SimulationDrawer
-                    t={t}
-                    report={simReport}
-                    stale={simStale}
-                    seekIndex={simSeekIndex}
-                    onRun={runSimulation}
-                    onCursor={onSimCursor}
-                    onLocate={locateSample}
-                    onOpenResults={() => navigate({ pathname: '/simulation', hash: 'results' })}
-                />
+                <section
+                    className="studio-simulation studio-drawer"
+                    aria-label={t('app.toggleDrawer')}
+                >
+                    <Tabs
+                        defaultValue="inspector"
+                        value={drawerTab}
+                        onValueChange={setDrawerTab}
+                        items={[
+                            {
+                                value: 'inspector',
+                                label: t('inspector.title'),
+                                content: (
+                                    <>
+                                        <p className="studio-muted studio-inspector-block">
+                                            {editor.noticeKey
+                                                ? t(editor.noticeKey, editor.noticeParams)
+                                                : editor.selectedIndices.length > 0
+                                                  ? t('inspector.selected', {
+                                                        count: editor.selectedIndices.length,
+                                                    })
+                                                  : editor.document
+                                                    ? t('inspector.points', {
+                                                          sections: editor.sectionCount,
+                                                          points: editor.pointCount,
+                                                      })
+                                                    : t('map.empty')}
+                                        </p>
+                                        <MissionInspectorBody
+                                            t={t}
+                                            editor={editor}
+                                            uiMode={uiMode}
+                                            selectionLocked={selectionLocked}
+                                            selectedSpeedMps={selectedSpeedMps}
+                                            comboLabel={comboLabel}
+                                            missionContext={missionContext}
+                                        />
+                                    </>
+                                ),
+                            },
+                            {
+                                value: 'simulation',
+                                label: t('simulation.title'),
+                                content: (
+                                    <SimulationDrawer
+                                        t={t}
+                                        embedded
+                                        report={simReport}
+                                        stale={simStale}
+                                        seekIndex={simSeekIndex}
+                                        onRun={runSimulation}
+                                        onCursor={onSimCursor}
+                                        onLocate={locateSample}
+                                        onOpenResults={() =>
+                                            navigate({ pathname: '/simulation', hash: 'results' })
+                                        }
+                                    />
+                                ),
+                            },
+                        ]}
+                    />
+                </section>
             ) : null}
 
             <CompareDialog
@@ -1521,6 +1873,42 @@ export function AppShell(): ReactElement {
                 t={t}
             />
 
+            <Dialog
+                open={fieldsGeofencePrompt}
+                onOpenChange={setFieldsGeofencePrompt}
+                title={t('fields.edit.geofence.promptTitle')}
+            >
+                <p className="studio-muted">{t('fields.edit.geofence.prompt')}</p>
+                <div className="studio-publish-actions">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                            setFieldsGeofencePrompt(false);
+                            fields.startGeofenceDraw();
+                            setFieldsTab('edit');
+                            setRightOpen(true);
+                        }}
+                    >
+                        {t('fields.edit.geofence.draw')}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="primary"
+                        onClick={() => {
+                            setFieldsGeofencePrompt(false);
+                            void fields.applyGeofenceFromBoundary(
+                                farm.farm?.field_geofence_inset_cm ??
+                                    DEFAULT_FIELD_GEOFENCE_INSET_CM,
+                            );
+                            setFieldsTab('edit');
+                            setRightOpen(true);
+                        }}
+                    >
+                        {t('fields.edit.geofence.match')}
+                    </Button>
+                </div>
+            </Dialog>
             <PublishDialog
                 open={publishOpen}
                 document={editor.document}

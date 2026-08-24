@@ -1278,6 +1278,80 @@ export function connectNewRowLines(
     };
 }
 
+function sectionEndpoints(section: AgriSection): Array<[number, number]> {
+    const xIndex = section.columns.indexOf('x');
+    const yIndex = section.columns.indexOf('y');
+    const first = section.values[0];
+    const last = section.values[section.values.length - 1];
+    const asXy = (row: Cell[] | undefined): [number, number] | null => {
+        if (!row || xIndex < 0 || yIndex < 0) {
+            return null;
+        }
+        const x = Number(row[xIndex]);
+        const y = Number(row[yIndex]);
+        return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+    };
+    return [asXy(first), asXy(last)].filter((point): point is [number, number] => point !== null);
+}
+
+function turnTouchesEndpoints(section: AgriSection, endpoints: Array<[number, number]>): boolean {
+    if (!isTurnSection(section)) {
+        return false;
+    }
+    return sectionEndpoints(section).some((point) =>
+        endpoints.some(
+            (end) =>
+                Math.hypot(point[0] - end[0], point[1] - end[1]) <=
+                TURN_CONNECTION_MATCH_TOLERANCE_M,
+        ),
+    );
+}
+
+/**
+ * Reconnect only the selected `row_line`s and drop the turns already attached
+ * to those rows, so a second connect replaces the previous headlands.
+ */
+export function connectSelectedRowLines(
+    document: AgriDocument | null | undefined,
+    indices: readonly number[],
+    params: ConnectTurnsParams,
+): ConnectTurnsResult {
+    const source = document?.points ?? [];
+    const selected = new Set(indices);
+    const rows = source.filter(
+        (section, index) => selected.has(index) && getSectionTypeString(section) === 'row_line',
+    );
+    if (rows.length < 2) {
+        return { ok: false, reason: 'too_few_rows' };
+    }
+    const endpoints = rows.flatMap(sectionEndpoints);
+    const preserved = source.filter(
+        (section, index) =>
+            !selected.has(index) &&
+            getSectionTypeString(section) !== 'row_line' &&
+            !turnTouchesEndpoints(section, endpoints),
+    );
+    const unselectedRows = source.filter(
+        (section, index) => !selected.has(index) && getSectionTypeString(section) === 'row_line',
+    );
+    const subset: AgriDocument = document ? { ...document, points: rows } : { points: rows };
+    const result = connectTurns(subset, params);
+    if (!result.ok) {
+        return result;
+    }
+    return {
+        ...result,
+        document: {
+            ...result.document,
+            points: [
+                ...preserved.map((section) => cloneJson(section)),
+                ...unselectedRows.map((section) => cloneJson(section)),
+                ...result.document.points,
+            ],
+        },
+    };
+}
+
 /** Connect only Agri `row_line` rows so fourrière `row_path` contours stay intact. */
 export function connectRowLinesPreservingOthers(
     document: AgriDocument | null | undefined,

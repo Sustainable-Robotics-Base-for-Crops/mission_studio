@@ -57,6 +57,10 @@ DEFAULT_LANGUAGE = "fr"
 DEFAULT_THEME = "light"
 DEFAULT_UI_MODE = "basic"
 DEFAULT_UNITS = "metric"
+DEFAULT_FIELD_GEOFENCE_INSET_CM = 25
+DEFAULT_SPEED_COLOR_LOW_KMH = 0.5
+DEFAULT_SPEED_COLOR_MID_KMH = 1.75
+DEFAULT_SPEED_COLOR_HIGH_KMH = 3.0
 
 #: Mirrors DEFAULT_CENTER / DEFAULT_ZOOM of frontend/src/map/styles.ts (metropolitan France).
 DEFAULT_START_VIEW = {"lat": 46.6034, "lon": 1.8883, "zoom": 6}
@@ -92,6 +96,10 @@ def default_farm_json(name: Optional[str] = None) -> Dict[str, Any]:
         "theme": DEFAULT_THEME,
         "ui_mode": DEFAULT_UI_MODE,
         "units": DEFAULT_UNITS,
+        "field_geofence_inset_cm": DEFAULT_FIELD_GEOFENCE_INSET_CM,
+        "speed_color_low_kmh": DEFAULT_SPEED_COLOR_LOW_KMH,
+        "speed_color_mid_kmh": DEFAULT_SPEED_COLOR_MID_KMH,
+        "speed_color_high_kmh": DEFAULT_SPEED_COLOR_HIGH_KMH,
         "created_at": stamp,
         "updated_at": stamp,
     }
@@ -139,6 +147,34 @@ def validate_farm_json(data: Any) -> List[str]:
             problems.append(f"{key} must be one of {', '.join(allowed)}")
 
     _check_start_view(data.get("start_view"), problems)
+    inset = data.get("field_geofence_inset_cm")
+    # Optional for farm folders created before this preference existed.
+    if inset is not None:
+        if isinstance(inset, bool) or not isinstance(inset, (int, float)):
+            problems.append("field_geofence_inset_cm must be a number")
+        elif float(inset) < 0:
+            problems.append("field_geofence_inset_cm must be greater than or equal to 0")
+    for key in ("speed_color_low_kmh", "speed_color_mid_kmh", "speed_color_high_kmh"):
+        value = data.get(key)
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            problems.append(f"{key} must be a number")
+        elif float(value) < 0:
+            problems.append(f"{key} must be greater than or equal to 0")
+    low = data.get("speed_color_low_kmh")
+    mid = data.get("speed_color_mid_kmh")
+    high = data.get("speed_color_high_kmh")
+    if (
+        isinstance(low, (int, float))
+        and not isinstance(low, bool)
+        and isinstance(mid, (int, float))
+        and not isinstance(mid, bool)
+        and isinstance(high, (int, float))
+        and not isinstance(high, bool)
+        and not (float(low) <= float(mid) <= float(high))
+    ):
+        problems.append("speed colour thresholds must satisfy low ≤ mid ≤ high")
     return problems
 
 

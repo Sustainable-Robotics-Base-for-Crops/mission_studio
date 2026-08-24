@@ -314,33 +314,32 @@ function lerpPoint(p: [number, number], q: [number, number], t: number): [number
     return [p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])];
 }
 
+export type PolygonRun = { inside: boolean; points: [number, number][] };
+
 /**
- * Keep the parts of a polyline that lie **outside** `polygon`.
- * A `row_line` of two endpoints is split at the polygon boundary — not only
- * when a vertex sits inside (the fill-parcel / cut-tool case).
+ * Split a polyline at the polygon boundary. Consecutive sub-segments on the
+ * same side of the ring stay in one run (entry / exit interpolated).
  */
-export function clipPolylineOutsidePolygon(
+export function splitPolylineByPolygon(
     points: [number, number][],
     polygon: [number, number][],
-): [number, number][][] {
+): PolygonRun[] {
     if (points.length < 2 || polygon.length < 3) {
-        return points.length >= 2 ? [points.map((point) => [point[0], point[1]])] : [];
+        return points.length >= 2
+            ? [{ inside: false, points: points.map((point) => [point[0], point[1]]) }]
+            : [];
     }
-    const runs: [number, number][][] = [];
-    let current: [number, number][] = [];
-
-    const pushPoint = (pt: [number, number]) => {
-        const last = current[current.length - 1];
-        if (last && Math.abs(last[0] - pt[0]) < 1e-6 && Math.abs(last[1] - pt[1]) < 1e-6) {
+    const runs: PolygonRun[] = [];
+    const pushSegment = (start: [number, number], end: [number, number], inside: boolean) => {
+        const last = runs[runs.length - 1];
+        if (last && last.inside === inside) {
+            const tail = last.points[last.points.length - 1];
+            if (!tail || Math.abs(tail[0] - end[0]) > 1e-6 || Math.abs(tail[1] - end[1]) > 1e-6) {
+                last.points.push(end);
+            }
             return;
         }
-        current.push(pt);
-    };
-    const flush = () => {
-        if (current.length >= 2) {
-            runs.push(current);
-        }
-        current = [];
+        runs.push({ inside, points: [start, end] });
     };
 
     for (let index = 0; index < points.length - 1; index += 1) {
@@ -368,17 +367,27 @@ export function clipPolylineOutsidePolygon(
             if (t0 === undefined || t1 === undefined || t1 - t0 < CLIP_EPS) {
                 continue;
             }
+            const start = lerpPoint(p, q, t0);
+            const end = lerpPoint(p, q, t1);
             const mid = lerpPoint(p, q, (t0 + t1) / 2);
-            if (pointInPolygon(mid[0], mid[1], polygon)) {
-                flush();
-            } else {
-                pushPoint(lerpPoint(p, q, t0));
-                pushPoint(lerpPoint(p, q, t1));
-            }
+            pushSegment(start, end, pointInPolygon(mid[0], mid[1], polygon));
         }
     }
-    flush();
     return runs;
+}
+
+/**
+ * Keep the parts of a polyline that lie **outside** `polygon`.
+ * A `row_line` of two endpoints is split at the polygon boundary — not only
+ * when a vertex sits inside (the fill-parcel / cut-tool case).
+ */
+export function clipPolylineOutsidePolygon(
+    points: [number, number][],
+    polygon: [number, number][],
+): [number, number][][] {
+    return splitPolylineByPolygon(points, polygon)
+        .filter((run) => !run.inside)
+        .map((run) => run.points);
 }
 
 /**
@@ -412,6 +421,203 @@ export function densifyXY(
             out.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
         }
         out.push([b[0], b[1]]);
+    }
+    return out;
+}
+
+function quadraticPoint(
+    a: [number, number],
+    b: [number, number],
+    c: [number, number],
+    t: number,
+): [number, number] {
+    const u = 1 - t;
+    return [
+        u * u * a[0] + 2 * u * t * b[0] + t * t * c[0],
+        u * u * a[1] + 2 * u * t * b[1] + t * t * c[1],
+    ];
+}
+
+/** Sample a quadratic Bézier so consecutive vertices stay within `spacing`. */
+export function sampleQuadraticBezier(
+    a: [number, number],
+    b: [number, number],
+    c: [number, number],
+    spacing: number = TURN_PATH_SPACING_M,
+): [number, number][] {
+    const length = distance(a[0], a[1], b[0], b[1]) + distance(b[0], b[1], c[0], c[1]);
+    const steps = Math.max(2, Math.ceil(length / Math.max(spacing, 0.01)));
+    const out: [number, number][] = [];
+    for (let index = 0; index <= steps; index += 1) {
+        out.push(quadraticPoint(a, b, c, index / steps));
+    }
+    return out;
+}
+
+/**
+ * Degree 1 = densified segments. Degree 2 = chained quadratics (control on
+ * odd vertices), still sampled at 10 cm.
+ */
+export function curvePathXY(
+    points: [number, number][],
+    degree: 1 | 2,
+    spacing: number = TURN_PATH_SPACING_M,
+): [number, number][] {
+    if (degree === 1 || points.length < 3) {
+        return densifyXY(points, spacing);
+    }
+    const out: [number, number][] = [];
+    let index = 0;
+    while (index < points.length - 2) {
+        const start = points[index];
+        const control = points[index + 1];
+        const end = points[index + 2];
+        if (!start || !control || !end) {
+            break;
+        }
+        const chunk = sampleQuadraticBezier(start, control, end, spacing);
+        if (out.length > 0) {
+            chunk.shift();
+        }
+        out.push(...chunk);
+        index += 2;
+    }
+    if (index < points.length - 1) {
+        const rest = densifyXY([points[index] ?? points[0]!, points[points.length - 1]!], spacing);
+        if (out.length > 0) {
+            rest.shift();
+        }
+        out.push(...rest);
+    }
+    return out;
+}
+
+export interface SmoothPathTangents {
+    /** Outgoing direction at the first vertex (row heading when leaving). */
+    start?: [number, number];
+    /** Incoming direction at the last vertex (row heading when arriving). */
+    end?: [number, number];
+}
+
+function unitScale(direction: [number, number], length: number): [number, number] {
+    const norm = Math.hypot(direction[0], direction[1]);
+    if (norm < 1e-12 || length < 1e-12) {
+        return [0, 0];
+    }
+    return [(direction[0] / norm) * length, (direction[1] / norm) * length];
+}
+
+function hermitePoint(
+    p0: [number, number],
+    t0: [number, number],
+    p1: [number, number],
+    t1: [number, number],
+    u: number,
+): [number, number] {
+    const u2 = u * u;
+    const u3 = u2 * u;
+    const h00 = 2 * u3 - 3 * u2 + 1;
+    const h10 = u3 - 2 * u2 + u;
+    const h01 = -2 * u3 + 3 * u2;
+    const h11 = u3 - u2;
+    return [
+        h00 * p0[0] + h10 * t0[0] + h01 * p1[0] + h11 * t1[0],
+        h00 * p0[1] + h10 * t0[1] + h01 * p1[1] + h11 * t1[1],
+    ];
+}
+
+function knotTangents(points: [number, number][], ends?: SmoothPathTangents): [number, number][] {
+    return points.map((point, index) => {
+        const previous = points[index - 1];
+        const next = points[index + 1];
+        if (index === 0 && ends?.start) {
+            const chord = next ? distance(point[0], point[1], next[0], next[1]) : 1;
+            return unitScale(ends.start, chord);
+        }
+        if (index === points.length - 1 && ends?.end) {
+            const chord = previous ? distance(previous[0], previous[1], point[0], point[1]) : 1;
+            return unitScale(ends.end, chord);
+        }
+        if (previous && next) {
+            return [(next[0] - previous[0]) / 2, (next[1] - previous[1]) / 2];
+        }
+        if (next) {
+            return [next[0] - point[0], next[1] - point[1]];
+        }
+        if (previous) {
+            return [point[0] - previous[0], point[1] - previous[1]];
+        }
+        return [0, 0];
+    });
+}
+
+function sampleHermiteSegment(
+    p0: [number, number],
+    t0: [number, number],
+    p1: [number, number],
+    t1: [number, number],
+    spacing: number,
+): [number, number][] {
+    const probes = 12;
+    let length = 0;
+    let previous = p0;
+    for (let index = 1; index <= probes; index += 1) {
+        const next = hermitePoint(p0, t0, p1, t1, index / probes);
+        length += distance(previous[0], previous[1], next[0], next[1]);
+        previous = next;
+    }
+    const steps = Math.max(1, Math.ceil(length / Math.max(spacing, 0.01)));
+    const out: [number, number][] = [];
+    for (let index = 0; index <= steps; index += 1) {
+        out.push(hermitePoint(p0, t0, p1, t1, index / steps));
+    }
+    return out;
+}
+
+/**
+ * Interpolating path through every vertex, C1 at the knots, sampled at
+ * `spacing` (default 10 cm). Optional end tangents pin the first and last
+ * headings (leave / arrive aligned with a work row). Two points without
+ * those tangents stay a straight densified segment.
+ */
+export function smoothPathXY(
+    points: [number, number][],
+    spacing: number = TURN_PATH_SPACING_M,
+    ends?: SmoothPathTangents,
+): [number, number][] {
+    const cleaned: [number, number][] = [];
+    for (const point of points) {
+        const previous = cleaned[cleaned.length - 1];
+        if (
+            previous &&
+            Math.abs(previous[0] - point[0]) < 1e-9 &&
+            Math.abs(previous[1] - point[1]) < 1e-9
+        ) {
+            continue;
+        }
+        cleaned.push([point[0], point[1]]);
+    }
+    const hasEndTangents = Boolean(ends?.start || ends?.end);
+    if (cleaned.length < 2) {
+        return cleaned;
+    }
+    if (cleaned.length < 3 && !hasEndTangents) {
+        return densifyXY(cleaned, spacing);
+    }
+    const tangents = knotTangents(cleaned, ends);
+    const out: [number, number][] = [];
+    for (let index = 0; index < cleaned.length - 1; index += 1) {
+        const chunk = sampleHermiteSegment(
+            cleaned[index]!,
+            tangents[index]!,
+            cleaned[index + 1]!,
+            tangents[index + 1]!,
+            spacing,
+        );
+        if (out.length > 0) {
+            chunk.shift();
+        }
+        out.push(...chunk);
     }
     return out;
 }

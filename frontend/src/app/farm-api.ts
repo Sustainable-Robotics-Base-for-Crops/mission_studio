@@ -7,6 +7,7 @@
 
 export type FarmType = 'market_garden' | 'vineyard' | 'open_field' | 'livestock' | 'mixed';
 export type UiMode = 'basic' | 'advanced';
+export const DEFAULT_FIELD_GEOFENCE_INSET_CM = 25;
 
 /** Expert chrome is shown unless the farm explicitly asks for basic tools. */
 export function isAdvancedUi(mode: UiMode | null | undefined): boolean {
@@ -44,6 +45,11 @@ export interface FarmDocument {
     theme: 'light' | 'dark';
     ui_mode: UiMode;
     units: string;
+    /** Clearance applied when deriving a new mission geofence from a field. */
+    field_geofence_inset_cm?: number;
+    speed_color_low_kmh?: number;
+    speed_color_mid_kmh?: number;
+    speed_color_high_kmh?: number;
     created_at: string;
     updated_at: string;
 }
@@ -72,6 +78,8 @@ export interface FarmEntry {
     modified: number;
     kind?: FarmKind;
     field_id?: string | null;
+    field_name?: string | null;
+    display_name?: string | null;
     operation?: string | null;
     campaign?: string | null;
     simulated?: boolean;

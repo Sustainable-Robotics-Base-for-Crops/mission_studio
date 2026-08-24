@@ -324,6 +324,44 @@ select:focus-visible,
     font-weight: 600;
 }
 
+.studio-mission-active-name {
+    min-width: 0;
+    max-width: calc(100% - 84px);
+    overflow: hidden;
+    padding: 3px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    line-height: 18px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.studio-mission-active-name:not(:disabled) {
+    cursor: text;
+}
+
+.studio-mission-active-name.is-empty {
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+.studio-mission-active-input {
+    flex: 1;
+    min-width: 120px;
+    height: 26px;
+    padding-block: 3px;
+    font-size: 12px;
+}
+
+.studio-mission-name-dialog {
+    width: min(440px, calc(100vw - 32px));
+}
+
 .studio-context-nav ul {
     list-style: none;
     margin: 0;
@@ -1407,6 +1445,12 @@ body > #pluginHeaderActions {
     padding: 0;
 }
 
+.studio-mission-list button > span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
 .studio-mission-list button.is-active {
     background: var(--surface-selected);
 }
@@ -1514,6 +1558,20 @@ body > #pluginHeaderActions {
     cursor: grab;
 }
 
+.studio-tree-geofence-row {
+    cursor: default;
+}
+
+.studio-tree-geofence-add {
+    display: flex;
+    padding: 4px 8px 0 12px;
+}
+
+.studio-tree-geofence-add .ds-button {
+    width: 100%;
+    justify-content: flex-start;
+}
+
 .studio-tree-row.is-active {
     background: var(--surface-selected);
 }
@@ -1562,6 +1620,75 @@ body > #pluginHeaderActions {
     padding: 8px 16px 16px;
 }
 
+.studio-zone-panel,
+.studio-connect-ends {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 8px;
+}
+
+.studio-zone-modes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: 8px;
+}
+
+.studio-zone-panel .ds-tabs,
+.studio-drawer .ds-tabs {
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 0 8px;
+}
+
+.studio-zone-panel .ds-tab,
+.studio-drawer .ds-tab {
+    padding: 0 8px;
+    font-size: 12px;
+    height: 34px;
+    white-space: nowrap;
+}
+
+.studio-drawer-pane {
+    padding: 0 8px 8px;
+}
+
+.studio-drawer-toggle svg {
+    transition: transform 0.16s ease;
+}
+
+.studio-drawer-toggle.is-open svg {
+    transform: rotate(180deg);
+}
+
+.studio-row-end {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--primary-700, #1b4079);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.2);
+    cursor: pointer;
+}
+
+.studio-row-end.is-selected {
+    background: #e8ff00;
+    border: 3px solid #ff7a00;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
+    transform: scale(1.25);
+}
+
+.studio-zone-portions {
+    padding-inline: 0;
+}
+
+.studio-zone-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
 .studio-inspector .ds-accordion-item {
     border-top: 1px solid var(--border);
 }
@@ -1608,6 +1735,18 @@ body > #pluginHeaderActions {
     gap: 8px;
 }
 
+/* Selected object, folded under the options of the tool in use. */
+.studio-field-details {
+    margin-top: 8px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+}
+
+.studio-field-details .ds-accordion-trigger {
+    padding: 0 16px;
+}
+
+/* Geometry tree of the field, in the left panel. */
 .studio-inspector .ds-tabs {
     flex-wrap: wrap;
     padding: 0 8px;
@@ -1654,6 +1793,75 @@ body > #pluginHeaderActions {
     flex-direction: column;
     gap: 10px;
     padding: 12px 16px 16px;
+}
+
+.studio-mission-create-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.studio-mission-create-menu h3 {
+    margin: 0 0 2px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+.studio-mission-create-menu .ds-btn,
+.studio-mission-create-coming {
+    width: 100%;
+    justify-content: center;
+}
+
+.studio-mission-create-coming {
+    display: flex;
+}
+
+.studio-mission-create-coming .ds-btn {
+    flex: 1;
+}
+
+.studio-fields-action {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.studio-fields-action h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+.studio-fields-lasso-hits {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.studio-mission-explore-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.studio-mission-explore-list h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+.studio-mission-field-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .studio-panel-tab p {
@@ -1739,7 +1947,12 @@ body > #pluginHeaderActions {
 }
 
 .studio-mission-explorer-title {
+    display: block;
+    width: 100%;
+    min-width: 0;
     font-weight: 700;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .studio-mission-explorer-context {

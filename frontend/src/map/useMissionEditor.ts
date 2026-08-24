@@ -11,6 +11,7 @@ import {
 import {
     appendConnectedCoverage,
     appendDrawnLine,
+    applyDrawnSpeed,
     applyDrawnWorkingZone,
     deleteDrawnPointsInPolygon,
     documentOrigin,
@@ -23,6 +24,7 @@ import {
 import { DEFAULT_ROW_SPACING_M } from '../domain/coverage';
 import {
     connectRowLinesPreservingOthers,
+    connectSelectedRowLines,
     DEFAULT_CONNECT_TURNS,
     type ConnectTurnsFailure,
     type ConnectTurnsParams,
@@ -43,12 +45,30 @@ import {
 } from '../domain/section';
 import {
     deleteSelectedSections,
+    pickRowEndpoint,
     pickSectionByProximity,
     reverseSelectedSections,
     selectSectionsIntersectingPolygon,
     toggleSelectedIndex,
+    type RowEndpointHit,
 } from '../domain/selection';
+import {
+    connectTwoRowEnds,
+    connectTwoRowEndsFree,
+    type EndConnectionKind,
+    type FreeLinkStyle,
+} from '../domain/connect-ends';
 import { applySpeedToAllPoints, getCurrentTrajectorySpeed } from '../domain/speed';
+import {
+    appendGeofenceExclusion,
+    geofenceRing,
+    localRingToLatLng,
+    readGeofenceExterior,
+    pickGeofenceByProximity,
+    removeGeofenceExclusion,
+    setGeofenceRing,
+    type GeofenceId,
+} from '../domain/geofence';
 import { insertDraftVertex, moveDraftVertex } from './draft-hit';
 import {
     planCoverage,
@@ -60,7 +80,7 @@ import type { DuplicateSide, ExtendDirection } from './SectionEditPanel';
 import { CommandStack, createAutosave } from '../store/commands';
 import { useStudioMissions } from './useStudioMissions';
 import { remapIndexList, remapIndexListAfterDelete, indexListIntersects } from '../missions/tree';
-import { saveMissionDocument, suggestedMissionPath } from './missions-api';
+import { newFarmMissionPath, saveMissionDocument } from './missions-api';
 import type { Kinematics } from '../domain/equipment';
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error' | 'blocked';
@@ -80,16 +100,23 @@ export type EditTool =
     | 'none'
     | 'draw_line'
     | 'draw_polygon'
+    | 'edit_geofence'
+    | 'draw_geofence_exclusion'
     | 'draw_parcel'
     | 'edit_working_zone'
     | 'delete_points_zone'
     | 'select_zone'
     | 'select_sections_polygon'
+    | 'connect_ends'
     | 'ruler';
+
+export type ZonePanelMode = 'choose' | 'entities' | 'portions';
 
 export function isPolygonTool(tool: EditTool): boolean {
     return (
         tool === 'draw_polygon' ||
+        tool === 'edit_geofence' ||
+        tool === 'draw_geofence_exclusion' ||
         tool === 'draw_parcel' ||
         tool === 'edit_working_zone' ||
         tool === 'delete_points_zone' ||
@@ -98,7 +125,7 @@ export function isPolygonTool(tool: EditTool): boolean {
 }
 
 export function engineDrawTool(tool: EditTool): 'none' | 'draw_line' | 'draw_polygon' {
-    if (tool === 'none' || tool === 'select_zone') {
+    if (tool === 'none' || tool === 'select_zone' || tool === 'connect_ends') {
         return 'none';
     }
     return tool === 'draw_line' || tool === 'ruler' ? 'draw_line' : 'draw_polygon';
@@ -111,11 +138,14 @@ function toolBlocksAutosave(tool: EditTool): boolean {
 const DRAWING_HINT: Record<Exclude<EditTool, 'none'>, string> = {
     draw_line: 'tool.drawLineHint',
     draw_polygon: 'tool.drawPolygonHint',
+    edit_geofence: 'tool.editGeofenceHint',
+    draw_geofence_exclusion: 'tool.drawGeofenceExclusionHint',
     draw_parcel: 'tool.fillParcelHint',
     edit_working_zone: 'tool.workingZoneHint',
     delete_points_zone: 'tool.deleteZoneHint',
     select_zone: 'tool.selectZoneHint',
     select_sections_polygon: 'tool.selectPolygonHint',
+    connect_ends: 'tool.connectEndsHint',
     ruler: 'tool.rulerHint',
 };
 
@@ -141,7 +171,7 @@ const FAILURE_KEYS: Record<DrawLineFailure, string> = {
     trajectory_limit: 'tool.trajectoryLimit',
 };
 
-function isTypingTarget(target: EventTarget | null): boolean {
+export function isTypingTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) {
         return false;
     }
@@ -163,6 +193,11 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     const [draft, setDraft] = useState<LatLng[]>([]);
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
+    /** Off while another module owns the keyboard, e.g. the parcellaire page. */
+    const interactiveRef = useRef(true);
+    const setInteractive = useCallback((value: boolean) => {
+        interactiveRef.current = value;
+    }, []);
     const [noticeKey, setNoticeKey] = useState<string | null>(null);
     const [noticeParams, setNoticeParams] = useState<Record<string, string | number>>({});
     const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -183,6 +218,9 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
     const [hiddenIndices, setHiddenIndices] = useState<number[]>([]);
     const [lockedIndices, setLockedIndices] = useState<number[]>([]);
+    const [selectedGeofenceId, setSelectedGeofenceId] = useState<GeofenceId | null>(null);
+    const [hiddenGeofenceIds, setHiddenGeofenceIds] = useState<GeofenceId[]>([]);
+    const [lockedGeofenceIds, setLockedGeofenceIds] = useState<GeofenceId[]>([]);
     const [moveStep, setMoveStep] = useState('0.5');
     const [rotationStep, setRotationStep] = useState('5');
     const [duplicateCount, setDuplicateCount] = useState('1');
@@ -192,6 +230,15 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     const [offsetDialogOpen, setOffsetDialogOpen] = useState(false);
     const [offsetDistance, setOffsetDistance] = useState('0.5');
     const [offsetSide, setOffsetSide] = useState<DuplicateSide>('left');
+    const [zoneRing, setZoneRing] = useState<LatLng[]>([]);
+    const [zoneMode, setZoneMode] = useState<ZonePanelMode | null>(null);
+    const [zoneWorkingOn, setZoneWorkingOn] = useState(true);
+    const [zoneSpeedDraft, setZoneSpeedDraft] = useState('0.5');
+    const [fillGeofencePrompt, setFillGeofencePrompt] = useState(false);
+    const [connectFirst, setConnectFirst] = useState<RowEndpointHit | null>(null);
+    const [connectSecond, setConnectSecond] = useState<RowEndpointHit | null>(null);
+    const [connectKind, setConnectKind] = useState<EndConnectionKind | null>(null);
+    const [freeStyleOpen, setFreeStyleOpen] = useState(false);
 
     const workingRef = useRef(working);
     const draftRef = useRef(draft);
@@ -199,6 +246,9 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     const dirtyRef = useRef(dirty);
     const selectedRef = useRef(selectedIndices);
     const lockedRef = useRef(lockedIndices);
+    const lockedGeofenceRef = useRef(lockedGeofenceIds);
+    const geofenceEditRef = useRef<GeofenceId | null>(null);
+    const selectGeofenceRef = useRef<((id: GeofenceId) => void) | null>(null);
     const extendDirectionRef = useRef(extendDirection);
     const selectionDragRef = useRef<{
         start: LatLng;
@@ -215,6 +265,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     dirtyRef.current = dirty;
     selectedRef.current = selectedIndices;
     lockedRef.current = lockedIndices;
+    lockedGeofenceRef.current = lockedGeofenceIds;
     extendDirectionRef.current = extendDirection;
     coverageStrategyRef.current = coverageStrategy;
     activePathRef.current = missions.activePath;
@@ -256,6 +307,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         }
         appliedPathRef.current = missions.activePath;
         setWorking(parsed);
+        setMissionFitNonce((value) => value + 1);
         lastSavedRef.current = incoming;
         setDirty(false);
         setSaveState('idle');
@@ -264,6 +316,10 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         setSelectedIndices([]);
         setHiddenIndices([]);
         setLockedIndices([]);
+        setSelectedGeofenceId(null);
+        setHiddenGeofenceIds([]);
+        setLockedGeofenceIds([]);
+        geofenceEditRef.current = null;
         setExtendDirection(null);
         setNoticeKey(null);
         setParcelDialogOpen(false);
@@ -359,6 +415,17 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         });
     }, [coverageStrategy, parcelDialogOpen]);
 
+    const clearZoneSession = useCallback(() => {
+        setZoneRing([]);
+        setZoneMode(null);
+        setZoneWorkingOn(true);
+        setConnectFirst(null);
+        setConnectSecond(null);
+        setConnectKind(null);
+        setFillGeofencePrompt(false);
+        setFreeStyleOpen(false);
+    }, []);
+
     const startTool = useCallback(
         (next: Exclude<EditTool, 'none'>) => {
             if (selectionDragRef.current) {
@@ -369,22 +436,28 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
                 setTool('none');
                 setDraft([]);
                 setSelectedIndices([]);
+                setSelectedGeofenceId(null);
+                geofenceEditRef.current = null;
                 setExtendDirection(null);
                 setNoticeKey(null);
                 setParcelDialogOpen(false);
+                clearZoneSession();
                 return;
             }
             setTool(next);
             setDraft([]);
             setSelectedIndices([]);
+            setSelectedGeofenceId(null);
+            geofenceEditRef.current = null;
             setExtendDirection(null);
             setNoticeKey(DRAWING_HINT[next]);
             setParcelDialogOpen(false);
             setTurnsDialogOpen(false);
             setSpeedDialogOpen(false);
             setOffsetDialogOpen(false);
+            clearZoneSession();
         },
-        [tool],
+        [clearZoneSession, tool],
     );
 
     const startDrawLine = useCallback(() => {
@@ -407,8 +480,40 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         if (workingWidthM != null && workingWidthM > 0) {
             setRowSpacing(String(workingWidthM));
         }
+        const exterior = readGeofenceExterior(workingRef.current);
+        if (exterior.length >= 3) {
+            setFillGeofencePrompt(true);
+            setTool('none');
+            setDraft([]);
+            setNoticeKey('tool.fillUseGeofenceHint');
+            return;
+        }
         startTool('draw_parcel');
     }, [startTool, workingWidthM]);
+
+    const acceptFillGeofence = useCallback(() => {
+        const current = workingRef.current;
+        const ring = localRingToLatLng(current, readGeofenceExterior(current));
+        setFillGeofencePrompt(false);
+        if (ring.length < 3) {
+            startTool('draw_parcel');
+            return;
+        }
+        draftRef.current = ring;
+        setDraft(ring);
+        setTool('draw_parcel');
+        setNoticeKey('tool.fillParcelHint');
+        setParcelDialogOpen(true);
+    }, [startTool]);
+
+    const declineFillGeofence = useCallback(() => {
+        setFillGeofencePrompt(false);
+        startTool('draw_parcel');
+    }, [startTool]);
+
+    const startConnectEnds = useCallback(() => {
+        startTool('connect_ends');
+    }, [startTool]);
 
     const startRuler = useCallback(() => {
         startTool('ruler');
@@ -478,14 +583,53 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
                 syncButtons();
                 return;
             }
+            if (toolRef.current === 'connect_ends') {
+                if (connectFirst && connectSecond && connectKind === 'free') {
+                    addVertex(lngLat);
+                    return;
+                }
+                const picked = pickRowEndpoint(workingRef.current, {
+                    lat: lngLat[1],
+                    lng: lngLat[0],
+                });
+                if (!picked) {
+                    setNoticeKey('tool.connectEndsHint');
+                    return;
+                }
+                if (!connectFirst) {
+                    setConnectFirst(picked);
+                    setSelectedIndices([picked.sectionIndex]);
+                    setNoticeKey('tool.connectEndsHint');
+                    return;
+                }
+                if (!connectSecond) {
+                    setConnectSecond(picked);
+                    setSelectedIndices([connectFirst.sectionIndex, picked.sectionIndex]);
+                    setNoticeKey('connect.kindHint');
+                    return;
+                }
+                return;
+            }
             if (toolRef.current === 'select_zone') {
                 const picked = pickSectionByProximity(workingRef.current, {
                     lat: lngLat[1],
                     lng: lngLat[0],
                 });
                 if (picked === null) {
+                    const geofence = mods?.shiftKey
+                        ? null
+                        : pickGeofenceByProximity(workingRef.current, {
+                              lat: lngLat[1],
+                              lng: lngLat[0],
+                          });
+                    if (geofence !== null) {
+                        selectGeofenceRef.current?.(geofence);
+                        return;
+                    }
                     if (!mods?.shiftKey) {
                         setSelectedIndices([]);
+                        setZoneRing([]);
+                        setZoneMode(null);
                     }
                     return;
                 }
@@ -496,11 +640,15 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             }
             addVertex(lngLat);
         },
-        [addVertex, rejectIfLocked, syncButtons],
+        [addVertex, connectFirst, connectKind, connectSecond, rejectIfLocked, syncButtons],
     );
 
     const insertVertex = useCallback((afterIndex: number, lngLat: [number, number]) => {
-        if (toolRef.current === 'ruler' || toolRef.current === 'select_zone') {
+        if (
+            toolRef.current === 'ruler' ||
+            toolRef.current === 'select_zone' ||
+            toolRef.current === 'connect_ends'
+        ) {
             return;
         }
         setDraft((points) =>
@@ -528,13 +676,16 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         setTool('none');
         setDraft([]);
         setSelectedIndices([]);
+        setSelectedGeofenceId(null);
+        geofenceEditRef.current = null;
         setExtendDirection(null);
         setNoticeKey(null);
         setParcelDialogOpen(false);
         setTurnsDialogOpen(false);
         setSpeedDialogOpen(false);
         setOffsetDialogOpen(false);
-    }, []);
+        clearZoneSession();
+    }, [clearZoneSession]);
 
     const finishDrawLine = useCallback(() => {
         const currentDraft = draftRef.current;
@@ -569,6 +720,38 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         setTool('none');
         setNoticeKey('tool.geofenceAdded');
         setNoticeParams({ count: result.added });
+        syncButtons();
+    }, [syncButtons]);
+
+    const finishGeofenceEdit = useCallback(() => {
+        const currentWorking = workingRef.current;
+        const currentDraft = draftRef.current;
+        if (!currentWorking || currentDraft.length < 3) {
+            setNoticeKey('tool.tooFewPolygonPoints');
+            return;
+        }
+        const id = geofenceEditRef.current;
+        const addingExclusion = toolRef.current === 'draw_geofence_exclusion';
+        const next = addingExclusion
+            ? appendGeofenceExclusion(currentWorking, currentDraft)
+            : id
+              ? setGeofenceRing(currentWorking, id, currentDraft)
+              : null;
+        if (!next) {
+            setNoticeKey('tool.geofenceEditFailed');
+            return;
+        }
+        stackRef.current.push(currentWorking);
+        setWorking(next);
+        setDirty(true);
+        setDraft([]);
+        setTool('none');
+        geofenceEditRef.current = null;
+        if (addingExclusion) {
+            setNoticeKey('tool.geofenceExclusionAdded');
+        } else {
+            setNoticeKey('tool.geofenceUpdated');
+        }
         syncButtons();
     }, [syncButtons]);
 
@@ -740,16 +923,21 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     );
 
     const startConnectTurns = useCallback(() => {
-        const rows = (workingRef.current?.points ?? []).filter(
-            (section) => getSectionTypeString(section) === 'row_line',
+        const current = workingRef.current;
+        const selectedRows = (current?.points ?? []).filter(
+            (section, index) =>
+                selectedRef.current.includes(index) && getSectionTypeString(section) === 'row_line',
         );
+        const rows =
+            selectedRows.length >= 2
+                ? selectedRows
+                : (current?.points ?? []).filter(
+                      (section) => getSectionTypeString(section) === 'row_line',
+                  );
         if (rows.length < 2) {
             setNoticeKey('tool.connectTurnsNeedRows');
             return;
         }
-        setTool('none');
-        setDraft([]);
-        setSelectedIndices([]);
         setExtendDirection(null);
         setTurnsDialogOpen(true);
         setSpeedDialogOpen(false);
@@ -759,10 +947,21 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     const finishConnectTurns = useCallback(
         (params: ConnectTurnsParams) => {
             const currentWorking = workingRef.current;
-            const result = connectRowLinesPreservingOthers(currentWorking, {
-                ...params,
-                densifyRows: false,
-            });
+            const selectedRows = (currentWorking?.points ?? []).filter(
+                (section, index) =>
+                    selectedRef.current.includes(index) &&
+                    getSectionTypeString(section) === 'row_line',
+            );
+            const result =
+                selectedRows.length >= 2
+                    ? connectSelectedRowLines(currentWorking, selectedRef.current, {
+                          ...params,
+                          densifyRows: false,
+                      })
+                    : connectRowLinesPreservingOthers(currentWorking, {
+                          ...params,
+                          densifyRows: false,
+                      });
             if (!result.ok) {
                 setNoticeKey(TURNS_FAILURE_KEYS[result.reason]);
                 return;
@@ -771,6 +970,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             setWorking(result.document);
             setDirty(true);
             setTurnsDialogOpen(false);
+            setSelectedIndices([]);
             if (result.failures.length > 0) {
                 setNoticeKey('tool.connectTurnsPartial');
                 setNoticeParams({ turns: result.turns, failed: result.failures.length });
@@ -844,6 +1044,9 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             return;
         }
         const indices = selectSectionsIntersectingPolygon(currentWorking, currentDraft);
+        setZoneRing(currentDraft);
+        setZoneMode('choose');
+        setZoneWorkingOn(true);
         setSelectedIndices(indices);
         setDraft([]);
         setTool('select_zone');
@@ -854,6 +1057,145 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             setNoticeParams({ count: indices.length });
         }
     }, []);
+
+    const applyZoneCut = useCallback(() => {
+        const currentWorking = workingRef.current;
+        const result = deleteDrawnPointsInPolygon(currentWorking, zoneRing);
+        if (!result.ok) {
+            setNoticeKey(
+                result.reason === 'no_origin' ? 'tool.needMission' : 'tool.tooFewPolygonPoints',
+            );
+            return;
+        }
+        if (result.count === 0) {
+            setNoticeKey('tool.deleteZoneEmpty');
+            return;
+        }
+        stackRef.current.push(currentWorking);
+        setWorking(result.document);
+        setDirty(true);
+        setNoticeKey('tool.pointsDeleted');
+        setNoticeParams({ count: result.count });
+        syncButtons();
+    }, [syncButtons, zoneRing]);
+
+    const applyZoneWorking = useCallback(
+        (value: 0 | 1) => {
+            const currentWorking = workingRef.current;
+            const result = applyDrawnWorkingZone(currentWorking, zoneRing, value);
+            if (!result.ok) {
+                setNoticeKey(
+                    result.reason === 'no_origin' ? 'tool.needMission' : 'tool.tooFewPolygonPoints',
+                );
+                return;
+            }
+            setZoneWorkingOn(value === 1);
+            if (result.count === 0) {
+                setNoticeKey('tool.workingZoneEmpty');
+            } else {
+                setNoticeKey(value === 1 ? 'tool.workingZoneWork' : 'tool.workingZoneTransit');
+                setNoticeParams({ count: result.count });
+            }
+            stackRef.current.push(currentWorking);
+            setWorking(result.document);
+            setDirty(true);
+            syncButtons();
+        },
+        [syncButtons, zoneRing],
+    );
+
+    const applyZoneSpeed = useCallback(() => {
+        const value = Number(zoneSpeedDraft);
+        if (!Number.isFinite(value) || value < 0 || value > 50) {
+            setNoticeKey('tool.speedInvalid');
+            return;
+        }
+        const currentWorking = workingRef.current;
+        const result = applyDrawnSpeed(currentWorking, zoneRing, value);
+        if (!result.ok) {
+            setNoticeKey(
+                result.reason === 'no_origin' ? 'tool.needMission' : 'tool.tooFewPolygonPoints',
+            );
+            return;
+        }
+        if (result.count === 0) {
+            setNoticeKey('tool.speedNoPoints');
+            return;
+        }
+        stackRef.current.push(currentWorking);
+        setWorking(result.document);
+        setDirty(true);
+        setNoticeKey('tool.speedUpdated');
+        setNoticeParams({ count: result.count, value });
+        syncButtons();
+    }, [syncButtons, zoneRing, zoneSpeedDraft]);
+
+    const finishConnectEnds = useCallback(
+        (style: FreeLinkStyle = 'segments') => {
+            const currentWorking = workingRef.current;
+            if (!currentWorking || !connectFirst || !connectSecond || !connectKind) {
+                setNoticeKey('connect.needEnds');
+                return;
+            }
+            const origin = documentOrigin(currentWorking);
+            const speed = getCurrentTrajectorySpeed(currentWorking) ?? 0.5;
+            let result: ReturnType<typeof connectTwoRowEnds>;
+            if (connectKind === 'free' || connectKind === 'direct') {
+                const waypoints: Array<[number, number]> =
+                    connectKind === 'free' && origin
+                        ? draftRef.current.map((point) => {
+                              const local = latLngToLocal(point, origin);
+                              return [local.x, local.y];
+                          })
+                        : [];
+                result = connectTwoRowEndsFree(
+                    currentWorking,
+                    connectFirst,
+                    connectSecond,
+                    waypoints,
+                    speed,
+                    style,
+                );
+            } else {
+                result = connectTwoRowEnds(
+                    currentWorking,
+                    connectFirst,
+                    connectSecond,
+                    connectKind,
+                    speed,
+                );
+            }
+            if (!result.ok) {
+                setNoticeKey('connect.needEnds');
+                return;
+            }
+            stackRef.current.push(currentWorking);
+            setWorking(result.document);
+            setDirty(true);
+            setDraft([]);
+            setConnectFirst(null);
+            setConnectSecond(null);
+            setConnectKind(null);
+            setFreeStyleOpen(false);
+            setTool('none');
+            setSelectedIndices([]);
+            setNoticeKey('connect.added');
+            syncButtons();
+        },
+        [connectFirst, connectKind, connectSecond, syncButtons],
+    );
+
+    const requestConnectEnds = useCallback(() => {
+        if (!connectFirst || !connectSecond) {
+            setNoticeKey('connect.needEnds');
+            return;
+        }
+        if (connectKind === 'free') {
+            setFreeStyleOpen(true);
+            return;
+        }
+        finishConnectEnds('segments');
+    }, [connectFirst, connectKind, connectSecond, finishConnectEnds]);
 
     const selectIndices = useCallback((indices: number[], additive = false) => {
         if (selectionDragRef.current) {
@@ -879,8 +1221,59 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             }
             return indices;
         });
+        setSelectedGeofenceId(null);
+        geofenceEditRef.current = null;
         setNoticeKey('tool.sectionsSelected');
         setNoticeParams({ count: additive ? Math.max(indices.length, 1) : indices.length });
+    }, []);
+
+    const selectGeofence = useCallback((id: GeofenceId) => {
+        const currentWorking = workingRef.current;
+        if (!currentWorking) {
+            return;
+        }
+        setSelectedIndices([]);
+        setSelectedGeofenceId(id);
+        setExtendDirection(null);
+        setParcelDialogOpen(false);
+        setTurnsDialogOpen(false);
+        setSpeedDialogOpen(false);
+        setOffsetDialogOpen(false);
+        if (lockedGeofenceRef.current.includes(id)) {
+            setTool('none');
+            setDraft([]);
+            geofenceEditRef.current = null;
+            setNoticeKey('tree.geofence.locked');
+            return;
+        }
+        const points = localRingToLatLng(currentWorking, geofenceRing(currentWorking, id));
+        if (points.length < 3) {
+            return;
+        }
+        geofenceEditRef.current = id;
+        setDraft(points);
+        setTool('edit_geofence');
+        setNoticeKey('tool.editGeofenceHint');
+    }, []);
+
+    selectGeofenceRef.current = selectGeofence;
+
+    const startGeofenceExclusion = useCallback(() => {
+        const currentWorking = workingRef.current;
+        if (!currentWorking || geofenceRing(currentWorking, 'outer').length < 3) {
+            setNoticeKey('tool.needGeofence');
+            return;
+        }
+        if (lockedGeofenceRef.current.includes('outer')) {
+            setNoticeKey('tree.geofence.locked');
+            return;
+        }
+        setSelectedIndices([]);
+        setSelectedGeofenceId('outer');
+        geofenceEditRef.current = null;
+        setDraft([]);
+        setTool('draw_geofence_exclusion');
+        setNoticeKey('tool.drawGeofenceExclusionHint');
     }, []);
 
     const reorderTo = useCallback(
@@ -945,6 +1338,24 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         );
     }, []);
 
+    const toggleGeofenceHidden = useCallback((id: GeofenceId) => {
+        setHiddenGeofenceIds((current) =>
+            current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+        );
+    }, []);
+
+    const toggleGeofenceLocked = useCallback((id: GeofenceId) => {
+        setLockedGeofenceIds((current) =>
+            current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+        );
+        if (geofenceEditRef.current === id) {
+            geofenceEditRef.current = null;
+            setTool('none');
+            setDraft([]);
+            setNoticeKey('tree.geofence.locked');
+        }
+    }, []);
+
     const reverseSelected = useCallback(() => {
         const currentWorking = workingRef.current;
         const indices = selectedRef.current;
@@ -982,6 +1393,51 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         setNoticeParams({ count: indices.length });
         syncButtons();
     }, [rejectIfLocked, syncButtons]);
+
+    /** Delete straight from the tree, whatever the current selection is. */
+    const deleteSection = useCallback(
+        (index: number) => {
+            const currentWorking = workingRef.current;
+            if (!currentWorking || index < 0) {
+                return;
+            }
+            if (rejectIfLocked([index])) {
+                return;
+            }
+            stackRef.current.push(currentWorking);
+            setWorking(deleteSelectedSections(currentWorking, [index]));
+            setSelectedIndices([]);
+            setHiddenIndices((current) => remapIndexListAfterDelete(current, [index]));
+            setLockedIndices((current) => remapIndexListAfterDelete(current, [index]));
+            setExtendDirection(null);
+            setDirty(true);
+            setNoticeKey('tool.deletedSelected');
+            setNoticeParams({ count: 1 });
+            syncButtons();
+        },
+        [rejectIfLocked, syncButtons],
+    );
+
+    const deleteGeofenceExclusion = useCallback(
+        (id: GeofenceId) => {
+            const currentWorking = workingRef.current;
+            if (!currentWorking || lockedGeofenceRef.current.includes(id)) {
+                return;
+            }
+            const next = removeGeofenceExclusion(currentWorking, id);
+            if (!next) {
+                return;
+            }
+            stackRef.current.push(currentWorking);
+            setWorking(next);
+            setSelectedGeofenceId(null);
+            setHiddenGeofenceIds((current) => current.filter((value) => value !== id));
+            setLockedGeofenceIds((current) => current.filter((value) => value !== id));
+            setDirty(true);
+            syncButtons();
+        },
+        [syncButtons],
+    );
 
     const moveSelected = useCallback(
         (direction: 'n' | 's' | 'e' | 'w') => {
@@ -1239,6 +1695,10 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             finishDrawPolygon();
             return;
         }
+        if (current === 'edit_geofence' || current === 'draw_geofence_exclusion') {
+            finishGeofenceEdit();
+            return;
+        }
         if (current === 'draw_parcel') {
             openFillParcelDialog();
             return;
@@ -1255,14 +1715,21 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             finishSelectPolygon();
             return;
         }
+        if (current === 'connect_ends') {
+            requestConnectEnds();
+            return;
+        }
         if (current === 'select_zone' || current === 'ruler') {
             return;
         }
         finishDrawLine();
     }, [
+        finishConnectEnds,
         finishDeleteZone,
+        requestConnectEnds,
         finishDrawLine,
         finishDrawPolygon,
+        finishGeofenceEdit,
         finishSelectPolygon,
         finishWorkingZone,
         openFillParcelDialog,
@@ -1274,7 +1741,9 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             if (!current) {
                 return;
             }
-            const path = activePathRef.current ?? suggestedMissionPath(current);
+            const path =
+                activePathRef.current ??
+                (await newFarmMissionPath(current as unknown as Record<string, unknown>));
             savingRef.current = true;
             setSaveState('saving');
             try {
@@ -1331,6 +1800,18 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         [saveNow, syncButtons],
     );
 
+    const startNewDocument = useCallback(
+        (
+            document: AgriDocument,
+            notice?: { key: string; params: Record<string, string | number> },
+        ) => {
+            // A creation flow must never overwrite the mission that happened to be open before it.
+            activePathRef.current = null;
+            applyGeneratedDocument(document, notice);
+        },
+        [applyGeneratedDocument],
+    );
+
     const undo = useCallback(() => {
         if (selectionDragRef.current) {
             setWorking(selectionDragRef.current.baseline);
@@ -1379,7 +1860,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
 
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
-            if (isTypingTarget(event.target)) {
+            if (!interactiveRef.current || isTypingTarget(event.target)) {
                 return;
             }
             if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
@@ -1389,6 +1870,22 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
                 } else {
                     undo();
                 }
+                return;
+            }
+            // Mac keyboards send Backspace for the key labelled "delete".
+            if (
+                (event.key === 'Delete' || event.key === 'Backspace') &&
+                toolRef.current === 'none' &&
+                selectedRef.current.length > 0
+            ) {
+                event.preventDefault();
+                deleteSelected();
+                return;
+            }
+            if (event.key === 'Enter' && toolRef.current === 'connect_ends') {
+                event.preventDefault();
+                event.stopPropagation();
+                requestConnectEnds();
                 return;
             }
             if (
@@ -1445,7 +1942,15 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         };
         window.addEventListener('keydown', onKey, true);
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [cancelSelectionDrag, cancelTool, finishCurrent, redo, undo]);
+    }, [
+        cancelSelectionDrag,
+        cancelTool,
+        deleteSelected,
+        finishCurrent,
+        redo,
+        requestConnectEnds,
+        undo,
+    ]);
 
     const autosaveRef = useRef(createAutosave(() => undefined, 800));
 
@@ -1515,8 +2020,17 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             ? formatDistanceMeters(getDistanceMeters(start, end))
             : null;
 
+    const adopt = useCallback(
+        (path: string, payload?: unknown) => {
+            missions.adopt(path, payload);
+            setMissionFitNonce((value) => value + 1);
+        },
+        [missions],
+    );
+
     return {
         ...missions,
+        adopt,
         document: working,
         missionFitNonce,
         dirty,
@@ -1526,6 +2040,9 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         selectedIndices,
         hiddenIndices,
         lockedIndices,
+        selectedGeofenceId,
+        hiddenGeofenceIds,
+        lockedGeofenceIds,
         extendDirection,
         moveStep,
         rotationStep,
@@ -1535,6 +2052,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         rulerDistance,
         canUndo,
         canRedo,
+        setInteractive,
         noticeKey,
         noticeParams,
         sectionCount,
@@ -1542,15 +2060,42 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         startDrawLine,
         startDrawPolygon,
         startFillParcel,
+        acceptFillGeofence,
+        declineFillGeofence,
+        fillGeofencePrompt,
+        setFillGeofencePrompt,
         startWorkingZone,
         startDeleteZone,
         startConnectTurns,
+        startConnectEnds,
         startSelectZone,
+        zoneRing,
+        zoneMode,
+        setZoneMode,
+        zoneWorkingOn,
+        zoneSpeedDraft,
+        setZoneSpeedDraft,
+        applyZoneCut,
+        applyZoneWorking,
+        applyZoneSpeed,
+        connectPicked: [connectFirst, connectSecond].filter(Boolean).length,
+        connectFirst,
+        connectSecond,
+        connectKind,
+        setConnectKind,
+        requestConnectEnds,
+        finishConnectEnds,
+        freeStyleOpen,
+        setFreeStyleOpen,
         selectIndices,
         reorderSelected,
         reorderTo,
         toggleHidden,
         toggleLocked,
+        selectGeofence,
+        toggleGeofenceHidden,
+        toggleGeofenceLocked,
+        startGeofenceExclusion,
         startSelectPolygon,
         startRuler,
         startEditSpeed,
@@ -1560,6 +2105,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         moveVertex,
         finishDrawLine,
         finishDrawPolygon,
+        finishGeofenceEdit,
         finishFillParcel,
         finishWorkingZone,
         finishDeleteZone,
@@ -1568,6 +2114,8 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         finishCurrent,
         reverseSelected,
         deleteSelected,
+        deleteSection,
+        deleteGeofenceExclusion,
         moveSelected,
         rotateSelected,
         duplicateSelected,
@@ -1581,6 +2129,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         startOffset,
         finishOffset,
         applyGeneratedDocument,
+        startNewDocument,
         saveNow,
         cancelTool,
         undo,

@@ -13,10 +13,11 @@ import { connectNewRowLines, type ConnectTurnsParams, type TurnReserveOptions } 
 import { generateParallelRowLines } from './coverage';
 import {
     applyWorkingZoneInPolygon,
-    appendWorkingZoneRing,
     polygonLocalFromLatLngs,
     rebaseWorkingZoneRings,
 } from './working-zone';
+import { rebaseGeofenceExclusions } from './geofence';
+import { applySpeedInPolygon } from './speed';
 
 export type DrawLineFailure = 'too_few_points' | 'section_limit' | 'trajectory_limit';
 
@@ -118,11 +119,12 @@ export function rebaseDocument(
         })),
         geofencing: nextGeofencing,
     };
-    return rebaseWorkingZoneRings(rebased, (x, y) => {
+    const withWorkingZones = rebaseWorkingZoneRings(rebased, (x, y) => {
         const geo = localToLatLng({ x, y }, previous);
         const local = latLngToLocal(geo, next);
         return [round3(local.x), round3(local.y)];
     });
+    return rebaseGeofenceExclusions(withWorkingZones, previous, next);
 }
 
 function openWorkingDocument(
@@ -244,9 +246,26 @@ export function applyDrawnWorkingZone(
     const result = applyWorkingZoneInPolygon(opened.document, polygon, value);
     return {
         ok: true,
-        document: appendWorkingZoneRing(result.document, polygon, value),
+        document: result.document,
         count: result.count,
     };
+}
+
+export function applyDrawnSpeed(
+    document: AgriDocument | null | undefined,
+    latLngPoints: LatLng[],
+    value: number,
+): PolygonMutationResult {
+    if (latLngPoints.length < 3) {
+        return { ok: false, reason: 'too_few_points' };
+    }
+    const opened = documentForPolygonEdit(document);
+    if (!opened) {
+        return { ok: false, reason: 'no_origin' };
+    }
+    const polygon = polygonLocalFromLatLngs(latLngPoints, opened.origin);
+    const result = applySpeedInPolygon(opened.document, polygon, value);
+    return { ok: true, document: result.document, count: result.count };
 }
 
 /**

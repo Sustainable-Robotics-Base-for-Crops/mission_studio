@@ -117,10 +117,15 @@ class HtmlGenerationService:
         """Render the Mission Studio shell (L1+). Plugin slots stay identical to /app."""
         from ..config.flags import registry
 
+        from ..config.static_assets import studio_build_version
+
         flags = registry()
         flags["UI_SHELL_V2"] = True
         return self.render_template(
             "studio.html",
             user_id=user_id,
-            extra_context={"feature_flags_json": json.dumps(flags, ensure_ascii=False)},
+            extra_context={
+                "feature_flags_json": json.dumps(flags, ensure_ascii=False),
+                "studio_build_version": studio_build_version(),
+            },
         )

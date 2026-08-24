@@ -19,6 +19,7 @@ import {
     type OddProfile,
 } from '../domain/odd';
 import type { TurnKind } from '../domain/turns';
+import type { FieldSummary } from '../fields/types';
 import {
     OPERATIONS,
     PRIORITIES,
@@ -64,7 +65,9 @@ function briefFromDocument(document: AgriDocument): MissionBrief {
         priority: PRIORITIES.includes(priority as MissionPriority)
             ? (priority as MissionPriority)
             : fallback.priority,
+        name: typeof raw.name === 'string' ? raw.name : fallback.name,
         field_id: typeof raw.field_id === 'string' ? raw.field_id : fallback.field_id,
+        field_name: typeof raw.field_name === 'string' ? raw.field_name : fallback.field_name,
         row_set_id: typeof raw.row_set_id === 'string' ? raw.row_set_id : fallback.row_set_id,
         combination_id:
             typeof raw.combination_id === 'string' ? raw.combination_id : fallback.combination_id,
@@ -132,6 +135,7 @@ export function MissionMetaEditor({
     t,
     document,
     combinations,
+    fields,
     vehicles,
     implements: implementsList,
     onApplyDocument,
@@ -139,6 +143,7 @@ export function MissionMetaEditor({
     t: (key: string, params?: Record<string, string | number>) => string;
     document: AgriDocument | null | undefined;
     combinations: CombinationTwin[];
+    fields: FieldSummary[];
     vehicles: VehicleTwin[];
     implements: ImplementTwin[];
     onApplyDocument?: (document: AgriDocument) => void;
@@ -191,8 +196,38 @@ export function MissionMetaEditor({
         apply(next);
     };
 
+    const applyField = (fieldId: string) => {
+        const field = fields.find((item) => item.id === fieldId);
+        patchBrief({
+            field_id: field?.id ?? '',
+            field_name: field?.name ?? '',
+            ...(field?.campaign ? { campaign: field.campaign } : {}),
+        });
+    };
+
     return (
         <section className="studio-mission-meta" aria-label={t('mission.edit.metadata')}>
+            <h3>{t('mission.edit.field')}</h3>
+            <Select
+                id="mission-meta-field"
+                label={t('assist.field.parcel')}
+                help={t('mission.edit.field.hint')}
+                value={brief.field_id}
+                onValueChange={applyField}
+                options={[
+                    { value: '', label: t('assist.choose') },
+                    ...(brief.field_id && !fields.some((field) => field.id === brief.field_id)
+                        ? [
+                              {
+                                  value: brief.field_id,
+                                  label: brief.field_name || brief.field_id,
+                              },
+                          ]
+                        : []),
+                    ...fields.map((field) => ({ value: field.id, label: field.name })),
+                ]}
+            />
+
             <h3>{t('mission.edit.equipment')}</h3>
             <Select
                 id="mission-meta-combination"

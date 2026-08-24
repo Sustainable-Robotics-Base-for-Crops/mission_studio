@@ -132,8 +132,8 @@ describe('studio routes', () => {
             resolve(ROOT, 'frontend/src/fields/FieldsPanel.tsx'),
             'utf8',
         );
-        expect(fieldsPanel).toContain('FieldsContextPanel');
-        expect(source).toContain('FieldsToolbar');
+        expect(fieldsPanel).toContain('FieldGeometryTree');
+        expect(source).toContain('FieldsEditToolbar');
         expect(source).toContain("current.id === 'fields'");
         expect(source).toContain('Tooltip content={label} side="right"');
         expect(source).toContain('tooltipSide="right"');
@@ -163,11 +163,12 @@ describe('studio routes', () => {
         expect(catalogue).toContain('interactiveRef.current');
         expect(catalogue).toContain('setInteractive');
         const toolbar = readFileSync(
-            resolve(ROOT, 'frontend/src/fields/FieldsToolbar.tsx'),
+            resolve(ROOT, 'frontend/src/fields/FieldsEditToolbar.tsx'),
             'utf8',
         );
         expect(toolbar).toContain('studio-map-tools');
         expect(toolbar).toContain('disabled={!canFinish}');
+        expect(toolbar).toContain('data-fields-edit-toolbar');
         const shellCss = readFileSync(resolve(ROOT, 'frontend/src/styles/shell.css'), 'utf8');
         expect(shellCss).toContain('.studio-context.is-overlay');
         expect(shellCss).toContain('.studio-inspector.is-overlay');
@@ -249,7 +250,10 @@ describe('studio routes', () => {
         expect(css).toContain('.studio-tree-row');
         const treeUi = readFileSync(resolve(ROOT, 'frontend/src/missions/MissionTree.tsx'), 'utf8');
         expect(treeUi).toContain('tree.lock');
-        expect(treeUi).toContain('draggable');
+        expect(treeUi).not.toContain('tree.moveUp');
+        expect(treeUi).not.toContain('draggable=');
+        expect(treeUi).toContain('tree.geofence.outer');
+        expect(treeUi).toContain('tree.geofence.addExclusion');
         expect(treeUi).toContain('EyeOff');
         expect(treeUi).toContain('LockOpen');
         expect(css).toContain('.studio-metrics-strip');

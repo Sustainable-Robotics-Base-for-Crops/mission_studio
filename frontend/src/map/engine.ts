@@ -2,6 +2,7 @@ import type { MissionGeoJSON } from './agri-to-geojson';
 import type { BasemapId, MapView, OverlayId } from './styles';
 
 export type RowLabelMode = 'off' | 'normal' | 'large';
+export type SelectionHaloMode = 'yellow' | 'orange' | 'off';
 
 export interface MapEngine {
     attach(container: HTMLElement, view?: MapView | null): void;
@@ -16,11 +17,16 @@ export interface MapEngine {
     renderMission(geojson: MissionGeoJSON): void;
     renderCatalogue(collection: MissionGeoJSON['geofence']): void;
     fitBounds(bounds: [[number, number], [number, number]] | null): void;
-    fitToMission(): void;
+    fitToMission(): boolean;
     flyTo(lngLat: [number, number], zoom: number): void;
     showPin(lngLat: [number, number], label: string): void;
     onClick(handler: (lngLat: [number, number]) => void): () => void;
-    setDraftVertices(vertices: [number, number][]): void;
+    setDraftVertices(vertices: [number, number][], markerLimit?: number): void;
+    setOverlayPolygon(vertices: [number, number][] | null): void;
+    setSelectionHalo(mode: SelectionHaloMode): void;
+    setEndpointMarkers(
+        points: Array<{ lngLat: [number, number]; selected?: boolean }> | null,
+    ): void;
     setCoveragePreview(
         preview: {
             work: MissionGeoJSON['work'];

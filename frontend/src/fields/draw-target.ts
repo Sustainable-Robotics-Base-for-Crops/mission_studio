@@ -1,3 +1,5 @@
+import type { EditTool } from '../map/useMissionEditor';
+import type { FieldsTool } from './useFieldCatalogue';
 import type { FieldsNavId, TrafficDrawKind } from './types';
 
 export type FieldsDrawTarget =
@@ -46,13 +48,14 @@ export function fieldsDrawKind(
 }
 
 /** MapCanvas only knows line/polygon; a traffic point still needs the draw click path. */
-export function fieldsCanvasTool(
-    tool: 'select' | 'draw_polygon' | 'draw_line' | 'draw_point',
-): 'none' | 'draw_line' | 'draw_polygon' {
+export function fieldsCanvasTool(tool: FieldsTool): EditTool {
+    if (tool === 'ruler') {
+        return 'ruler';
+    }
     if (tool === 'draw_point' || tool === 'draw_line') {
         return 'draw_line';
     }
-    if (tool === 'draw_polygon') {
+    if (tool === 'draw_polygon' || tool === 'select_polygon') {
         return 'draw_polygon';
     }
     return 'none';

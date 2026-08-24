@@ -32,7 +32,19 @@ APP_STATE_FILE = "app.json"
 RECENT_LIMIT = 5
 
 #: Fields a client may change through the API. Anything else is server-owned.
-WRITABLE_KEYS = ("name", "farm_type", "start_view", "language", "theme", "ui_mode", "units")
+WRITABLE_KEYS = (
+    "name",
+    "farm_type",
+    "start_view",
+    "language",
+    "theme",
+    "ui_mode",
+    "units",
+    "field_geofence_inset_cm",
+    "speed_color_low_kmh",
+    "speed_color_mid_kmh",
+    "speed_color_high_kmh",
+)
 
 _EMPTY_APP_STATE: Dict[str, Any] = {"current_root": None, "recent_roots": []}
 

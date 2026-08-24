@@ -75,6 +75,36 @@ def test_traffic_way_and_node_crud_via_api():
         assert after["traffic_nodes"] == []
 
 
+def test_traffic_way_width_is_stored_and_exported():
+    with _client() as client:
+        field_id = client.post("/api/v1/fields", json={"name": "Site", "geometry": SQUARE}).json()[
+            "id"
+        ]
+        way = client.post(
+            f"/api/v1/fields/{field_id}/traffic-ways",
+            json={"name": "Chemin", "geometry": PATH, "width_m": 3.5},
+        )
+        assert way.status_code == 201
+        assert way.json()["width_m"] == 3.5
+        widened = client.patch(
+            f"/api/v1/fields/{field_id}/traffic-ways/{way.json()['id']}",
+            json={"width_m": 4},
+        )
+        assert widened.json()["width_m"] == 4
+        rejected = client.patch(
+            f"/api/v1/fields/{field_id}/traffic-ways/{way.json()['id']}",
+            json={"width_m": 0},
+        )
+        assert rejected.status_code == 400
+        exported = client.get(f"/api/v1/fields/{field_id}/export").json()
+        ways = [
+            feature
+            for feature in exported["features"]
+            if feature["properties"]["srbc_kind"] == "traffic_way"
+        ]
+        assert ways[0]["properties"]["width_m"] == 4
+
+
 def test_traffic_geojson_roundtrip():
     with _client() as client:
         imported = client.post(

@@ -174,10 +174,17 @@ def test_switching_farms_changes_what_is_read(repo, tmp_path):
 def test_write_farm_applies_a_patch(repo, tmp_path):
     repo.open_farm(str(tmp_path / "farm"), "Ferme XY")
 
-    updated = repo.write_farm({"farm_type": "vineyard", "ui_mode": "advanced"})
+    updated = repo.write_farm(
+        {
+            "farm_type": "vineyard",
+            "ui_mode": "advanced",
+            "field_geofence_inset_cm": 0,
+        }
+    )
 
     assert updated["farm_type"] == "vineyard"
     assert updated["ui_mode"] == "advanced"
+    assert updated["field_geofence_inset_cm"] == 0
     assert updated["name"] == "Ferme XY"
 
 

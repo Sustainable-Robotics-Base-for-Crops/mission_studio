@@ -4,12 +4,19 @@ import type { CoveragePlanResult } from '../../frontend/src/coverage/api';
 import {
     briefToMetadata,
     defaultMissionBrief,
+    missionNameTimestamp,
     missingBriefGates,
     readMissionContext,
     ringFromPolygon,
+    suggestedMissionName,
+    withMissionName,
 } from '../../frontend/src/missions/brief';
 import { composeGeneratedMission } from '../../frontend/src/missions/compose';
-import { documentOrigin, roundOriginLatLon } from '../../frontend/src/domain/draft';
+import {
+    createEmptyDocument,
+    documentOrigin,
+    roundOriginLatLon,
+} from '../../frontend/src/domain/draft';
 import { localToLatLng } from '../../frontend/src/domain/geometry';
 
 const RING = [
@@ -77,6 +84,32 @@ describe('mission brief', () => {
         ).toEqual(['overlap']);
     });
 
+    it('suggests a readable mission name and keeps the operator override', () => {
+        expect(suggestedMissionName('Binage', 'SABI expérience')).toBe('Binage — SABI expérience');
+        expect(suggestedMissionName('Binage', '  ')).toBe('Binage');
+        const metadata = briefToMetadata({
+            ...defaultMissionBrief(),
+            name: 'Binage du soir',
+            field_name: 'SABI expérience',
+        });
+        expect(metadata.name).toBe('Binage du soir');
+        expect(metadata.field_name).toBe('SABI expérience');
+        expect(briefToMetadata(defaultMissionBrief()).name).toBeNull();
+    });
+
+    it('writes only the mission name and formats its proposed timestamp', () => {
+        const document = createEmptyDocument();
+        document.metadata = { custom: 'preserved', srbc_mission_brief: { field_id: 'f1' } };
+        const renamed = withMissionName(document, ' Mission du matin ');
+
+        expect(renamed.metadata).toEqual({
+            custom: 'preserved',
+            srbc_mission_brief: { field_id: 'f1', name: 'Mission du matin' },
+        });
+        expect(document.metadata).not.toEqual(renamed.metadata);
+        expect(missionNameTimestamp(new Date(2026, 7, 22, 14, 26))).toBe('22/08/2026 14:26');
+    });
+
     it('drops the closing vertex of a GeoJSON ring', () => {
         const points = ringFromPolygon({
             type: 'Polygon',
@@ -114,6 +147,8 @@ describe('mission brief', () => {
                     operation: 'seeding',
                     campaign: '2026',
                     field_id: 'grave',
+                    field_name: 'Grave haute',
+                    name: 'Semis — Grave haute',
                     combination_id: 'srbc-hoe',
                     working_width_m: 1.2,
                 }),
@@ -121,8 +156,10 @@ describe('mission brief', () => {
         });
         expect(context).toEqual({
             operation: 'seeding',
+            name: 'Semis — Grave haute',
             campaign: '2026',
             field_id: 'grave',
+            field_name: 'Grave haute',
             combination_id: 'srbc-hoe',
             working_width_m: 1.2,
             weather_note: '',

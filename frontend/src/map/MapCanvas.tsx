@@ -5,7 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { boundsForFeatureId } from '../fields/geojson';
 import type { CoveragePreview } from '../coverage/api';
 import { agriToGeoJSON, type PolygonFeatureCollection } from './agri-to-geojson';
-import type { MapEngine, RowLabelMode } from './engine';
+import type { MapEngine, RowLabelMode, SelectionHaloMode } from './engine';
 import { createMapLibreEngine } from './maplibre-engine';
 import { PlaceSearch } from './PlaceSearch';
 import {
@@ -18,6 +18,8 @@ import {
 } from './styles';
 import { useI18n } from '../i18n/useI18n';
 import type { LatLng } from '../domain/geometry';
+import type { GeofenceId } from '../domain/geofence';
+import { DEFAULT_SPEED_STOPS, type SpeedColorStops } from '../domain/speed-style';
 import { engineDrawTool, type EditTool } from './useMissionEditor';
 
 interface MapCanvasProps {
@@ -34,6 +36,7 @@ interface MapCanvasProps {
     catalogueFitKey?: string | null;
     coveragePreview?: CoveragePreview | null;
     onMapClick?: (lngLat: [number, number], mods?: { shiftKey: boolean }) => void;
+    onMapHover?: (lngLat: [number, number] | null) => void;
     onMapDblClick?: (lngLat: [number, number]) => void;
     onInsertVertex?: (afterIndex: number, lngLat: [number, number]) => void;
     onMoveVertex?: (index: number, lngLat: [number, number]) => void;
@@ -44,6 +47,8 @@ interface MapCanvasProps {
     hitSelectedSection?: (lngLat: [number, number]) => boolean;
     metricsCaption?: string | null;
     hiddenIndices?: number[];
+    selectedGeofenceId?: GeofenceId | null;
+    hiddenGeofenceIds?: GeofenceId[];
     sweptEnvelope?: PolygonFeatureCollection | null;
     poseFootprint?: PolygonFeatureCollection | null;
     poseLngLat?: [number, number] | null;
@@ -53,6 +58,12 @@ interface MapCanvasProps {
     startView?: MapView | null;
     /** Publishes the live camera reader upward, and null once the map goes away. */
     onViewReader?: (read: (() => MapView | null) | null) => void;
+    speedStops?: SpeedColorStops;
+    overlayPolygon?: LatLng[] | null;
+    /** How many draft vertices get a handle. The rest (hover rubber-band) stay click-through. */
+    draftHandleCount?: number;
+    selectionHalo?: SelectionHaloMode;
+    endpointMarkers?: Array<{ lngLat: [number, number]; selected?: boolean }> | null;
 }
 
 export function MapCanvas({
@@ -69,6 +80,7 @@ export function MapCanvas({
     catalogueFitKey = null,
     coveragePreview = null,
     onMapClick,
+    onMapHover,
     onMapDblClick,
     onInsertVertex,
     onMoveVertex,
@@ -79,6 +91,8 @@ export function MapCanvas({
     hitSelectedSection,
     metricsCaption = null,
     hiddenIndices = [],
+    selectedGeofenceId = null,
+    hiddenGeofenceIds = [],
     sweptEnvelope = null,
     poseFootprint = null,
     poseLngLat = null,
@@ -86,12 +100,18 @@ export function MapCanvas({
     rowLabelMode = 'off',
     startView = null,
     onViewReader,
+    speedStops = DEFAULT_SPEED_STOPS,
+    overlayPolygon = null,
+    draftHandleCount,
+    selectionHalo = 'yellow',
+    endpointMarkers = null,
 }: MapCanvasProps): ReactElement {
     const { t } = useI18n();
     const hostRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const engineRef = useRef<MapEngine | null>(null);
     const onMapClickRef = useRef(onMapClick);
+    const onMapHoverRef = useRef(onMapHover);
     const onMapDblClickRef = useRef(onMapDblClick);
     const onInsertVertexRef = useRef(onInsertVertex);
     const onMoveVertexRef = useRef(onMoveVertex);
@@ -101,6 +121,7 @@ export function MapCanvas({
     const onCancelSelectionDragRef = useRef(onCancelSelectionDrag);
     const hitSelectedSectionRef = useRef(hitSelectedSection);
     onMapClickRef.current = onMapClick;
+    onMapHoverRef.current = onMapHover;
     onMapDblClickRef.current = onMapDblClick;
     onInsertVertexRef.current = onInsertVertex;
     onMoveVertexRef.current = onMoveVertex;
@@ -237,12 +258,30 @@ export function MapCanvas({
         if (!engine) {
             return;
         }
-        engine.renderMission(agriToGeoJSON(document, selectedIndices, hiddenIndices));
-        if (fitKey && fitKey !== fittedKeyRef.current) {
+        const geojson = agriToGeoJSON(
+            document,
+            selectedIndices,
+            hiddenIndices,
+            {
+                selectedId: selectedGeofenceId,
+                hiddenIds: hiddenGeofenceIds,
+            },
+            speedStops,
+        );
+        engine.renderMission(geojson);
+        if (fitKey && fitKey !== fittedKeyRef.current && geojson.bounds) {
+            engine.fitBounds(geojson.bounds);
             fittedKeyRef.current = fitKey;
-            engine.fitToMission();
         }
-    }, [document, fitKey, hiddenIndices, selectedIndices]);
+    }, [
+        document,
+        fitKey,
+        hiddenGeofenceIds,
+        hiddenIndices,
+        selectedGeofenceId,
+        selectedIndices,
+        speedStops,
+    ]);
 
     useEffect(() => {
         const engine = engineRef.current;
@@ -254,6 +293,10 @@ export function MapCanvas({
             return;
         }
         engine.renderCatalogue(catalogueGeoJSON);
+        // A loaded mission owns the camera; the parcel fit would snap back to the farm.
+        if (fitKey) {
+            return;
+        }
         if (catalogueFitKey && catalogueFitKey !== fittedCatalogueRef.current) {
             fittedCatalogueRef.current = catalogueFitKey;
             const featureId = catalogueFitKey.split('#')[0] ?? catalogueFitKey;
@@ -262,7 +305,7 @@ export function MapCanvas({
                 engine.fitBounds(bounds);
             }
         }
-    }, [catalogueFitKey, catalogueGeoJSON]);
+    }, [catalogueFitKey, catalogueGeoJSON, fitKey]);
 
     useEffect(() => {
         const engine = engineRef.current;
@@ -270,9 +313,28 @@ export function MapCanvas({
             return;
         }
         engine.setDrawTool(engineDrawTool(tool));
-        engine.setDraftVertices(draft.map((point) => [point.lng, point.lat]));
+        engine.setDraftVertices(
+            draft.map((point) => [point.lng, point.lat]),
+            draftHandleCount,
+        );
         engine.setDraftCaption(tool === 'ruler' ? draftCaption : null);
-    }, [draft, draftCaption, tool]);
+    }, [draft, draftCaption, draftHandleCount, tool]);
+
+    useEffect(() => {
+        engineRef.current?.setOverlayPolygon(
+            overlayPolygon && overlayPolygon.length >= 3
+                ? overlayPolygon.map((point) => [point.lng, point.lat])
+                : null,
+        );
+    }, [overlayPolygon]);
+
+    useEffect(() => {
+        engineRef.current?.setSelectionHalo(selectionHalo);
+    }, [selectionHalo]);
+
+    useEffect(() => {
+        engineRef.current?.setEndpointMarkers(endpointMarkers);
+    }, [endpointMarkers]);
 
     useEffect(() => {
         const engine = engineRef.current;
@@ -325,13 +387,20 @@ export function MapCanvas({
         let pointerId: number | null = null;
         const ignoreTarget = (event: Event) => {
             const target = event.target;
-            return (
-                target instanceof Element &&
-                Boolean(
+            if (!(target instanceof Element)) {
+                return false;
+            }
+            if (tool === 'ruler' && target.closest('.studio-draft-vertex, .maplibregl-marker')) {
+                return Boolean(
                     target.closest(
-                        '.studio-place-search, .maplibregl-ctrl, .maplibregl-marker, .studio-draft-vertex, button, input, select, textarea, a',
+                        '.studio-place-search, .maplibregl-ctrl, button, input, select, textarea, a',
                     ),
-                )
+                );
+            }
+            return Boolean(
+                target.closest(
+                    '.studio-place-search, .maplibregl-ctrl, .maplibregl-marker, .studio-draft-vertex, button, input, select, textarea, a',
+                ),
             );
         };
         const releaseCapture = () => {
@@ -369,6 +438,7 @@ export function MapCanvas({
             const hit = engineRef.current?.hitTestDraft(event.clientX, event.clientY);
             host.dataset.draftHit = hit?.kind ?? '';
             const lngLat = engineRef.current?.unproject(event.clientX, event.clientY);
+            onMapHoverRef.current?.(lngLat ?? null);
             if (capturing) {
                 if (!down) {
                     return;
@@ -415,14 +485,18 @@ export function MapCanvas({
             if (ignoreTarget(event) || !screenClick) {
                 return;
             }
+            if (tool === 'ruler') {
+                const picked = engineRef.current?.unproject(event.clientX, event.clientY);
+                if (picked) {
+                    onMapClickRef.current?.(picked, { shiftKey: event.shiftKey });
+                }
+                return;
+            }
             const hit = engineRef.current?.hitTestDraft(event.clientX, event.clientY);
             if (hit?.kind === 'vertex') {
                 return;
             }
             if (hit?.kind === 'edge') {
-                if (tool === 'ruler') {
-                    return;
-                }
                 onInsertVertexRef.current?.(hit.afterIndex, hit.lngLat);
                 return;
             }
@@ -446,8 +520,12 @@ export function MapCanvas({
             }
             onCancel();
         };
+        const onLeave = () => {
+            onMapHoverRef.current?.(null);
+        };
         host.addEventListener('pointerdown', onDown, true);
         host.addEventListener('pointermove', onMove);
+        host.addEventListener('pointerleave', onLeave);
         host.addEventListener('pointercancel', onCancel);
         window.addEventListener('pointerup', onUp);
         window.addEventListener('keydown', onKey);
@@ -461,6 +539,7 @@ export function MapCanvas({
             delete host.dataset.selectionDrag;
             host.removeEventListener('pointerdown', onDown, true);
             host.removeEventListener('pointermove', onMove);
+            host.removeEventListener('pointerleave', onLeave);
             host.removeEventListener('pointercancel', onCancel);
             window.removeEventListener('pointerup', onUp);
             window.removeEventListener('keydown', onKey);

@@ -1,4 +1,4 @@
-import { saveFarmMission } from '../app/farm-api';
+import { fetchFarmTree, saveFarmMission } from '../app/farm-api';
 
 export interface MissionRef {
     path: string;
@@ -196,7 +196,10 @@ export function uniquifyFarmFilename(filename: string, existing: readonly string
     return `${stem}-${Date.now()}.json`;
 }
 
-/** `AAAA-MM-DD_<parcelle-slug>_<operation-slug>.json`, with -2, -3 on collision. */
+/**
+ * `AAAA-MM-DD_<parcelle-slug>_<operation-slug>.json`, with -2, -3 on collision.
+ * When the operator named the mission, that name replaces the parcelle/operation pair.
+ */
 export function farmMissionFilename(
     document: Record<string, unknown>,
     existing: readonly string[] = [],
@@ -204,13 +207,18 @@ export function farmMissionFilename(
 ): string {
     const metadata = asRecord(document.metadata);
     const brief = asRecord(metadata?.srbc_mission_brief);
-    const field = slugifyFarmToken(String(brief?.field_id || 'parcelle')) || 'parcelle';
-    const operation = slugifyFarmToken(String(brief?.operation || 'operation')) || 'operation';
     const stamp = [
         now.getFullYear(),
         String(now.getMonth() + 1).padStart(2, '0'),
         String(now.getDate()).padStart(2, '0'),
     ].join('-');
+    const named = typeof brief?.name === 'string' ? slugifyFarmToken(brief.name) : '';
+    if (named) {
+        return uniquifyFarmFilename(`${stamp}_${named}.json`, existing);
+    }
+    const field =
+        slugifyFarmToken(String(brief?.field_name || brief?.field_id || 'parcelle')) || 'parcelle';
+    const operation = slugifyFarmToken(String(brief?.operation || 'operation')) || 'operation';
     return uniquifyFarmFilename(`${stamp}_${field}_${operation}.json`, existing);
 }
 
@@ -229,6 +237,18 @@ export function isFarmMissionPath(path: string | null | undefined): boolean {
 export function farmMissionPathFromName(filename: string): string {
     const safe = filename.toLowerCase().endsWith('.json') ? filename : `${filename}.json`;
     return `mission_order/${safe.split(/[\\/]/).pop() ?? safe}`;
+}
+
+/** First save of a Studio draft: choose a readable, collision-free farm filename. */
+export async function newFarmMissionPath(document: Record<string, unknown>): Promise<string> {
+    let existing: string[] = [];
+    try {
+        const tree = await fetchFarmTree('mission_order');
+        existing = (tree.mission_order ?? []).map((entry) => entry.name);
+    } catch {
+        // The write will surface the real farm/API error; naming itself stays deterministic.
+    }
+    return farmMissionPathFromName(farmMissionFilename(document, existing));
 }
 
 export async function saveMissionDocument(

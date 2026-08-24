@@ -18,6 +18,7 @@ interface SimulationDrawerProps {
     onCursor: (sample: PoseSample | null) => void;
     onLocate: (sample: PoseSample) => void;
     onOpenResults?: () => void;
+    embedded?: boolean;
 }
 
 export function SimulationDrawer({
@@ -28,6 +29,7 @@ export function SimulationDrawer({
     onRun,
     onCursor,
     onOpenResults,
+    embedded = false,
 }: SimulationDrawerProps): ReactElement {
     const [index, setIndex] = useState(0);
     const [playing, setPlaying] = useState(false);
@@ -79,10 +81,15 @@ export function SimulationDrawer({
     const maxIndex = Math.max((report?.samples.length ?? 1) - 1, 0);
 
     return (
-        <section className="studio-simulation" aria-label={t('simulation.title')}>
-            <header className="studio-panel-header">
-                <h2>{t('simulation.title')}</h2>
-            </header>
+        <section
+            className={embedded ? 'studio-drawer-pane' : 'studio-simulation'}
+            aria-label={t('simulation.title')}
+        >
+            {embedded ? null : (
+                <header className="studio-panel-header">
+                    <h2>{t('simulation.title')}</h2>
+                </header>
+            )}
             {stale && report ? (
                 <Banner tone="warning" icon={TriangleAlert}>
                     {t('sim.stale')}

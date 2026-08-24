@@ -7,7 +7,7 @@ import sqlite3
 import threading
 from datetime import UTC, datetime
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 9
 
 _MIGRATION_1 = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -203,6 +203,19 @@ CREATE TABLE IF NOT EXISTS combinations (
 );
 """
 
+_MIGRATION_6 = """
+CREATE TABLE IF NOT EXISTS landmarks (
+    id TEXT PRIMARY KEY,
+    field_id TEXT NOT NULL REFERENCES fields(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    name TEXT,
+    geometry TEXT NOT NULL,
+    radius_m REAL,
+    provenance TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+);
+"""
+
 _MIGRATION_5 = """
 CREATE TABLE IF NOT EXISTS publications (
     id TEXT PRIMARY KEY,
@@ -250,6 +263,7 @@ class Database:
             self._conn.executescript(_MIGRATION_3)
             self._conn.executescript(_MIGRATION_4)
             self._conn.executescript(_MIGRATION_5)
+            self._conn.executescript(_MIGRATION_6)
             columns = {
                 row[1]
                 for row in self._conn.execute("PRAGMA table_info(implements)").fetchall()
@@ -266,6 +280,12 @@ class Database:
                 self._conn.execute(
                     "ALTER TABLE combinations ADD COLUMN odd TEXT NOT NULL DEFAULT '{}'"
                 )
+            way_columns = {
+                row[1]
+                for row in self._conn.execute("PRAGMA table_info(traffic_ways)").fetchall()
+            }
+            if "width_m" not in way_columns:
+                self._conn.execute("ALTER TABLE traffic_ways ADD COLUMN width_m REAL")
             row = self._conn.execute(
                 "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
             ).fetchone()

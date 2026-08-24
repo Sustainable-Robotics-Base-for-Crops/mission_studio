@@ -144,6 +144,49 @@ def build_fields_router(runtime: EditorRuntime) -> APIRouter:
             return json_from_handler(404, {"error": "zone not found"})
         return json_from_handler(200, {"ok": True})
 
+    @router.post("/fields/{field_id}/landmarks")
+    async def add_landmark(field_id: str, request: Request):
+        if repo() is None:
+            return missing()
+        body = await request.json()
+        if not isinstance(body, dict) or not body.get("geometry"):
+            return json_from_handler(400, {"error": "geometry is required"})
+        radius_raw = body.get("radius_m")
+        try:
+            landmark = repo().add_landmark(
+                field_id,
+                kind=str(body.get("kind") or "point"),
+                geometry=body["geometry"],
+                name=body.get("name"),
+                radius_m=None if radius_raw is None or radius_raw == "" else float(radius_raw),
+                provenance=body.get("provenance") if isinstance(body.get("provenance"), dict) else {},
+            )
+        except KeyError:
+            return json_from_handler(404, {"error": "field not found"})
+        except ValueError as exc:
+            return json_from_handler(400, {"error": str(exc)})
+        return json_from_handler(201, landmark)
+
+    @router.patch("/fields/{field_id}/landmarks/{landmark_id}")
+    async def patch_landmark(field_id: str, landmark_id: str, request: Request):
+        if repo() is None:
+            return missing()
+        body = await request.json()
+        if not isinstance(body, dict):
+            return json_from_handler(400, {"error": "JSON object expected"})
+        landmark = repo().update_landmark(field_id, landmark_id, body)
+        if landmark is None:
+            return json_from_handler(404, {"error": "landmark not found"})
+        return json_from_handler(200, landmark)
+
+    @router.delete("/fields/{field_id}/landmarks/{landmark_id}")
+    def delete_landmark(field_id: str, landmark_id: str):
+        if repo() is None:
+            return missing()
+        if not repo().delete_landmark(field_id, landmark_id):
+            return json_from_handler(404, {"error": "landmark not found"})
+        return json_from_handler(200, {"ok": True})
+
     @router.post("/fields/{field_id}/obstacles")
     async def add_obstacle(field_id: str, request: Request):
         if repo() is None:
@@ -268,6 +311,29 @@ def build_fields_router(runtime: EditorRuntime) -> APIRouter:
             return json_from_handler(404, {"error": "row set not found"})
         return json_from_handler(200, {"ok": True})
 
+    @router.post("/fields/{field_id}/row-sets/{set_id}/rows")
+    async def add_row(field_id: str, set_id: str, request: Request):
+        if repo() is None:
+            return missing()
+        body = await request.json()
+        if not isinstance(body, dict) or not body.get("geometry"):
+            return json_from_handler(400, {"error": "geometry is required"})
+        number_raw = body.get("number")
+        try:
+            item = repo().add_row(
+                field_id,
+                set_id,
+                body["geometry"],
+                number=int(number_raw) if number_raw is not None and number_raw != "" else None,
+                name=body.get("name"),
+                author=body.get("author"),
+            )
+        except ValueError as exc:
+            return json_from_handler(400, {"error": str(exc)})
+        if item is None:
+            return json_from_handler(404, {"error": "row set not found"})
+        return json_from_handler(201, item)
+
     @router.patch("/fields/{field_id}/rows/{row_id}")
     async def patch_row(field_id: str, row_id: str, request: Request):
         if repo() is None:
@@ -307,6 +373,7 @@ def build_fields_router(runtime: EditorRuntime) -> APIRouter:
                 kind=str(body.get("kind") or "path"),
                 oneway=bool(body.get("oneway")),
                 speed_mps=None if speed_raw is None or speed_raw == "" else float(speed_raw),
+                width_m=body.get("width_m"),
                 provenance=body.get("provenance") if isinstance(body.get("provenance"), dict) else {},
             )
         except KeyError:

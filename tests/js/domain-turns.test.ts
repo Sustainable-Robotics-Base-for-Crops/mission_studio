@@ -4,6 +4,7 @@ import { isTurnSection, type AgriDocument, type AgriSection } from '../../fronte
 import {
     applyCorkscrewOrder,
     connectRowLinesPreservingOthers,
+    connectSelectedRowLines,
     connectNewRowLines,
     connectTurns,
     createSquareTurn,
@@ -181,5 +182,33 @@ describe('connectNewRowLines', () => {
         );
         expect(Math.max(...xs) + clearance).toBeLessThanOrEqual(10 + 1e-6);
         expect(result.sections[0]?.values[0]?.[0]).toBe(1.6);
+    });
+});
+
+describe('connectSelectedRowLines', () => {
+    it('reconnects only the chosen rows and drops the turns that touched them', () => {
+        const first = connectTurns(SNAKE_PAIR, DEFAULT_CONNECT_TURNS);
+        expect(first.ok).toBe(true);
+        if (!first.ok) {
+            return;
+        }
+        const extra = rowLine([0, 20], [10, 20]);
+        const withExtra = {
+            ...first.document,
+            points: [...first.document.points, extra],
+        };
+        const rowIndices = withExtra.points.flatMap((section, index) =>
+            section.section_type === 'row_line' && index < 3 ? [index] : [],
+        );
+        const again = connectSelectedRowLines(withExtra, rowIndices, DEFAULT_CONNECT_TURNS);
+        expect(again.ok).toBe(true);
+        if (!again.ok) {
+            return;
+        }
+        const turns = again.document.points.filter((section) => isTurnSection(section));
+        expect(turns).toHaveLength(1);
+        expect(
+            again.document.points.filter((section) => section.section_type === 'row_line'),
+        ).toHaveLength(3);
     });
 });

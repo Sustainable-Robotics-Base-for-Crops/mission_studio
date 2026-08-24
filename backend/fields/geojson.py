@@ -38,6 +38,9 @@ KIND_ALIASES = {
     "stop": "traffic_node",
     "arret": "traffic_node",
     "arrêt": "traffic_node",
+    "landmark": "landmark",
+    "reperes": "landmark",
+    "repères": "landmark",
     "intersection": "traffic_node",
 }
 
@@ -56,6 +59,8 @@ def _kind(properties: dict[str, Any], geometry_type: str) -> str | None:
         return KIND_ALIASES[raw]
     if raw in ZONE_KINDS or raw in ZONE_ALIASES:
         return "zone"
+    if raw in {"measure", "circle"} or properties.get("landmark_kind"):
+        return "landmark"
     if geometry_type == "Polygon":
         zone_raw = str(properties.get("zone_kind") or properties.get("zoneKind") or "").strip()
         if zone_raw:
@@ -85,6 +90,7 @@ def import_geojson(
         "rows": 0,
         "traffic_ways": 0,
         "traffic_nodes": 0,
+        "landmarks": 0,
     }
 
     pending: list[tuple[int, dict[str, Any], dict[str, Any], str]] = []
@@ -129,8 +135,20 @@ def import_geojson(
         author=author,
     )
     extra_fields = field_items[1:]
-    for index, _geometry, _properties, _kind_name in extra_fields:
-        errors.append({"index": index, "reason": "extra field polygon ignored"})
+    for index, geometry, properties, _kind_name in extra_fields:
+        repository.add_landmark(
+            field["id"],
+            kind="polygon",
+            geometry=geometry,
+            name=properties.get("name"),
+            provenance=(
+                properties.get("provenance")
+                if isinstance(properties.get("provenance"), dict)
+                else {}
+            ),
+        )
+        created["landmarks"] += 1
+        warnings.append({"index": index, "reason": "extra polygon stored as landmark"})
 
     pending_rows: list[tuple[int, dict[str, Any], dict[str, Any], str]] = []
     for index, geometry, properties, kind in pending:
@@ -208,6 +226,7 @@ def import_geojson(
                         and properties.get("speed_mps") != ""
                         else None
                     ),
+                    width_m=properties.get("width_m"),
                     provenance=provenance,
                     author=author,
                 )
@@ -224,6 +243,25 @@ def import_geojson(
                     author=author,
                 )
                 created["traffic_nodes"] += 1
+            elif kind == "landmark":
+                landmark_kind = str(properties.get("landmark_kind") or properties.get("kind") or "")
+                if landmark_kind not in {"measure", "circle", "polygon", "point"}:
+                    geom_type = str(geometry.get("type") or "")
+                    if geom_type == "Point":
+                        landmark_kind = "point"
+                    elif geom_type == "LineString":
+                        landmark_kind = "measure"
+                    else:
+                        landmark_kind = "polygon"
+                repository.add_landmark(
+                    field["id"],
+                    kind=landmark_kind,
+                    geometry=geometry,
+                    name=properties.get("name"),
+                    radius_m=properties.get("radius_m"),
+                    provenance=provenance,
+                )
+                created["landmarks"] += 1
         except (ValueError, KeyError, TypeError) as exc:
             errors.append({"index": index, "reason": str(exc)})
 
@@ -341,6 +379,7 @@ def export_geojson(field: dict[str, Any]) -> dict[str, Any]:
                     "kind": way.get("kind"),
                     "oneway": way.get("oneway"),
                     "speed_mps": way.get("speed_mps"),
+                    "width_m": way.get("width_m"),
                 },
                 "geometry": way.get("geometry"),
             }
@@ -356,6 +395,20 @@ def export_geojson(field: dict[str, Any]) -> dict[str, Any]:
                     "kind": node.get("kind"),
                 },
                 "geometry": node.get("geometry"),
+            }
+        )
+    for landmark in field.get("landmarks") or []:
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "srbc_kind": "landmark",
+                    "landmark_kind": landmark.get("kind"),
+                    "name": landmark.get("name"),
+                    "id": landmark.get("id"),
+                    "radius_m": landmark.get("radius_m"),
+                },
+                "geometry": landmark.get("geometry"),
             }
         )
     return {"type": "FeatureCollection", "features": features}

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { CloudOff, TriangleAlert } from 'lucide-react';
 
 import { Banner, Button } from '../design-system';
+import { polygonAreaM2 } from '../fields/geojson';
+import type { FieldSummary } from '../fields/types';
 import { farmFolderName, type FarmEntry } from './farm-api';
 import type { FarmState } from './useFarm';
 
@@ -15,8 +17,24 @@ interface HomeDashboardProps {
     farm: FarmState;
     /** Combinations come from the equipment catalogue, not from the farm folder. */
     combinationCount: number;
+    /** The visible catalogue is authoritative while parcel_map persistence is bridged. */
+    mappedFields?: FieldSummary[];
     onOpenMission?: (entry: FarmEntry) => void;
     overlay?: boolean;
+}
+
+function hectaresFromFields(fields: FieldSummary[]): number | null {
+    if (fields.length === 0) {
+        return 0;
+    }
+    const areas = fields
+        .map((field) => polygonAreaM2(field.geometry))
+        .filter((area): area is number => area !== null);
+    if (areas.length === 0) {
+        return null;
+    }
+    const hectares = areas.reduce((total, area) => total + area, 0) / 10_000;
+    return Math.round(hectares * 100) / 100;
 }
 
 function formatDate(modified: number, language: string): string {
@@ -86,6 +104,7 @@ export function HomeDashboard({
     language,
     farm,
     combinationCount,
+    mappedFields,
     onOpenMission,
     overlay = false,
 }: HomeDashboardProps): ReactElement {
@@ -97,14 +116,19 @@ export function HomeDashboard({
     const toRevalidate = missions.filter((entry) => !entry.simulated && entry.unreadable !== true);
 
     // A figure we cannot measure shows a dash and its reason, never a misleading zero.
+    const mappedHectares =
+        mappedFields === undefined ? counts.hectares : hectaresFromFields(mappedFields);
+    const mappedFieldCount = mappedFields === undefined ? counts.fields : mappedFields.length;
     const hectares =
-        counts.hectares !== null
-            ? t('home.figure.hectares', { value: counts.hectares.toLocaleString(language) })
-            : counts.fields === 0
+        mappedHectares !== null
+            ? t('home.figure.hectares', { value: mappedHectares.toLocaleString(language) })
+            : mappedFieldCount === 0
               ? t('home.figure.hectares', { value: 0 })
               : t('home.figure.none');
     const hectaresHint =
-        counts.hectares === null && counts.fields > 0 ? t('home.figure.hectares.hint') : undefined;
+        mappedHectares === null && mappedFieldCount > 0
+            ? t('home.figure.hectares.hint')
+            : undefined;
 
     return (
         <aside

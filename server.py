@@ -17,6 +17,7 @@ import http.server
 
 from backend.config.flags import is_enabled, wants_ui_shell_v2
 from backend.config.settings import Settings
+from backend.config.static_assets import studio_asset_headers
 from backend.middleware.error_middleware import ErrorMiddleware
 from backend.runtime import EditorRuntime
 
@@ -195,6 +196,8 @@ class TrajectoryHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             payload = html_content.encode("utf-8")
             self.send_header("Content-Length", str(len(payload)))
+            # The shell carries the build stamp of the bundle, so it must never be cached.
+            self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(payload)
             return
@@ -338,10 +341,10 @@ class TrajectoryHandler(http.server.BaseHTTPRequestHandler):
         if not os.path.isfile(asset_path):
             self.send_error(HTTPStatus.NOT_FOUND)
             return True
-        self._serve_file_path(asset_path)
+        self._serve_file_path(asset_path, headers=studio_asset_headers(basename))
         return True
 
-    def _serve_file_path(self, file_path: str) -> None:
+    def _serve_file_path(self, file_path: str, headers: dict[str, str] | None = None) -> None:
         if not os.path.exists(file_path) or not os.path.isfile(file_path):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -353,6 +356,8 @@ class TrajectoryHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(payload)
 

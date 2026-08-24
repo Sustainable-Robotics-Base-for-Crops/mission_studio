@@ -61,6 +61,35 @@ describe('mission tree', () => {
         expect(tree.leaves[3]?.ordinal).toBe(2);
     });
 
+    it('adds the outer geofence and exclusion areas to the tree', () => {
+        const tree = buildMissionTree({
+            points: [],
+            geofencing: {
+                columns: ['x', 'y'],
+                values: [
+                    [0, 0],
+                    [20, 0],
+                    [20, 10],
+                    [0, 10],
+                ],
+            },
+            metadata: {
+                srbc_geofence_exclusions: [
+                    [
+                        [2, 2],
+                        [4, 2],
+                        [4, 5],
+                        [2, 5],
+                    ],
+                ],
+            },
+        });
+        expect(tree.geofence).toEqual([
+            { id: 'outer', role: 'outer', ordinal: 1, area_m2: 200 },
+            { id: 'exclusion:0', role: 'exclusion', ordinal: 1, area_m2: 6 },
+        ]);
+    });
+
     it('keeps selected index after a one-step reorder', () => {
         const doc = documentOf([
             row('row_line', [0, 0], [10, 0]),

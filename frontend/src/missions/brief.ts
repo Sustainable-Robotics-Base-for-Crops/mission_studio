@@ -1,4 +1,5 @@
 import type { CoverageStrategy } from '../coverage/api';
+import { cloneJson, type AgriDocument } from '../domain/agri';
 import type { CropPackId } from '../domain/crop-pack';
 import type { GeoJSONPolygon } from '../fields/types';
 import type { LatLng } from '../domain/geometry';
@@ -23,6 +24,10 @@ export type MissionPriority = 'low' | 'normal' | 'high';
 
 export interface MissionBrief {
     operation: MissionOperation;
+    /** Operator-facing mission name. Empty means "keep the suggested name". */
+    name: string;
+    /** Field name kept beside its identifier so listings and filenames stay readable. */
+    field_name: string;
     campaign: string;
     window_from: string;
     window_to: string;
@@ -60,6 +65,8 @@ export const PRIORITIES: readonly MissionPriority[] = ['low', 'normal', 'high'];
 export function defaultMissionBrief(now = new Date()): MissionBrief {
     return {
         operation: 'hoeing',
+        name: '',
+        field_name: '',
         campaign: String(now.getFullYear()),
         window_from: '',
         window_to: '',
@@ -132,10 +139,12 @@ export function missingBriefGates(brief: MissionBrief): BriefGate[] {
 export function briefToMetadata(brief: MissionBrief): Record<string, unknown> {
     return {
         operation: brief.operation,
+        name: brief.name.trim() || null,
         campaign: brief.campaign,
         window: { from: brief.window_from || null, to: brief.window_to || null },
         priority: brief.priority,
         field_id: brief.field_id || null,
+        field_name: brief.field_name.trim() || null,
         row_set_id: brief.row_set_id || null,
         combination_id: brief.combination_id || null,
         working_width_m: brief.working_width_m,
@@ -153,8 +162,45 @@ export function briefToMetadata(brief: MissionBrief): Record<string, unknown> {
     };
 }
 
+/** Name proposed to the operator when they do not type one: "Binage — SABI expérience". */
+export function suggestedMissionName(operationLabel: string, fieldName: string): string {
+    const field = fieldName.trim();
+    return field ? `${operationLabel} — ${field}` : operationLabel;
+}
+
+/** Change only the operator-facing name and preserve every other mission metadata field. */
+export function withMissionName(document: AgriDocument, name: string): AgriDocument {
+    const next = cloneJson(document);
+    const metadata =
+        next.metadata !== null && typeof next.metadata === 'object'
+            ? (next.metadata as Record<string, unknown>)
+            : {};
+    const currentBrief =
+        metadata.srbc_mission_brief !== null && typeof metadata.srbc_mission_brief === 'object'
+            ? (metadata.srbc_mission_brief as Record<string, unknown>)
+            : {};
+    next.metadata = {
+        ...metadata,
+        srbc_mission_brief: {
+            ...currentBrief,
+            name: name.trim() || null,
+        },
+    };
+    return next;
+}
+
+/** Compact local timestamp used in the editable names proposed at mission creation. */
+export function missionNameTimestamp(now = new Date()): string {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(
+        now.getHours(),
+    )}:${pad(now.getMinutes())}`;
+}
+
 export interface MissionContext {
     operation: string | null;
+    name: string | null;
+    field_name: string | null;
     campaign: string | null;
     field_id: string | null;
     combination_id: string | null;
@@ -178,6 +224,11 @@ export function readMissionContext(document: unknown): MissionContext | null {
     const width = Number(record.working_width_m);
     return {
         operation: typeof record.operation === 'string' ? record.operation : null,
+        name: typeof record.name === 'string' && record.name.trim() ? record.name.trim() : null,
+        field_name:
+            typeof record.field_name === 'string' && record.field_name.trim()
+                ? record.field_name.trim()
+                : null,
         campaign: typeof record.campaign === 'string' && record.campaign ? record.campaign : null,
         field_id: typeof record.field_id === 'string' && record.field_id ? record.field_id : null,
         combination_id:

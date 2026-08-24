@@ -25,7 +25,7 @@ import {
     catalogueOverlayForKind,
     catalogueOverlayRank,
 } from './catalogue-style';
-import type { MapEngine, RowLabelMode } from './engine';
+import type { MapEngine, RowLabelMode, SelectionHaloMode } from './engine';
 import {
     BASEMAPS,
     initialView,
@@ -57,6 +57,7 @@ const SOURCE = {
     geofence: 'mission-geofence',
     catalogue: 'field-catalogue',
     draft: 'mission-draft',
+    zone: 'mission-zone',
 } as const;
 
 type DraftCollection = {
@@ -108,6 +109,35 @@ function setSourceData(map: MapLibreMap | null, id: string, data: SettableGeoJSO
     }
     (source as GeoJSONSource).setData(data);
     return true;
+}
+
+function overlayPolygonCollection(vertices: [number, number][]): MissionGeoJSON['geofence'] {
+    if (vertices.length < 3) {
+        return emptyPolygonCollection();
+    }
+    const ring = vertices.slice();
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    if (first && last && (first[0] !== last[0] || first[1] !== last[1])) {
+        ring.push(first);
+    }
+    return {
+        type: 'FeatureCollection',
+        features: [
+            {
+                type: 'Feature',
+                properties: { kind: 'zone' },
+                geometry: { type: 'Polygon', coordinates: [ring] },
+            },
+        ],
+    };
+}
+
+function createEndpointElement(selected: boolean): HTMLDivElement {
+    const element = document.createElement('div');
+    element.className = selected ? 'studio-row-end is-selected' : 'studio-row-end';
+    element.setAttribute('aria-hidden', 'true');
+    return element;
 }
 
 function createVertexElement(index: number): HTMLDivElement {
@@ -230,6 +260,19 @@ function addMissionLayers(map: MapLibreMap): void {
             'line-width': MAP_STYLE.geofenceWidth + MAP_STYLE.satelliteHaloExtra,
         },
     });
+    // Selection reads as a yellow glow *around* the orange stroke, never instead of it.
+    map.addLayer({
+        id: 'geofence-selected-halo',
+        type: 'line',
+        source: SOURCE.geofence,
+        filter: ['==', ['get', 'selected'], true],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+            'line-color': MAP_STYLE.selectedHalo,
+            'line-width': MAP_STYLE.selectedHaloWidth,
+            'line-opacity': MAP_STYLE.selectedHaloOpacity,
+        },
+    });
     map.addLayer({
         id: 'geofence-line',
         type: 'line',
@@ -341,7 +384,6 @@ function addMissionLayers(map: MapLibreMap): void {
             prefix: 'transit',
             color: MAP_STYLE.transit,
             width: MAP_STYLE.transitWidth,
-            dash: MAP_STYLE.transitDash,
         },
         { source: SOURCE.turn, prefix: 'turn', color: MAP_STYLE.turn, width: MAP_STYLE.turnWidth },
     ];
@@ -363,13 +405,32 @@ function addMissionLayers(map: MapLibreMap): void {
             source: layer.source,
             layout: { 'line-join': 'round', 'line-cap': 'round' },
             paint: {
-                'line-color': layer.color,
+                'line-color': ['coalesce', ['get', 'lineColor'], layer.color],
                 'line-width': layer.width,
                 ...(layer.dash ? { 'line-dasharray': layer.dash } : {}),
             },
         });
     }
 
+    map.addSource(SOURCE.zone, { type: 'geojson', data: emptyPolygonCollection() });
+    map.addLayer({
+        id: 'zone-fill',
+        type: 'fill',
+        source: SOURCE.zone,
+        paint: {
+            'fill-color': MAP_STYLE.geofenceLine,
+            'fill-opacity': 0.12,
+        },
+    });
+    map.addLayer({
+        id: 'zone-line',
+        type: 'line',
+        source: SOURCE.zone,
+        paint: {
+            'line-color': MAP_STYLE.geofenceLine,
+            'line-width': MAP_STYLE.geofenceWidth,
+        },
+    });
     map.addSource(SOURCE.draft, { type: 'geojson', data: emptyDraftCollection() });
     map.addLayer({
         id: 'draft-line',
@@ -404,6 +465,10 @@ export function createMapLibreEngine(): MapEngine {
     let lastMission: MissionGeoJSON | null = null;
     let lastCatalogue: MissionGeoJSON['geofence'] | null = null;
     let lastDraft: [number, number][] = [];
+    let lastZone: [number, number][] = [];
+    let lastSelectionHalo: SelectionHaloMode = 'yellow';
+    let lastEndpoints: Array<{ lngLat: [number, number]; selected?: boolean }> = [];
+    const endpointMarkers: Marker[] = [];
     let lastCoveragePreview: {
         work: MissionGeoJSON['work'];
         headlands: MissionGeoJSON['work'];
@@ -429,6 +494,7 @@ export function createMapLibreEngine(): MapEngine {
         guidance: true,
         rows: true,
         traffic: true,
+        landmarks: true,
         labels: true,
         envelopes: true,
         simulation: true,
@@ -447,14 +513,14 @@ export function createMapLibreEngine(): MapEngine {
         }
         const haloOn = basemap === 'satellite';
         const trajHalo = haloOn && overlayVisible.trajectories !== false ? 'visible' : 'none';
-        const parcelHalo = haloOn && overlayVisible.parcels !== false ? 'visible' : 'none';
+        const geofenceHalo = haloOn && overlayVisible.geofence !== false ? 'visible' : 'none';
         for (const id of ['work-halo', 'transit-halo', 'turn-halo']) {
             if (map.getLayer(id)) {
                 map.setLayoutProperty(id, 'visibility', trajHalo);
             }
         }
         if (map.getLayer('geofence-halo')) {
-            map.setLayoutProperty('geofence-halo', 'visibility', parcelHalo);
+            map.setLayoutProperty('geofence-halo', 'visibility', geofenceHalo);
         }
     };
 
@@ -472,10 +538,22 @@ export function createMapLibreEngine(): MapEngine {
             }
         };
         setVisibility(
-            ['work-line', 'transit-line', 'turn-line', 'selected-halo'],
+            ['work-line', 'transit-line', 'turn-line'],
             overlayVisible.trajectories !== false,
         );
-        setVisibility(['geofence-line', 'geofence-fill'], overlayVisible.parcels !== false);
+        const haloOn = lastSelectionHalo !== 'off' && overlayVisible.trajectories !== false;
+        if (instance.getLayer('selected-halo')) {
+            instance.setLayoutProperty('selected-halo', 'visibility', haloOn ? 'visible' : 'none');
+            instance.setPaintProperty(
+                'selected-halo',
+                'line-color',
+                lastSelectionHalo === 'orange' ? MAP_STYLE.geofenceLine : MAP_STYLE.selectedHalo,
+            );
+        }
+        setVisibility(
+            ['geofence-line', 'geofence-fill', 'geofence-selected-halo'],
+            overlayVisible.geofence !== false,
+        );
         applyBasemap();
     };
 
@@ -493,6 +571,34 @@ export function createMapLibreEngine(): MapEngine {
             marker.remove();
         }
         draftMarkers.length = 0;
+    };
+
+    const clearEndpointMarkers = () => {
+        for (const marker of endpointMarkers) {
+            marker.remove();
+        }
+        endpointMarkers.length = 0;
+    };
+
+    const syncEndpointMarkers = () => {
+        clearEndpointMarkers();
+        const instance = map;
+        if (!instance) {
+            return;
+        }
+        for (const point of lastEndpoints) {
+            const [lng, lat] = point.lngLat;
+            const element = createEndpointElement(point.selected === true);
+            element.addEventListener('click', (event) => {
+                event.stopPropagation();
+                for (const handler of clickHandlers) {
+                    handler([lng, lat]);
+                }
+            });
+            endpointMarkers.push(
+                new Marker({ element, anchor: 'center' }).setLngLat([lng, lat]).addTo(instance),
+            );
+        }
     };
 
     const syncCaption = () => {
@@ -655,6 +761,9 @@ export function createMapLibreEngine(): MapEngine {
                 continue;
             }
             if (overlayId === 'traffic' && overlayVisible.traffic === false) {
+                continue;
+            }
+            if (overlayId === 'landmarks' && overlayVisible.landmarks === false) {
                 continue;
             }
             const paint = catalogueKindPaint(kind);
@@ -854,11 +963,13 @@ export function createMapLibreEngine(): MapEngine {
         sizeMapSvgOverlay(overlay, canvas.clientWidth, canvas.clientHeight);
         const halo = basemap === 'satellite';
         const trajOn = overlayVisible.trajectories !== false;
-        const parcelOn = overlayVisible.parcels !== false;
-        const geofence =
-            parcelOn && lastMission
-                ? polygonFeaturesToSvgPath(lastMission.geofence.features, projectLngLat)
-                : '';
+        const geofenceOn = overlayVisible.geofence !== false;
+        const geofenceFeatures = geofenceOn && lastMission ? lastMission.geofence.features : [];
+        const geofence = polygonFeaturesToSvgPath(geofenceFeatures, projectLngLat);
+        const geofenceSelected = polygonFeaturesToSvgPath(
+            geofenceFeatures.filter((feature) => feature.properties?.selected === true),
+            projectLngLat,
+        );
         const workable =
             trajOn && lastMission
                 ? polygonFeaturesToSvgPath(lastMission.workable.features, projectLngLat)
@@ -882,6 +993,22 @@ export function createMapLibreEngine(): MapEngine {
         const closeDraft = drawTool === 'draw_polygon' && lastDraft.length >= 3;
         const draft =
             lastDraft.length >= 2 ? coordinatesToSvgPath(lastDraft, projectLngLat, closeDraft) : '';
+        if (overlay) {
+            upsertSvgPath(
+                overlay,
+                'svg-geofence-selected',
+                geofenceSelected,
+                {
+                    stroke: MAP_STYLE.selectedHalo,
+                    'stroke-width': String(MAP_STYLE.selectedHaloWidth),
+                    'stroke-opacity': geofenceSelected
+                        ? String(MAP_STYLE.selectedHaloOpacity)
+                        : '0',
+                    fill: 'none',
+                },
+                { beforeId: 'svg-geofence' },
+            );
+        }
         paintSvgPolygon('svg-geofence', geofence, MAP_STYLE.geofenceLine, { halo });
         paintCatalogueOverlay();
         paintSvgPolygon('svg-workable', workable, MAP_STYLE.fillWorkable, { halo });
@@ -891,23 +1018,25 @@ export function createMapLibreEngine(): MapEngine {
             fillOpacity: 0.1,
         });
         const selected =
-            trajOn && lastMission?.selected
+            trajOn && lastSelectionHalo !== 'off' && lastMission?.selected
                 ? lineFeaturesToSvgPath(lastMission.selected.features, projectLngLat)
                 : '';
+        const selectedColor =
+            lastSelectionHalo === 'orange' ? MAP_STYLE.geofenceLine : MAP_STYLE.selectedHalo;
         if (overlay) {
             upsertSvgPath(
                 overlay,
                 'svg-selected-halo',
                 selected,
                 {
-                    stroke: MAP_STYLE.selectedHalo,
+                    stroke: selectedColor,
                     'stroke-width': String(MAP_STYLE.selectedHaloWidth),
                     'stroke-opacity': selected ? String(MAP_STYLE.selectedHaloOpacity) : '0',
                     fill: 'none',
                 },
                 { beforeId: 'svg-work' },
             );
-            upsertSvgPath(overlay, 'svg-selected', '', { stroke: MAP_STYLE.selectedHalo });
+            upsertSvgPath(overlay, 'svg-selected', '', { stroke: selectedColor });
         }
         paintSvgLine('svg-work', work, MAP_STYLE.work, MAP_STYLE.workWidth, undefined, halo);
         paintSvgLine(
@@ -915,10 +1044,16 @@ export function createMapLibreEngine(): MapEngine {
             transit,
             MAP_STYLE.transit,
             MAP_STYLE.transitWidth,
-            '8 6',
+            undefined,
             halo,
         );
         paintSvgLine('svg-turn', turn, MAP_STYLE.turn, MAP_STYLE.turnWidth, undefined, halo);
+        const zonePath =
+            lastZone.length >= 3 ? coordinatesToSvgPath(lastZone, projectLngLat, true) : '';
+        paintSvgPolygon('svg-zone', zonePath, MAP_STYLE.geofenceLine, {
+            halo,
+            fillOpacity: 0.12,
+        });
         if (drawTool === 'draw_polygon') {
             paintSvgPolygon('svg-draft', draft, MAP_STYLE.geofenceLine, {
                 halo,
@@ -1021,9 +1156,41 @@ export function createMapLibreEngine(): MapEngine {
             engine.renderCatalogue(lastCatalogue);
         }
         engine.setDraftVertices(lastDraft);
+        engine.setOverlayPolygon(lastZone.length >= 3 ? lastZone : null);
+        engine.setSelectionHalo(lastSelectionHalo);
+        engine.setEndpointMarkers(lastEndpoints.length > 0 ? lastEndpoints : null);
         applyOverlays();
         applyCursor();
         syncOverlay();
+    };
+
+    const applyCameraFit = (bounds: [[number, number], [number, number]] | null): boolean => {
+        if (!map || !bounds) {
+            return false;
+        }
+        const instance = map;
+        const [sw, ne] = bounds;
+        const apply = () => {
+            instance.stop();
+            instance.resize();
+            if (sw[0] === ne[0] && sw[1] === ne[1]) {
+                instance.jumpTo({ center: sw, zoom: 17 });
+                return;
+            }
+            instance.fitBounds([sw, ne], {
+                padding: { top: 96, bottom: 96, left: 96, right: 96 },
+                maxZoom: 19,
+                duration: 0,
+                essential: true,
+            });
+        };
+        // Do not wait for `load` / `isStyleLoaded()`: raster tiles and setData make
+        // those false after the map is already on screen, and `load` never repeats.
+        apply();
+        if (!instance.isStyleLoaded()) {
+            instance.once('idle', apply);
+        }
+        return true;
     };
 
     return {
@@ -1070,6 +1237,7 @@ export function createMapLibreEngine(): MapEngine {
             overlay?.remove();
             overlay = null;
             clearDraftMarkers();
+            clearEndpointMarkers();
             captionMarker?.remove();
             captionMarker = null;
             map?.off('mousemove', applyCursor);
@@ -1121,26 +1289,10 @@ export function createMapLibreEngine(): MapEngine {
             syncOverlay();
         },
         fitBounds(bounds: [[number, number], [number, number]] | null) {
-            if (!map || !bounds) {
-                return;
-            }
-            const [sw, ne] = bounds;
-            if (sw[0] === ne[0] && sw[1] === ne[1]) {
-                map.easeTo({ center: sw, zoom: 18 });
-                return;
-            }
-            map.fitBounds([sw, ne], { padding: 48, maxZoom: 20, duration: 400 });
+            return applyCameraFit(bounds);
         },
         fitToMission() {
-            if (!map || !lastMission?.bounds) {
-                return;
-            }
-            const [sw, ne] = lastMission.bounds;
-            if (sw[0] === ne[0] && sw[1] === ne[1]) {
-                map.easeTo({ center: sw, zoom: 18 });
-                return;
-            }
-            map.fitBounds([sw, ne], { padding: 48, maxZoom: 20, duration: 400 });
+            return applyCameraFit(lastMission?.bounds ?? null);
         },
         flyTo(lngLat, zoom) {
             map?.easeTo({ center: lngLat, zoom, duration: 600 });
@@ -1240,7 +1392,7 @@ export function createMapLibreEngine(): MapEngine {
                 }
             };
         },
-        setDraftVertices(vertices) {
+        setDraftVertices(vertices, markerLimit) {
             if (draggingVertex !== null) {
                 lastDraft = vertices.slice();
                 syncOverlay();
@@ -1253,7 +1405,11 @@ export function createMapLibreEngine(): MapEngine {
             if (!instance) {
                 return;
             }
+            const handles = markerLimit ?? lastDraft.length;
             lastDraft.forEach((coordinates, index) => {
+                if (index >= handles) {
+                    return;
+                }
                 const lng = coordinates[0];
                 const lat = coordinates[1];
                 if (lng === undefined || lat === undefined) {
@@ -1289,6 +1445,20 @@ export function createMapLibreEngine(): MapEngine {
             setSourceData(instance, SOURCE.draft, draftCollection(lastDraft));
             syncOverlay();
             syncCaption();
+        },
+        setOverlayPolygon(vertices) {
+            lastZone = vertices && vertices.length >= 3 ? vertices.slice() : [];
+            setSourceData(map, SOURCE.zone, overlayPolygonCollection(lastZone));
+            syncOverlay();
+        },
+        setSelectionHalo(mode) {
+            lastSelectionHalo = mode;
+            applyOverlays();
+            syncOverlay();
+        },
+        setEndpointMarkers(points) {
+            lastEndpoints = points ? points.slice() : [];
+            syncEndpointMarkers();
         },
         setCoveragePreview(preview) {
             lastCoveragePreview = preview;

@@ -28,6 +28,8 @@ def _mission(field_id: str = "field-1", simulated: bool = False) -> dict:
     metadata: dict = {
         "srbc_mission_brief": {
             "field_id": field_id,
+            "field_name": "Parcelle 04",
+            "name": "Semis — Parcelle 04",
             "operation": "semis",
             "campaign": "2026",
         }
@@ -208,6 +210,8 @@ def test_tree_reads_mission_context_from_the_metadata(client, farm_root):
     assert entry["name"] == "2026-08-20_parcelle-04_semis.json"
     assert entry["path"] == "mission_order/2026-08-20_parcelle-04_semis.json"
     assert entry["field_id"] == "field-4"
+    assert entry["field_name"] == "Parcelle 04"
+    assert entry["display_name"] == "Semis — Parcelle 04"
     assert entry["operation"] == "semis"
     assert entry["simulated"] is True
 

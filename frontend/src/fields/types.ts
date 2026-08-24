@@ -112,7 +112,24 @@ export interface FieldTrafficWay {
     kind: string;
     oneway: boolean;
     speed_mps: number | null;
+    /** Swept width in metres; the corridor is drawn from the line and this width. */
+    width_m: number | null;
     geometry: GeoJSONLineString | { type: string; coordinates: unknown };
+    provenance: Record<string, unknown>;
+    created_at: string;
+}
+
+export const LANDMARK_KINDS = ['measure', 'circle', 'polygon', 'point'] as const;
+export type LandmarkKind = (typeof LANDMARK_KINDS)[number];
+
+export interface FieldLandmark {
+    id: string;
+    field_id: string;
+    kind: LandmarkKind;
+    name: string | null;
+    geometry:
+        GeoJSONLineString | GeoJSONPolygon | GeoJSONPoint | { type: string; coordinates: unknown };
+    radius_m: number | null;
     provenance: Record<string, unknown>;
     created_at: string;
 }
@@ -134,6 +151,7 @@ export interface FieldDetail extends FieldSummary {
     row_sets: FieldRowSet[];
     traffic_ways: FieldTrafficWay[];
     traffic_nodes: FieldTrafficNode[];
+    landmarks: FieldLandmark[];
     version: number;
 }
 

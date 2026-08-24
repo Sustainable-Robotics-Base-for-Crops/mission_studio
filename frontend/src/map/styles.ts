@@ -1,24 +1,27 @@
 import { COLOR } from '../design-system/tokens';
 
 export const MAP_STYLE = {
-    geofenceLine: COLOR.primary800,
-    geofenceWidth: 2,
+    /**
+     * Neon orange: the mission geofence and the field boundary are often drawn on
+     * top of each other, and the catalogue green (`field.line`) made them merge.
+     */
+    geofenceLine: '#FF7A00',
+    geofenceWidth: 3,
     work: COLOR.planned,
     workWidth: 3,
     coveragePreview: COLOR.planned,
     coveragePreviewWidth: 3,
     coverageHeadland: COLOR.warning,
     coverageHeadlandWidth: 3,
-    /** Non-worked (wz 0): CdCF slate was too close to work blue; neon magenta, still dashed. */
+    /** Non-worked (wz 0): same solid magenta as headland turns. */
     transit: '#FF2EC8',
     transitWidth: 3,
-    transitDash: [8 / 3, 6 / 3] as [number, number],
-    /** Manoeuvres: same magenta family as transit, solid (dash is what marks wz 0). */
+    /** Manoeuvres (U-turn, square): solid magenta. */
     turn: '#FF2EC8',
     turnWidth: 3,
     /**
      * Selection: neon yellow halo only. The inner stroke keeps work blue /
-     * transit-turn magenta so the operator still reads the section type.
+     * turn/transit magenta so the operator still reads the section type.
      */
     selectedHalo: '#E8FF00',
     selectedHaloWidth: 14,
@@ -106,12 +109,14 @@ export function initialView(view: MapView | null | undefined): {
 
 export const LAYER_CATALOG = [
     { id: 'trajectories', lot: null },
+    { id: 'geofence', lot: null },
     { id: 'parcels', lot: null },
     { id: 'zones', lot: null },
     { id: 'obstacles', lot: null },
     { id: 'rows', lot: null },
     { id: 'guidance', lot: null },
     { id: 'traffic', lot: null },
+    { id: 'landmarks', lot: null },
     { id: 'labels', lot: null },
     { id: 'envelopes', lot: 'L10' },
     { id: 'slopes', lot: 'L3' },

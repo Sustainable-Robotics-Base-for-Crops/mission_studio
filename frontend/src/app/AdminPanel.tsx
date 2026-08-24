@@ -4,12 +4,18 @@ import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { Banner, Button, Chip, Input, Select } from '../design-system';
 import { SUPPORTED_LANGUAGES } from '../i18n/adapter';
 import {
+    DEFAULT_FIELD_GEOFENCE_INSET_CM,
     FARM_TYPES,
     pickFarmFolder,
     type FarmStartView,
     type FarmType,
     type UiMode,
 } from './farm-api';
+import {
+    DEFAULT_SPEED_HIGH_KMH,
+    DEFAULT_SPEED_LOW_KMH,
+    DEFAULT_SPEED_MID_KMH,
+} from '../domain/speed-style';
 import type { FarmState } from './useFarm';
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -71,6 +77,18 @@ export function AdminPanel({
 }: AdminPanelProps): ReactElement {
     const document = farm.farm;
     const [name, setName] = useState(document?.name ?? '');
+    const [geofenceInsetCm, setGeofenceInsetCm] = useState(
+        String(document?.field_geofence_inset_cm ?? DEFAULT_FIELD_GEOFENCE_INSET_CM),
+    );
+    const [speedLow, setSpeedLow] = useState(
+        String(document?.speed_color_low_kmh ?? DEFAULT_SPEED_LOW_KMH),
+    );
+    const [speedMid, setSpeedMid] = useState(
+        String(document?.speed_color_mid_kmh ?? DEFAULT_SPEED_MID_KMH),
+    );
+    const [speedHigh, setSpeedHigh] = useState(
+        String(document?.speed_color_high_kmh ?? DEFAULT_SPEED_HIGH_KMH),
+    );
     const [rootDraft, setRootDraft] = useState('');
     const [newFarmName, setNewFarmName] = useState('');
     const [pickingFolder, setPickingFolder] = useState(false);
@@ -80,7 +98,20 @@ export function AdminPanel({
     // Follow a farm switch: the panel shows the farm that is open, not the one typed.
     useEffect(() => {
         setName(document?.name ?? '');
-    }, [document?.name, farm.root]);
+        setGeofenceInsetCm(
+            String(document?.field_geofence_inset_cm ?? DEFAULT_FIELD_GEOFENCE_INSET_CM),
+        );
+        setSpeedLow(String(document?.speed_color_low_kmh ?? DEFAULT_SPEED_LOW_KMH));
+        setSpeedMid(String(document?.speed_color_mid_kmh ?? DEFAULT_SPEED_MID_KMH));
+        setSpeedHigh(String(document?.speed_color_high_kmh ?? DEFAULT_SPEED_HIGH_KMH));
+    }, [
+        document?.name,
+        document?.field_geofence_inset_cm,
+        document?.speed_color_low_kmh,
+        document?.speed_color_mid_kmh,
+        document?.speed_color_high_kmh,
+        farm.root,
+    ]);
 
     const commit = useCallback(
         async (patch: Parameters<FarmState['save']>[0]) => {
@@ -372,6 +403,172 @@ export function AdminPanel({
                                 {t('admin.startView.useCurrent')}
                             </Button>
                         </div>
+                        <Input
+                            id="admin-field-geofence-inset"
+                            type="number"
+                            min={0}
+                            step={1}
+                            unit="cm"
+                            label={t('admin.fieldGeofenceInset')}
+                            help={t('admin.fieldGeofenceInset.hint')}
+                            value={geofenceInsetCm}
+                            onChange={(event) => setGeofenceInsetCm(event.target.value)}
+                            onBlur={() => {
+                                const parsed = Number(geofenceInsetCm);
+                                if (
+                                    !geofenceInsetCm.trim() ||
+                                    !Number.isFinite(parsed) ||
+                                    parsed < 0
+                                ) {
+                                    setProblem(t('admin.fieldGeofenceInset.invalid'));
+                                    return;
+                                }
+                                const current =
+                                    document.field_geofence_inset_cm ??
+                                    DEFAULT_FIELD_GEOFENCE_INSET_CM;
+                                if (parsed !== current) {
+                                    void commit({ field_geofence_inset_cm: parsed });
+                                }
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.currentTarget.blur();
+                                }
+                            }}
+                        />
+                        <Input
+                            id="admin-speed-low"
+                            type="number"
+                            min={0}
+                            step={0.05}
+                            unit="km/h"
+                            label={t('admin.speedColorLow')}
+                            help={t('admin.speedColor.hint')}
+                            value={speedLow}
+                            onChange={(event) => setSpeedLow(event.target.value)}
+                            onBlur={() => {
+                                const low = Number(speedLow);
+                                const mid = Number(speedMid);
+                                const high = Number(speedHigh);
+                                if (
+                                    !Number.isFinite(low) ||
+                                    !Number.isFinite(mid) ||
+                                    !Number.isFinite(high) ||
+                                    low < 0 ||
+                                    mid < 0 ||
+                                    high < 0 ||
+                                    low > mid ||
+                                    mid > high
+                                ) {
+                                    setProblem(t('admin.speedColor.invalid'));
+                                    return;
+                                }
+                                if (
+                                    low !==
+                                        (document.speed_color_low_kmh ?? DEFAULT_SPEED_LOW_KMH) ||
+                                    mid !==
+                                        (document.speed_color_mid_kmh ?? DEFAULT_SPEED_MID_KMH) ||
+                                    high !==
+                                        (document.speed_color_high_kmh ?? DEFAULT_SPEED_HIGH_KMH)
+                                ) {
+                                    void commit({
+                                        speed_color_low_kmh: low,
+                                        speed_color_mid_kmh: mid,
+                                        speed_color_high_kmh: high,
+                                    });
+                                }
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.currentTarget.blur();
+                                }
+                            }}
+                        />
+                        <Input
+                            id="admin-speed-mid"
+                            type="number"
+                            min={0}
+                            step={0.05}
+                            unit="km/h"
+                            label={t('admin.speedColorMid')}
+                            value={speedMid}
+                            onChange={(event) => setSpeedMid(event.target.value)}
+                            onBlur={() => {
+                                const low = Number(speedLow);
+                                const mid = Number(speedMid);
+                                const high = Number(speedHigh);
+                                if (
+                                    !Number.isFinite(low) ||
+                                    !Number.isFinite(mid) ||
+                                    !Number.isFinite(high) ||
+                                    low < 0 ||
+                                    mid < 0 ||
+                                    high < 0 ||
+                                    low > mid ||
+                                    mid > high
+                                ) {
+                                    setProblem(t('admin.speedColor.invalid'));
+                                    return;
+                                }
+                                if (
+                                    mid !== (document.speed_color_mid_kmh ?? DEFAULT_SPEED_MID_KMH)
+                                ) {
+                                    void commit({
+                                        speed_color_low_kmh: low,
+                                        speed_color_mid_kmh: mid,
+                                        speed_color_high_kmh: high,
+                                    });
+                                }
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.currentTarget.blur();
+                                }
+                            }}
+                        />
+                        <Input
+                            id="admin-speed-high"
+                            type="number"
+                            min={0}
+                            step={0.05}
+                            unit="km/h"
+                            label={t('admin.speedColorHigh')}
+                            value={speedHigh}
+                            onChange={(event) => setSpeedHigh(event.target.value)}
+                            onBlur={() => {
+                                const low = Number(speedLow);
+                                const mid = Number(speedMid);
+                                const high = Number(speedHigh);
+                                if (
+                                    !Number.isFinite(low) ||
+                                    !Number.isFinite(mid) ||
+                                    !Number.isFinite(high) ||
+                                    low < 0 ||
+                                    mid < 0 ||
+                                    high < 0 ||
+                                    low > mid ||
+                                    mid > high
+                                ) {
+                                    setProblem(t('admin.speedColor.invalid'));
+                                    return;
+                                }
+                                if (
+                                    high !==
+                                    (document.speed_color_high_kmh ?? DEFAULT_SPEED_HIGH_KMH)
+                                ) {
+                                    void commit({
+                                        speed_color_low_kmh: low,
+                                        speed_color_mid_kmh: mid,
+                                        speed_color_high_kmh: high,
+                                    });
+                                }
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.currentTarget.blur();
+                                }
+                            }}
+                        />
                         <Select
                             id="admin-language"
                             label={t('app.language')}

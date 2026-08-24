@@ -77,7 +77,14 @@ export async function applyCoverageToFields(
             continue;
         }
         const ring = ringFromPolygon(field.geometry);
-        const brief: MissionBrief = { ...input.brief, field_id: field.id, row_set_id: '' };
+        // A batch run cannot reuse one operator-typed name: each field gets its own readable one.
+        const brief: MissionBrief = {
+            ...input.brief,
+            field_id: field.id,
+            field_name: field.name,
+            name: '',
+            row_set_id: '',
+        };
         const payload = planRequest(brief, ring, input.vehicleWidthM, input.geofenceMarginM);
         if (!payload) {
             errors.push({ fieldId, name: field.name, message: 'field' });

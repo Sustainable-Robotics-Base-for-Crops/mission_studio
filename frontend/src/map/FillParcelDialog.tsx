@@ -154,3 +154,34 @@ export function FillParcelDialog({
         </Dialog>
     );
 }
+
+export function FillGeofencePrompt({
+    open,
+    onOpenChange,
+    onYes,
+    onNo,
+    t,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onYes: () => void;
+    onNo: () => void;
+    t: (key: string, params?: Record<string, string | number>) => string;
+}): ReactElement {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange} title={t('tool.fillUseGeofence')}>
+            <div className="studio-fill-dialog">
+                <h2 className="studio-fill-dialog-title">{t('tool.fillUseGeofence')}</h2>
+                <p className="studio-fill-dialog-hint">{t('tool.fillUseGeofenceHint')}</p>
+                <div className="studio-fill-dialog-actions">
+                    <Button type="button" variant="secondary" onClick={onNo}>
+                        {t('tool.fillUseGeofenceNo')}
+                    </Button>
+                    <Button type="button" variant="primary" onClick={onYes}>
+                        {t('tool.fillUseGeofenceYes')}
+                    </Button>
+                </div>
+            </div>
+        </Dialog>
+    );
+}

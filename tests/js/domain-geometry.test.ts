@@ -189,4 +189,104 @@ describe('clipPolylineOutsidePolygon', () => {
         ];
         expect(geom.clipPolylineOutsidePolygon(line, square)).toEqual([line]);
     });
+
+    it('splitPolylineByPolygon keeps the inside run between the exits', () => {
+        const runs = geom.splitPolylineByPolygon(
+            [
+                [0, 0],
+                [10, 0],
+            ],
+            square,
+        );
+        expect(runs).toHaveLength(3);
+        expect(runs[0]?.inside).toBe(false);
+        expect(runs[1]?.inside).toBe(true);
+        expect(runs[1]?.points[0]?.[0]).toBeCloseTo(4, 6);
+        expect(runs[1]?.points[1]?.[0]).toBeCloseTo(6, 6);
+        expect(runs[2]?.inside).toBe(false);
+    });
+});
+
+describe('curvePathXY', () => {
+    it('degree 1 densifies the polyline', () => {
+        const path = geom.curvePathXY(
+            [
+                [0, 0],
+                [1, 0],
+            ],
+            1,
+            0.1,
+        );
+        expect(path.length).toBeGreaterThan(5);
+        expect(path[0]).toEqual([0, 0]);
+        expect(path[path.length - 1]).toEqual([1, 0]);
+    });
+
+    it('degree 2 samples a quadratic that leaves the chord', () => {
+        const path = geom.curvePathXY(
+            [
+                [0, 0],
+                [1, 2],
+                [2, 0],
+            ],
+            2,
+            0.1,
+        );
+        const peak = Math.max(...path.map((point) => point[1]));
+        expect(peak).toBeGreaterThan(0.8);
+        expect(peak).toBeLessThan(2);
+        expect(path.length).toBeGreaterThan(10);
+    });
+});
+
+describe('smoothPathXY', () => {
+    it('passes through every vertex and keeps C1 corners', () => {
+        const knots: [number, number][] = [
+            [0, 0],
+            [2, 1],
+            [4, 0],
+        ];
+        const path = geom.smoothPathXY(knots, 0.1);
+        for (const knot of knots) {
+            const nearest = Math.min(
+                ...path.map((point) => Math.hypot(point[0] - knot[0], point[1] - knot[1])),
+            );
+            expect(nearest).toBeLessThan(1e-6);
+        }
+        expect(path.length).toBeGreaterThan(20);
+    });
+
+    it('densifies two points as a straight segment', () => {
+        const path = geom.smoothPathXY(
+            [
+                [0, 0],
+                [1, 0],
+            ],
+            0.1,
+        );
+        expect(path[0]).toEqual([0, 0]);
+        expect(path[path.length - 1]).toEqual([1, 0]);
+        expect(path.every((point) => Math.abs(point[1]) < 1e-9)).toBe(true);
+        expect(path.length).toBeGreaterThan(5);
+    });
+
+    it('honours start and end headings on a two-point U', () => {
+        const path = geom.smoothPathXY(
+            [
+                [0, 0],
+                [0, 4],
+            ],
+            0.1,
+            { start: [1, 0], end: [-1, 0] },
+        );
+        const first = path[1];
+        const last = path[path.length - 2];
+        expect(first).toBeTruthy();
+        expect(last).toBeTruthy();
+        expect(first![0]).toBeGreaterThan(0.05);
+        expect(Math.abs(first![1])).toBeLessThan(0.08);
+        expect(last![0]).toBeGreaterThan(0.05);
+        expect(Math.abs(last![1] - 4)).toBeLessThan(0.08);
+        expect(Math.max(...path.map((point) => point[0]))).toBeGreaterThan(0.5);
+    });
 });

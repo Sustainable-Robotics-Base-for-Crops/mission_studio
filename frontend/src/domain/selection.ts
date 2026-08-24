@@ -1,8 +1,9 @@
-import { reverseSection, type AgriDocument, type AgriSection } from './agri';
+import { getSectionTypeString, reverseSection, type AgriDocument, type AgriSection } from './agri';
 import { documentOrigin } from './draft';
 import {
     distance,
     latLngToLocal,
+    localToLatLng,
     pointInPolygon,
     segmentIntersectsPolygon,
     type LatLng,
@@ -103,6 +104,81 @@ export function sectionIntersectsPolygon(
         }
     }
     return false;
+}
+
+export type RowEnd = 'start' | 'end';
+
+export interface RowEndpointHit {
+    sectionIndex: number;
+    end: RowEnd;
+}
+
+export function pickRowEndpoint(
+    document: AgriDocument | null | undefined,
+    click: LatLng,
+    maxDistanceM = PICK_SECTION_MAX_M,
+): RowEndpointHit | null {
+    const origin = documentOrigin(document);
+    if (!origin || !document) {
+        return null;
+    }
+    const local = latLngToLocal(click, origin);
+    let best: RowEndpointHit | null = null;
+    let bestDistance = Infinity;
+    document.points.forEach((section, index) => {
+        if (getSectionTypeString(section) !== 'row_line') {
+            return;
+        }
+        const polyline = sectionLocalPolyline(section);
+        const first = polyline[0];
+        const last = polyline[polyline.length - 1];
+        if (first) {
+            const distanceM = distance(local.x, local.y, first[0], first[1]);
+            if (distanceM < bestDistance) {
+                bestDistance = distanceM;
+                best = { sectionIndex: index, end: 'start' };
+            }
+        }
+        if (last) {
+            const distanceM = distance(local.x, local.y, last[0], last[1]);
+            if (distanceM < bestDistance) {
+                bestDistance = distanceM;
+                best = { sectionIndex: index, end: 'end' };
+            }
+        }
+    });
+    return best && bestDistance <= maxDistanceM ? best : null;
+}
+
+export function listRowEndpoints(
+    document: AgriDocument | null | undefined,
+): Array<{ hit: RowEndpointHit; latlng: LatLng }> {
+    const origin = documentOrigin(document);
+    if (!origin || !document) {
+        return [];
+    }
+    const ends: Array<{ hit: RowEndpointHit; latlng: LatLng }> = [];
+    document.points.forEach((section, index) => {
+        if (getSectionTypeString(section) !== 'row_line') {
+            return;
+        }
+        const polyline = sectionLocalPolyline(section);
+        const first = polyline[0];
+        const last = polyline[polyline.length - 1];
+        if (first) {
+            ends.push({
+                hit: { sectionIndex: index, end: 'start' },
+                latlng: localToLatLng({ x: first[0], y: first[1] }, origin),
+            });
+        }
+        if (last) {
+            ends.push({
+                hit: { sectionIndex: index, end: 'end' },
+                latlng: localToLatLng({ x: last[0], y: last[1] }, origin),
+            });
+        }
+    });
+    return ends;
 }
 
 export function pickSectionByProximity(

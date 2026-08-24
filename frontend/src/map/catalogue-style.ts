@@ -1,7 +1,7 @@
 import { COLOR } from '../design-system/tokens';
 
 export type CatalogueOverlayId =
-    'parcels' | 'zones' | 'obstacles' | 'rows' | 'guidance' | 'traffic';
+    'parcels' | 'zones' | 'obstacles' | 'rows' | 'guidance' | 'traffic' | 'landmarks';
 
 export type CatalogueKind =
     | 'field'
@@ -16,8 +16,14 @@ export type CatalogueKind =
     | 'guidance_line'
     | 'row'
     | 'bed'
+    | 'bed_band'
     | 'traffic_way'
-    | 'traffic_node';
+    | 'traffic_band'
+    | 'traffic_node'
+    | 'landmark_measure'
+    | 'landmark_circle'
+    | 'landmark_polygon'
+    | 'landmark_point';
 
 export interface CatalogueKindPaint {
     fill: string;
@@ -56,7 +62,7 @@ export const CATALOGUE_KIND_PAINT: Record<CatalogueKind, CatalogueKindPaint> = {
     },
     traversable: {
         fill: COLOR.transit,
-        fillOpacity: 0.1,
+        fillOpacity: 0.12,
         line: COLOR.transit,
         lineWidth: 2,
         dash: [2, 2],
@@ -120,12 +126,21 @@ export const CATALOGUE_KIND_PAINT: Record<CatalogueKind, CatalogueKindPaint> = {
         dash: null,
         hatch: false,
     },
-    /** Vegetable beds (L6b): ochre fill so they read as strips, not vineyard lines. */
+    /** Vegetable beds (L6b): the median line stays readable above its cultivated band. */
     bed: {
-        fill: '#B45309',
-        fillOpacity: 0.22,
-        line: '#78350F',
+        fill: '#8B5E3C',
+        fillOpacity: 0,
+        line: '#8B5E3C',
         lineWidth: 1.5,
+        dash: null,
+        hatch: false,
+    },
+    /** Cultivated width swept around a bed median line: brown wash, no outline. */
+    bed_band: {
+        fill: '#8B5E3C',
+        fillOpacity: 0.14,
+        line: '#8B5E3C',
+        lineWidth: 0,
         dash: null,
         hatch: false,
     },
@@ -138,12 +153,53 @@ export const CATALOGUE_KIND_PAINT: Record<CatalogueKind, CatalogueKindPaint> = {
         dash: [4, 3],
         hatch: false,
     },
+    /** Width swept around a path line: dark grey wash, no outline. */
+    traffic_band: {
+        fill: '#334155',
+        fillOpacity: 0.14,
+        line: '#334155',
+        lineWidth: 0,
+        dash: null,
+        hatch: false,
+    },
     /** Gates / service / stops (L6c): filled teal disc. */
     traffic_node: {
         fill: '#0F766E',
         fillOpacity: 0.9,
         line: '#115E59',
         lineWidth: 1.5,
+        dash: null,
+        hatch: false,
+    },
+    landmark_measure: {
+        fill: '#64748B',
+        fillOpacity: 0,
+        line: '#64748B',
+        lineWidth: 1.5,
+        dash: [3, 3],
+        hatch: false,
+    },
+    landmark_circle: {
+        fill: '#64748B',
+        fillOpacity: 0.08,
+        line: '#64748B',
+        lineWidth: 1.25,
+        dash: [4, 3],
+        hatch: false,
+    },
+    landmark_polygon: {
+        fill: '#64748B',
+        fillOpacity: 0.08,
+        line: '#64748B',
+        lineWidth: 1.25,
+        dash: [4, 3],
+        hatch: false,
+    },
+    landmark_point: {
+        fill: '#64748B',
+        fillOpacity: 0.7,
+        line: '#475569',
+        lineWidth: 1.25,
         dash: null,
         hatch: false,
     },
@@ -156,6 +212,7 @@ export const CATALOGUE_OVERLAY_SWATCH: Record<CatalogueOverlayId, string> = {
     rows: CATALOGUE_KIND_PAINT.row.line,
     guidance: CATALOGUE_KIND_PAINT.guidance_line.line,
     traffic: CATALOGUE_KIND_PAINT.traffic_way.line,
+    landmarks: CATALOGUE_KIND_PAINT.landmark_measure.line,
 };
 
 const KINDS = Object.keys(CATALOGUE_KIND_PAINT) as CatalogueKind[];
@@ -170,11 +227,19 @@ export function catalogueOverlayForKind(kind: string): CatalogueOverlayId {
     if (kind === 'guidance_line') {
         return 'guidance';
     }
-    if (kind === 'row' || kind === 'bed') {
+    if (kind === 'row' || kind === 'bed' || kind === 'bed_band') {
         return 'rows';
     }
-    if (kind === 'traffic_way' || kind === 'traffic_node') {
+    if (kind === 'traffic_way' || kind === 'traffic_band' || kind === 'traffic_node') {
         return 'traffic';
+    }
+    if (
+        kind === 'landmark_measure' ||
+        kind === 'landmark_circle' ||
+        kind === 'landmark_polygon' ||
+        kind === 'landmark_point'
+    ) {
+        return 'landmarks';
     }
     return 'zones';
 }
@@ -194,6 +259,7 @@ const OVERLAY_ORDER: CatalogueOverlayId[] = [
     'rows',
     'guidance',
     'traffic',
+    'landmarks',
 ];
 
 export function catalogueOverlayRank(overlay: string): number {

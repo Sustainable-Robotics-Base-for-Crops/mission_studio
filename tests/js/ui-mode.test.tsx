@@ -9,6 +9,7 @@ import { defaultOddProfile } from '../../frontend/src/domain/odd';
 import { FieldsPanel, type FieldsPanelProps } from '../../frontend/src/fields/FieldsPanel';
 import { translate } from '../../frontend/src/i18n/adapter';
 import { EditToolbar } from '../../frontend/src/map/EditToolbar';
+import { ZoneActionPanel } from '../../frontend/src/map/ZoneActionPanel';
 import { SectionEditPanel } from '../../frontend/src/map/SectionEditPanel';
 import { MissionPanel, type MissionPanelProps } from '../../frontend/src/missions/MissionPanel';
 import { SimulationPanel } from '../../frontend/src/simulation/SimulationPanel';
@@ -27,10 +28,6 @@ vi.mock('../../frontend/src/missions/MissionAssistant', () => ({
     MissionAssistant: ({ view }: { view?: string }) => (
         <div data-testid={`mission-assistant-${view ?? 'all'}`}>{view}</div>
     ),
-}));
-
-vi.mock('../../frontend/src/fields/FieldsContextPanel', () => ({
-    FieldsContextPanel: () => <div data-testid="fields-context-panel">éditeur</div>,
 }));
 
 const farmTree = vi.mocked(fetchFarmTree);
@@ -80,12 +77,13 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
             combinations: [],
             implements: [],
             activePath: null,
+            assistant: { open: false, start: vi.fn(), close: vi.fn() },
             uiMode: 'basic' as const,
         } as unknown as MissionPanelProps;
         render(wrap(<MissionPanel {...props} />));
 
         expect(screen.queryByRole('tab', { name: 'Éditer' })).toBeNull();
-        expect(screen.getByRole('tab', { name: 'Créer' })).toBeTruthy();
+        expect(screen.getByRole('tab', { name: 'Explorer' })).toBeTruthy();
         expect(
             screen.getByRole('link', { name: 'Passer en mode avancé' }).getAttribute('href'),
         ).toBe('/administration');
@@ -110,6 +108,7 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
             combinations: [],
             implements: [],
             activePath: null,
+            assistant: { open: false, start: vi.fn(), close: vi.fn() },
             uiMode: 'advanced' as const,
         } as unknown as MissionPanelProps;
         render(wrap(<MissionPanel {...props} />));
@@ -118,7 +117,7 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
         expect(screen.queryByRole('link', { name: 'Passer en mode avancé' })).toBeNull();
     });
 
-    it('hides parcel tabs 3 and 4 in basic', () => {
+    it('hides advanced row generation in basic, not the import tabs', () => {
         const catalogue = {
             available: true,
             loading: false,
@@ -137,7 +136,7 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
         expect(screen.getByRole('link', { name: 'Passer en mode avancé' })).toBeTruthy();
     });
 
-    it('keeps all four parcel tabs in advanced', () => {
+    it('keeps two parcel tabs in advanced', () => {
         const catalogue = {
             available: true,
             loading: false,
@@ -150,11 +149,13 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
         } as unknown as FieldsPanelProps['catalogue'];
         render(wrap(<FieldsPanel t={t} catalogue={catalogue} uiMode="advanced" />));
 
-        expect(screen.getAllByRole('tab')).toHaveLength(4);
-        expect(screen.getByRole('tab', { name: 'Importer un travail réalisé' })).toBeTruthy();
+        expect(screen.getAllByRole('tab')).toHaveLength(2);
+        expect(screen.queryByRole('tab', { name: 'Importer un travail réalisé' })).toBeNull();
+        expect(screen.getByRole('tab', { name: 'Explorer' })).toBeTruthy();
+        expect(screen.getByRole('tab', { name: 'Éditer' })).toBeTruthy();
     });
 
-    it('keeps creation tools and hides offset in basic', () => {
+    it('shows the slim edit rail in basic', () => {
         const noop = vi.fn();
         render(
             wrap(
@@ -163,7 +164,6 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
                     uiMode="basic"
                     tool="none"
                     draftCount={0}
-                    selectedCount={0}
                     canUndo={false}
                     canRedo={false}
                     onSelectZone={noop}
@@ -171,33 +171,29 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
                     onDrawLine={noop}
                     onDrawPolygon={noop}
                     onFillParcel={noop}
-                    onWorkingZone={noop}
-                    onDeleteZone={noop}
-                    onConnectTurns={noop}
-                    onOffset={noop}
+                    onConnectEnds={noop}
                     onRuler={noop}
-                    onEditSpeed={noop}
                     onFinish={noop}
-                    onFinishWorkingZone={noop}
-                    onReverseSelected={noop}
-                    onDeleteSelected={noop}
                     onUndo={noop}
                     onRedo={noop}
                 />,
             ),
         );
 
-        expect(screen.getByRole('button', { name: 'Tracer une ligne' })).toBeTruthy();
-        expect(
-            screen.getByRole('button', { name: 'Tracer un polygone (limite de parcelle)' }),
-        ).toBeTruthy();
-        expect(screen.getByRole('button', { name: /zone de travail/i })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Sélectionner une entité' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Sélectionner par zone' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Tracer une trajectoire' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Remplir la parcelle' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Géo-clôture/i })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Connecter' })).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Règle' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /zone de travail/i })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Décaler' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /vitesse/i })).toBeNull();
         expect(screen.getByRole('link', { name: 'Passer en mode avancé' })).toBeTruthy();
     });
 
-    it('shows offset in advanced', () => {
+    it('hides the advanced-mode link in advanced', () => {
         const noop = vi.fn();
         render(
             wrap(
@@ -206,7 +202,6 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
                     uiMode="advanced"
                     tool="none"
                     draftCount={0}
-                    selectedCount={0}
                     canUndo={false}
                     canRedo={false}
                     onSelectZone={noop}
@@ -214,23 +209,16 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
                     onDrawLine={noop}
                     onDrawPolygon={noop}
                     onFillParcel={noop}
-                    onWorkingZone={noop}
-                    onDeleteZone={noop}
-                    onConnectTurns={noop}
-                    onOffset={noop}
+                    onConnectEnds={noop}
                     onRuler={noop}
-                    onEditSpeed={noop}
                     onFinish={noop}
-                    onFinishWorkingZone={noop}
-                    onReverseSelected={noop}
-                    onDeleteSelected={noop}
                     onUndo={noop}
                     onRedo={noop}
                 />,
             ),
         );
 
-        expect(screen.getByRole('button', { name: 'Décaler' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Connecter' })).toBeTruthy();
         expect(screen.queryByRole('link', { name: 'Passer en mode avancé' })).toBeNull();
     });
 
@@ -334,5 +322,65 @@ describe('ui_mode (L13 §8 / T13.17)', () => {
         expect(screen.getByLabelText('Combinaison')).toBeTruthy();
         expect(screen.queryByLabelText('Approbation ODD')).toBeNull();
         expect(screen.getByRole('link', { name: 'Passer en mode avancé' })).toBeTruthy();
+    });
+
+    it('offers entity and portion actions after a lasso selection', () => {
+        const onMode = vi.fn();
+        render(
+            wrap(
+                <ZoneActionPanel
+                    t={t}
+                    mode="entities"
+                    workingZoneOn
+                    speedDraft="0.5"
+                    entityTools={<p>Déplacer</p>}
+                    onMode={onMode}
+                    onCut={vi.fn()}
+                    onWorkingZone={vi.fn()}
+                    onSpeedDraft={vi.fn()}
+                    onApplySpeed={vi.fn()}
+                    onConnectTurns={vi.fn()}
+                    onReverse={vi.fn()}
+                    onDelete={vi.fn()}
+                />,
+            ),
+        );
+
+        expect(screen.getByRole('tab', { name: 'Sélection par entité' })).toBeTruthy();
+        expect(screen.getByRole('tab', { name: 'Sélection par zone' })).toBeTruthy();
+        expect(screen.getByText('Déplacer')).toBeTruthy();
+        expect(screen.getByRole('button', { name: /demi-tours/i })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Inverser le sens' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Suppression des entités' })).toBeTruthy();
+    });
+
+    it('keeps reverse and delete off the edit rail', () => {
+        const noop = vi.fn();
+        render(
+            wrap(
+                <EditToolbar
+                    t={t}
+                    uiMode="basic"
+                    tool="select_zone"
+                    draftCount={0}
+                    canUndo={false}
+                    canRedo={false}
+                    onSelectZone={noop}
+                    onSelectPolygon={noop}
+                    onDrawLine={noop}
+                    onDrawPolygon={noop}
+                    onFillParcel={noop}
+                    onConnectEnds={noop}
+                    onRuler={noop}
+                    onFinish={noop}
+                    onUndo={noop}
+                    onRedo={noop}
+                />,
+            ),
+        );
+
+        expect(screen.queryByRole('button', { name: 'Inverser le sens' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Supprimer la sélection' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Suppression des entités' })).toBeNull();
     });
 });
