@@ -59,7 +59,7 @@ import { FieldsActionPanel } from '../fields/FieldsActionPanel';
 import { FieldsEditToolbar } from '../fields/FieldsEditToolbar';
 import { DEFAULT_BED_COUNT, DEFAULT_BED_PATH_M, DEFAULT_BED_WIDTH_M } from '../fields/rows';
 import { fieldsCanvasTool, fieldsDrawKind } from '../fields/draw-target';
-import { fieldsToCollection, withoutHiddenFeatures } from '../fields/geojson';
+import { fieldsToCollection, hitCatalogue, withoutHiddenFeatures } from '../fields/geojson';
 import { useFieldCatalogue } from '../fields/useFieldCatalogue';
 import { useFieldsFollowUpForm } from '../fields/useFieldsFollowUpForm';
 import { EquipmentContextPanel } from '../equipment/EquipmentContextPanel';
@@ -394,6 +394,7 @@ export function AppShell(): ReactElement {
         vehicleWidthM: equipment.preview.vehicle?.width_m ?? null,
         geofenceMarginM: keepoutM,
         kinematics: equipment.preview.vehicle?.kinematics ?? null,
+        guidanceLines: fields.selected?.guidance_lines ?? [],
     });
     const assistant = useMissionAssistant({
         fields: fields.fields,
@@ -470,6 +471,13 @@ export function AppShell(): ReactElement {
     const onAdmin = current.id === 'admin' && !onDesignSystem;
     const missionTree = useMemo(() => buildMissionTree(editor.document), [editor.document]);
     const missionContext = useMemo(() => readMissionContext(editor.document), [editor.document]);
+    useEffect(() => {
+        const fieldId = missionContext?.field_id;
+        if (!onMissions || !fieldId || fields.selectedId === fieldId) {
+            return;
+        }
+        fields.select(fieldId);
+    }, [fields.select, fields.selectedId, missionContext?.field_id, onMissions]);
     const selectionLocked = indexListIntersects(editor.selectedIndices, editor.lockedIndices);
     const fieldLabel = missionContext?.field_id
         ? (fields.fields.find((item) => item.id === missionContext.field_id)?.name ??
@@ -1255,6 +1263,7 @@ export function AppShell(): ReactElement {
                         assistant={assistant}
                         fields={fields.fields}
                         selectedField={fields.selected}
+                        onSelectField={(id, options) => fields.select(id, options)}
                         fieldsAvailable={fields.available}
                         combinations={equipment.combinations}
                         implements={equipment.implements}
@@ -1450,9 +1459,30 @@ export function AppShell(): ReactElement {
                             onMapClick={
                                 onFields
                                     ? fields.handleMapClick
-                                    : editor.tool === 'none'
-                                      ? undefined
-                                      : editor.handleMapClick
+                                    : editor.parcelDialogOpen
+                                      ? (lngLat) => {
+                                            const hit = hitCatalogue(
+                                                fields.fields,
+                                                fields.childrenByField,
+                                                lngLat[0],
+                                                lngLat[1],
+                                            );
+                                            if (hit?.type !== 'guidance') {
+                                                return;
+                                            }
+                                            editor.setCoverageGuidanceLineId(hit.id);
+                                            editor.setCoverageStrategy('guidance');
+                                            fields.select(hit.fieldId, {
+                                                focus: {
+                                                    kind: 'guidance',
+                                                    fieldId: hit.fieldId,
+                                                    id: hit.id,
+                                                },
+                                            });
+                                        }
+                                      : editor.tool === 'none'
+                                        ? undefined
+                                        : editor.handleMapClick
                             }
                             onMapHover={onFields ? fields.handleMapHover : undefined}
                             onMapDblClick={onFields ? fields.handleMapDblClick : undefined}
@@ -1509,9 +1539,12 @@ export function AppShell(): ReactElement {
                             overlayPolygon={
                                 onFields && fields.circlePreview.length >= 3
                                     ? fields.circlePreview
-                                    : editor.zoneMode === 'choose' || editor.zoneMode === 'portions'
-                                      ? editor.zoneRing
-                                      : null
+                                    : onFields && fields.lassoOverlay.length >= 3
+                                      ? fields.lassoOverlay
+                                      : editor.zoneMode === 'choose' ||
+                                          editor.zoneMode === 'portions'
+                                        ? editor.zoneRing
+                                        : null
                             }
                             selectionHalo={editor.zoneMode === 'portions' ? 'off' : 'yellow'}
                             endpointMarkers={
@@ -1584,7 +1617,13 @@ export function AppShell(): ReactElement {
                                 onSelectPolygon={editor.startSelectPolygon}
                                 onDrawLine={editor.startDrawLine}
                                 onDrawPolygon={editor.startDrawPolygon}
-                                onFillParcel={editor.startFillParcel}
+                                onFillParcel={() => {
+                                    const fieldId = missionContext?.field_id;
+                                    if (fieldId) {
+                                        fields.select(fieldId);
+                                    }
+                                    editor.startFillParcel();
+                                }}
                                 onConnectEnds={editor.startConnectEnds}
                                 onRuler={editor.startRuler}
                                 onFinish={editor.finishCurrent}
@@ -1666,8 +1705,25 @@ export function AppShell(): ReactElement {
                             connectTurns={editor.connectAfterFill}
                             variants={editor.coverageVariants}
                             variantsLoading={editor.coverageVariantsLoading}
+                            guidanceLines={editor.coverageGuidanceLines.map((line, index) => ({
+                                id: line.id,
+                                label:
+                                    line.name?.trim() ||
+                                    t('tool.coverageGuidanceLine.unnamed', { n: index + 1 }),
+                            }))}
+                            guidanceLineId={editor.coverageGuidanceLineId}
                             onSpacing={editor.setRowSpacing}
                             onStrategy={editor.setCoverageStrategy}
+                            onGuidanceLine={(id) => {
+                                editor.setCoverageGuidanceLineId(id);
+                                editor.setCoverageStrategy('guidance');
+                                const fieldId = fields.selectedId ?? missionContext?.field_id;
+                                if (fieldId) {
+                                    fields.select(fieldId, {
+                                        focus: { kind: 'guidance', fieldId, id },
+                                    });
+                                }
+                            }}
                             onHeadlandWidth={editor.setHeadlandWidth}
                             onConnectTurns={editor.setConnectAfterFill}
                             onOpenChange={editor.setParcelDialogOpen}

@@ -1,4 +1,4 @@
-import { fetchFarmTree, saveFarmMission } from '../app/farm-api';
+import { fetchFarm, fetchFarmMission, fetchFarmTree, saveFarmMission, type FarmTree } from '../app/farm-api';
 
 export interface MissionRef {
     path: string;
@@ -51,15 +51,28 @@ export function flattenMissionList(groups: unknown): MissionRef[] {
     return result;
 }
 
+/** Studio lists only `mission_order/` of the open farm. `/app` keeps `uploads/`. */
+export function missionsFromFarmTree(tree: FarmTree): MissionRef[] {
+    return (tree.mission_order ?? []).map((entry) => ({
+        path: entry.path,
+        name: entry.display_name || entry.name,
+        type: 'mission_order',
+        vehicle: 'v1',
+    }));
+}
+
 export async function fetchMissionList(): Promise<MissionRef[]> {
-    const response = await fetch('/api/trajectories');
-    if (!response.ok) {
-        throw new Error(`GET /api/trajectories failed (${response.status})`);
+    const farm = await fetchFarm();
+    if (!farm.farm) {
+        return [];
     }
-    return flattenMissionList(await response.json());
+    return missionsFromFarmTree(await fetchFarmTree('mission_order'));
 }
 
 export async function fetchMissionDocument(path: string): Promise<unknown> {
+    if (isFarmMissionPath(path)) {
+        return fetchFarmMission(path);
+    }
     const response = await fetch(`/api/trajectories/${encodeURIComponent(path)}`);
     if (!response.ok) {
         throw new Error(`GET /api/trajectories/${path} failed (${response.status})`);

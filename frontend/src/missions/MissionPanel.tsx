@@ -41,6 +41,7 @@ export type MissionPanelProps = Omit<MissionAssistantProps, 'view'> & {
     uiMode?: UiMode;
     fieldGeofenceInsetCm?: number;
     onTabChange?: (tab: string) => void;
+    onSelectField?: (id: string, options?: { fit?: boolean }) => void;
 };
 
 function displayName(entry: FarmEntry, fields: FieldSummary[], t: MissionPanelProps['t']): string {
@@ -198,6 +199,7 @@ export function MissionPanel(props: MissionPanelProps): ReactElement {
         uiMode,
         fieldGeofenceInsetCm,
         onTabChange,
+        onSelectField,
     } = props;
     const advanced = isAdvancedUi(uiMode);
     const [defaultTab, setDefaultTab] = useState('explore');
@@ -324,6 +326,7 @@ export function MissionPanel(props: MissionPanelProps): ReactElement {
             }
             assistant.close();
             setPickingField(false);
+            onSelectField?.(source.id, { fit: true });
             setPendingName(
                 `${source.name} — ${t('mission.create.defaultMission')} — ${missionNameTimestamp()}`,
             );

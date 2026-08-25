@@ -1,6 +1,11 @@
 import type { AgriSection } from '../domain/agri';
 
-export type CoverageStrategy = 'boustrophedon' | 'snake' | 'perpendicular' | 'best_nswath';
+export type CoverageStrategy =
+    | 'boustrophedon'
+    | 'snake'
+    | 'perpendicular'
+    | 'best_nswath'
+    | 'guidance';
 
 export interface CoveragePlanRequest {
     ring?: Array<{ lat: number; lng: number }>;
@@ -14,6 +19,8 @@ export interface CoveragePlanRequest {
     overlap_m?: number;
     field_id?: string;
     row_set_id?: string;
+    heading_rad?: number;
+    guidance_heading_rad?: number;
 }
 
 export interface CoverageVariant {

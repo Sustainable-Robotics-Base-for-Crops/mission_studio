@@ -86,7 +86,8 @@ function briefFromDocument(document: AgriDocument): MissionBrief {
         strategy:
             raw.strategy === 'boustrophedon' ||
             raw.strategy === 'perpendicular' ||
-            raw.strategy === 'best_nswath'
+            raw.strategy === 'best_nswath' ||
+            raw.strategy === 'guidance'
                 ? raw.strategy
                 : fallback.strategy,
         headland_width_m: Number.isFinite(Number(raw.headland_width_m))

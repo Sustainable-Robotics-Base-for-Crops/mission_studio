@@ -262,7 +262,10 @@ class FarmRepository:
                 if not isinstance(feature, dict):
                     continue
                 properties = feature.get("properties") or {}
-                if not isinstance(properties, dict) or properties.get("kind") != "field":
+                if not isinstance(properties, dict):
+                    continue
+                kind = properties.get("srbc_kind") or properties.get("kind")
+                if kind != "field":
                     continue
                 area = polygon_area_m2(feature.get("geometry"))
                 if area:

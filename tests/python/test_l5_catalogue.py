@@ -153,6 +153,25 @@ def test_geojson_import_export_roundtrip(tmp_path):
     assert kinds == ["field", "zone", "obstacle", "guidance_line"]
 
 
+def test_geojson_import_keeps_field_id(tmp_path):
+    repo = _repo(tmp_path)
+    report = import_geojson(
+        repo,
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"name": "Santenay", "srbc_kind": "field", "id": "field-santenay"},
+                    "geometry": SQUARE,
+                }
+            ],
+        },
+    )
+    assert report["ok"] is True
+    assert report["field"]["id"] == "field-santenay"
+
+
 def test_echo_job_runs_inline(tmp_path):
     queue = JobQueue(Database(str(tmp_path / "jobs.sqlite")))
     job = queue.enqueue("echo", {"hello": "world"})

@@ -684,6 +684,7 @@ export function createMapLibreEngine(): MapEngine {
             fill?: string;
             strokeWidth?: number;
             dataFill?: boolean;
+            fillRule?: 'nonzero' | 'evenodd';
         } = {},
     ) => {
         if (!overlay) {
@@ -713,7 +714,7 @@ export function createMapLibreEngine(): MapEngine {
             'stroke-dasharray': options.dash ?? 'none',
             fill: options.fill ?? color,
             'fill-opacity': String(fillOpacity),
-            'fill-rule': 'nonzero',
+            'fill-rule': options.fillRule ?? 'nonzero',
             'data-fill': options.dataFill === true && fillOpacity > 0 ? '1' : '0',
         };
         upsertSvgPath(overlay, id, d, attrs);
@@ -834,11 +835,14 @@ export function createMapLibreEngine(): MapEngine {
             if (geometry.type !== 'Polygon') {
                 continue;
             }
-            const ring = (geometry.coordinates as number[][][] | undefined)?.[0];
-            if (!Array.isArray(ring)) {
+            const rings = geometry.coordinates as number[][][] | undefined;
+            if (!Array.isArray(rings) || !Array.isArray(rings[0])) {
                 continue;
             }
-            const d = coordinatesToSvgPath(ring as Array<[number, number]>, projectLngLat, true);
+            const d = rings
+                .filter((ring): ring is Array<[number, number]> => Array.isArray(ring))
+                .map((ring) => coordinatesToSvgPath(ring, projectLngLat, true))
+                .join('');
             if (!d) {
                 continue;
             }
@@ -852,6 +856,7 @@ export function createMapLibreEngine(): MapEngine {
                 fillOpacity: paint.fillOpacity,
                 strokeWidth: paint.lineWidth,
                 dataFill: paint.fillOpacity > 0,
+                fillRule: rings.length > 1 ? 'evenodd' : 'nonzero',
             });
             if (paint.hatch) {
                 const hatchId = `${id}-hatch`;

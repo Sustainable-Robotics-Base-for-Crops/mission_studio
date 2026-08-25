@@ -67,10 +67,12 @@ import {
     fieldLineDraftName,
     findGeofenceZone,
     lassoHitsInRing,
+    nextFreeRowNumber,
     resolveFieldDraftCommit,
     type FieldLassoHit,
     type FieldsLineKind,
 } from './edit-tools';
+import { cutGeometryByLasso, lassoRingToLatLngs } from './lasso-cut';
 import { offsetLatLngRing } from '../domain/polygon-offset';
 import { ringFromPolygon } from '../missions/brief';
 import { DEFAULT_FIELD_GEOFENCE_INSET_CM } from '../missions/from-field';
@@ -90,8 +92,10 @@ import {
 import type {
     FieldDetail,
     FieldDiff,
+    FieldGuidanceLine,
     FieldImpact,
     FieldLandmark,
+    FieldRow,
     FieldSummary,
     FieldVersion,
     FieldsNavId,
@@ -310,6 +314,7 @@ export function useFieldCatalogue(): {
     cropName: string;
     setCropName: (value: string) => void;
     lassoHits: FieldLassoHit[];
+    lassoOverlay: LatLng[];
     followUp: FieldsFollowUp;
     geofenceZoneId: string | null;
     startCreateField: (name: string) => boolean;
@@ -346,6 +351,7 @@ export function useFieldCatalogue(): {
     }) => Promise<void>;
     dismissFollowUp: () => void;
     deleteLassoHits: () => Promise<void>;
+    cutLassoHits: () => Promise<void>;
     undo: () => void;
     redo: () => void;
     canUndo: boolean;
@@ -387,6 +393,7 @@ export function useFieldCatalogue(): {
     const [lineKind, setLineKindState] = useState<FieldsLineKind>('perennial');
     const [cropName, setCropName] = useState('Vigne');
     const [lassoHits, setLassoHits] = useState<FieldLassoHit[]>([]);
+    const [lassoRing, setLassoRing] = useState<GeoJSONPolygon | null>(null);
     const [hiddenIds, setHiddenIds] = useState<string[]>([]);
     const [lockedIds, setLockedIds] = useState<string[]>([]);
     const [followUp, setFollowUp] = useState<FieldsFollowUp>(null);
@@ -440,6 +447,7 @@ export function useFieldCatalogue(): {
             setEditingGeometry(false);
             setEditIntent('none');
             setLassoHits([]);
+            setLassoRing(null);
             setFollowUp(null);
             setFocus((current) => (current?.kind === 'draft' ? null : current));
         },
@@ -618,6 +626,7 @@ export function useFieldCatalogue(): {
         setEditingGeometry(false);
         setFollowUp(null);
         setLassoHits([]);
+        setLassoRing(null);
         setDraft([]);
         setDraftRedo([]);
         setEditIntent('create_field');
@@ -631,6 +640,8 @@ export function useFieldCatalogue(): {
         setEditIntent('none');
         setDraft([]);
         setFollowUp(null);
+        setLassoHits([]);
+        setLassoRing(null);
         setLandmarkReady(false);
         setEditingGeometry(false);
     }, []);
@@ -643,6 +654,7 @@ export function useFieldCatalogue(): {
         setError(null);
         setFollowUp(null);
         setLassoHits([]);
+        setLassoRing(null);
         setDraft([]);
         setDraftRedo([]);
         setEditingGeometry(false);
@@ -1051,6 +1063,7 @@ export function useFieldCatalogue(): {
                         return;
                     }
                     setLassoHits(lassoHitsInRing(selectedId, childrenByField[selectedId], ring));
+                    setLassoRing(ring);
                     setDraft([]);
                     setTool('select');
                     setEditIntent('lasso');
@@ -2072,25 +2085,282 @@ export function useFieldCatalogue(): {
         [cropName, followUp, followUpId, followUpLine, recordAction, select, selected, selectedId],
     );
 
+    const findLassoRow = useCallback(
+        (hit: FieldLassoHit): FieldRow | null => {
+            if (hit.kind !== 'row') {
+                return null;
+            }
+            const children = childrenByField[hit.fieldId];
+            for (const rowSet of children?.row_sets ?? []) {
+                const row = (rowSet.rows ?? []).find((item) => item.id === hit.id);
+                if (row) {
+                    return row;
+                }
+            }
+            return null;
+        },
+        [childrenByField],
+    );
+
+    const findLassoGuidance = useCallback(
+        (hit: FieldLassoHit): FieldGuidanceLine | null => {
+            if (hit.kind !== 'guidance') {
+                return null;
+            }
+            return (
+                (childrenByField[hit.fieldId]?.guidance_lines ?? []).find(
+                    (item) => item.id === hit.id,
+                ) ?? null
+            );
+        },
+        [childrenByField],
+    );
+
+    const clearLasso = useCallback(() => {
+        setLassoHits([]);
+        setLassoRing(null);
+        setEditIntent('none');
+    }, []);
+
     const deleteLassoHits = useCallback(async () => {
         if (!selectedId || lassoHits.length === 0) {
             return;
         }
+        const snapshots = lassoHits.map((hit) => ({
+            hit,
+            row: findLassoRow(hit),
+            line: findLassoGuidance(hit),
+        }));
+        const handles = snapshots.map((item) => ({ id: item.hit.id }));
         try {
-            for (const hit of lassoHits) {
-                if (hit.kind === 'row') {
-                    await deleteRow(hit.fieldId, hit.id);
+            for (const item of snapshots) {
+                if (item.hit.kind === 'row') {
+                    await deleteRow(item.hit.fieldId, item.hit.id);
                 } else {
-                    await deleteGuidanceLine(hit.fieldId, hit.id);
+                    await deleteGuidanceLine(item.hit.fieldId, item.hit.id);
                 }
             }
-            setLassoHits([]);
-            setEditIntent('none');
+            clearLasso();
+            recordAction({
+                labelKey: 'fields.history.lassoDelete',
+                undo: async () => {
+                    for (const [index, item] of snapshots.entries()) {
+                        const handle = handles[index];
+                        if (!handle) {
+                            continue;
+                        }
+                        if (item.hit.kind === 'row' && item.row) {
+                            const again = await addRow(item.hit.fieldId, item.hit.rowSetId, {
+                                geometry: item.row.geometry as GeoJSONLineString | GeoJSONPolygon,
+                                number: item.row.number,
+                                name: item.row.name,
+                            });
+                            handle.id = again.id;
+                        } else if (item.line) {
+                            const again = await addGuidanceLine(item.hit.fieldId, {
+                                geometry: item.line.geometry as GeoJSONLineString,
+                                name: item.line.name ?? undefined,
+                            });
+                            handle.id = again.id;
+                        }
+                    }
+                    await select(selectedId);
+                },
+                redo: async () => {
+                    for (const [index, item] of snapshots.entries()) {
+                        const handle = handles[index];
+                        if (!handle) {
+                            continue;
+                        }
+                        if (item.hit.kind === 'row') {
+                            await deleteRow(item.hit.fieldId, handle.id);
+                        } else {
+                            await deleteGuidanceLine(item.hit.fieldId, handle.id);
+                        }
+                    }
+                    await select(selectedId);
+                },
+            });
             await select(selectedId);
         } catch (reason: unknown) {
             setError(catalogueError(reason));
         }
-    }, [lassoHits, select, selectedId]);
+    }, [clearLasso, findLassoGuidance, findLassoRow, lassoHits, recordAction, select, selectedId]);
+
+    const cutLassoHits = useCallback(async () => {
+        if (!selectedId || lassoHits.length === 0 || !lassoRing) {
+            return;
+        }
+        const ring = lassoRing;
+        type Extra = {
+            id: string;
+            fieldId: string;
+            rowSetId?: string;
+            kind: FieldLassoHit['kind'];
+        };
+        const extras: Extra[] = [];
+        const takenNumbers = new Set<number>();
+        for (const rowSet of [
+            ...(childrenByField[selectedId]?.row_sets ?? []),
+            ...(selected?.row_sets ?? []),
+        ]) {
+            for (const row of rowSet.rows ?? []) {
+                takenNumbers.add(row.number);
+            }
+        }
+        const originals = lassoHits.map((hit) => ({
+            hit,
+            row: findLassoRow(hit),
+            line: findLassoGuidance(hit),
+            handle: { id: hit.id },
+        }));
+        const applyPieces = async (restoreOriginals: boolean) => {
+            if (restoreOriginals) {
+                for (const extra of extras) {
+                    if (extra.kind === 'row') {
+                        await deleteRow(extra.fieldId, extra.id);
+                    } else {
+                        await deleteGuidanceLine(extra.fieldId, extra.id);
+                    }
+                }
+                extras.length = 0;
+                for (const item of originals) {
+                    if (item.hit.kind === 'row' && item.row) {
+                        if (item.handle.id) {
+                            await patchRow(item.hit.fieldId, item.handle.id, {
+                                geometry: item.row.geometry,
+                            });
+                        } else {
+                            const again = await addRow(item.hit.fieldId, item.hit.rowSetId, {
+                                geometry: item.row.geometry as GeoJSONLineString | GeoJSONPolygon,
+                                number: item.row.number,
+                                name: item.row.name,
+                            });
+                            item.handle.id = again.id;
+                        }
+                    } else if (item.line) {
+                        if (item.handle.id) {
+                            await patchGuidanceLine(item.hit.fieldId, item.handle.id, {
+                                geometry: item.line.geometry,
+                            });
+                        } else {
+                            const again = await addGuidanceLine(item.hit.fieldId, {
+                                geometry: item.line.geometry as GeoJSONLineString,
+                                name: item.line.name ?? undefined,
+                            });
+                            item.handle.id = again.id;
+                        }
+                    }
+                }
+                return;
+            }
+            for (const item of originals) {
+                const geometry = item.row?.geometry ?? item.line?.geometry;
+                if (!geometry) {
+                    continue;
+                }
+                const result = cutGeometryByLasso(geometry, ring);
+                if (result.action === 'unchanged') {
+                    continue;
+                }
+                if (result.action === 'delete') {
+                    if (item.hit.kind === 'row') {
+                        await deleteRow(item.hit.fieldId, item.handle.id);
+                    } else {
+                        await deleteGuidanceLine(item.hit.fieldId, item.handle.id);
+                    }
+                    item.handle.id = '';
+                    continue;
+                }
+                const [first, ...rest] = result.geometries;
+                if (!first) {
+                    continue;
+                }
+                if (item.hit.kind === 'row' && item.row) {
+                    if (!item.handle.id) {
+                        const restored = await addRow(item.hit.fieldId, item.hit.rowSetId, {
+                            geometry: first as GeoJSONLineString | GeoJSONPolygon,
+                            number: item.row.number,
+                            name: item.row.name,
+                        });
+                        item.handle.id = restored.id;
+                    } else {
+                        await patchRow(item.hit.fieldId, item.handle.id, { geometry: first });
+                    }
+                    for (const piece of rest) {
+                        const number = nextFreeRowNumber(takenNumbers);
+                        takenNumbers.add(number);
+                        const created = await addRow(item.hit.fieldId, item.hit.rowSetId, {
+                            geometry: piece as GeoJSONLineString | GeoJSONPolygon,
+                            number,
+                            name: item.row.name,
+                        });
+                        extras.push({
+                            id: created.id,
+                            fieldId: item.hit.fieldId,
+                            rowSetId: item.hit.rowSetId,
+                            kind: 'row',
+                        });
+                    }
+                } else if (item.line) {
+                    if (!item.handle.id) {
+                        const restored = await addGuidanceLine(item.hit.fieldId, {
+                            geometry: first as GeoJSONLineString,
+                            name: item.line.name ?? undefined,
+                        });
+                        item.handle.id = restored.id;
+                    } else {
+                        await patchGuidanceLine(item.hit.fieldId, item.handle.id, {
+                            geometry: first,
+                        });
+                    }
+                    for (const piece of rest) {
+                        if (piece.type !== 'LineString') {
+                            continue;
+                        }
+                        const created = await addGuidanceLine(item.hit.fieldId, {
+                            geometry: piece,
+                            name: item.line.name ?? undefined,
+                        });
+                        extras.push({
+                            id: created.id,
+                            fieldId: item.hit.fieldId,
+                            kind: 'guidance',
+                        });
+                    }
+                }
+            }
+        };
+        try {
+            await applyPieces(false);
+            clearLasso();
+            recordAction({
+                labelKey: 'fields.history.lassoCut',
+                undo: async () => {
+                    await applyPieces(true);
+                    await select(selectedId);
+                },
+                redo: async () => {
+                    await applyPieces(false);
+                    await select(selectedId);
+                },
+            });
+            await select(selectedId);
+        } catch (reason: unknown) {
+            setError(catalogueError(reason));
+        }
+    }, [
+        childrenByField,
+        clearLasso,
+        findLassoGuidance,
+        findLassoRow,
+        lassoHits,
+        lassoRing,
+        selected,
+        recordAction,
+        select,
+        selectedId,
+    ]);
 
     /** While drawing, step back one point; once nothing is being drawn, undo the last action. */
     const undo = useCallback(() => {
@@ -2376,6 +2646,7 @@ export function useFieldCatalogue(): {
         cropName,
         setCropName,
         lassoHits,
+        lassoOverlay: lassoRingToLatLngs(lassoRing),
         followUp,
         geofenceZoneId: findGeofenceZone(selected?.zones)?.id ?? null,
         startCreateField,
@@ -2409,6 +2680,7 @@ export function useFieldCatalogue(): {
             setFollowUpId(null);
         },
         deleteLassoHits,
+        cutLassoHits,
         undo,
         redo,
         canUndo: draft.length > 0 || history.past.length > 0,

@@ -386,6 +386,7 @@ function LassoSection({
 }): ReactElement {
     const hits = catalogue.lassoHits;
     const deleteHits = () => void catalogue.deleteLassoHits();
+    const cutHits = () => void catalogue.cutLassoHits();
     return (
         <section className="studio-fields-action" aria-label={t('fields.edit.lasso')}>
             <Tabs
@@ -428,7 +429,7 @@ function LassoSection({
                                     variant="destructive"
                                     disabled={hits.length === 0}
                                     confirmLabel={t('fields.edit.lasso.cutConfirm')}
-                                    onClick={deleteHits}
+                                    onClick={cutHits}
                                 >
                                     {t('fields.edit.lasso.cut')}
                                 </Button>

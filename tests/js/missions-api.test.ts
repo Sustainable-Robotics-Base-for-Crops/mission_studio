@@ -4,6 +4,7 @@ import {
     farmMissionFilename,
     farmMissionPathFromName,
     isFarmMissionPath,
+    missionsFromFarmTree,
     slugifyFarmToken,
     storageIdentityFromPath,
     suggestedMissionPath,
@@ -157,5 +158,29 @@ describe('farm mission naming (CdC §2.3)', () => {
         expect(isFarmMissionPath('mission_order/v1/demo.json')).toBe(false);
         expect(farmMissionPathFromName('demo')).toBe('mission_order/demo.json');
         expect(uniquifyFarmFilename('demo.json', ['demo.json'])).toBe('demo-2.json');
+    });
+
+    it('lists Studio missions from the farm tree, not uploads/', () => {
+        expect(
+            missionsFromFarmTree({
+                mission_order: [
+                    {
+                        name: '2026-08-24_santenay_semis.json',
+                        path: 'mission_order/2026-08-24_santenay_semis.json',
+                        size: 12,
+                        modified: 1,
+                        display_name: 'Semis — Santenay',
+                    },
+                ],
+            }),
+        ).toEqual([
+            {
+                path: 'mission_order/2026-08-24_santenay_semis.json',
+                name: 'Semis — Santenay',
+                type: 'mission_order',
+                vehicle: 'v1',
+            },
+        ]);
+        expect(missionsFromFarmTree({})).toEqual([]);
     });
 });

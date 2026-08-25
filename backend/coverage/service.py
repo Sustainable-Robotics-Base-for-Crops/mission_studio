@@ -18,7 +18,7 @@ from backend.coverage.rowset import swaths_from_row_set
 
 logger = logging.getLogger("trajectory_editor")
 
-STRATEGIES = {"boustrophedon", "snake", "perpendicular", "best_nswath"}
+STRATEGIES = {"boustrophedon", "snake", "perpendicular", "best_nswath", "guidance"}
 ENGINE_FIELDS2COVER = "fields2cover"
 ENGINE_PARALLEL = "parallel_fallback"
 ENGINE_ROW_SET = "row_set"
@@ -71,8 +71,16 @@ def plan(payload: dict[str, Any], fields_repo: Any | None = None) -> dict[str, A
         )
 
     outer, holes, origin = _polygon(payload, origin)
+    guidance_heading = payload.get("guidance_heading_rad")
+    if guidance_heading is not None:
+        guidance_heading = float(guidance_heading)
     heading = payload.get("heading_rad")
-    if heading is None:
+    if strategy == "guidance":
+        chosen = guidance_heading if guidance_heading is not None else heading
+        if chosen is None:
+            raise ValueError("guidance strategy requires guidance_heading_rad")
+        heading = float(chosen)
+    elif heading is None:
         heading = first_edge_heading(outer)
     else:
         heading = float(heading)
@@ -96,7 +104,14 @@ def plan(payload: dict[str, Any], fields_repo: Any | None = None) -> dict[str, A
 
     want_variants = bool(payload.get("variants"))
     variants = (
-        _variant_plans(work_cell, holes, spacing, vehicle_width, first_edge_heading(outer))
+        _variant_plans(
+            work_cell,
+            holes,
+            spacing,
+            vehicle_width,
+            first_edge_heading(outer),
+            guidance_heading if isinstance(guidance_heading, float) else None,
+        )
         if want_variants
         else []
     )
@@ -134,6 +149,7 @@ def plan(payload: dict[str, Any], fields_repo: Any | None = None) -> dict[str, A
         "headland_laps": len(headland_sections),
         "vehicle_width_m": vehicle_width,
         "heading_rad": heading_used,
+        "guidance_heading_rad": guidance_heading if isinstance(guidance_heading, float) else None,
         "swath_count": len(sections),
         "length_m": length_m,
         "variants": [
@@ -210,13 +226,17 @@ def _variant_plans(
     spacing: float,
     vehicle_width: float,
     edge_heading: float,
+    guidance_heading: float | None = None,
 ) -> list[dict[str, Any]]:
     variants: list[dict[str, Any]] = []
-    for label, heading in (
+    headings: list[tuple[str, float | None]] = [
         ("boustrophedon", edge_heading),
         ("perpendicular", edge_heading + math.pi / 2.0),
         ("best_nswath", None),
-    ):
+    ]
+    if guidance_heading is not None:
+        headings.append(("guidance", guidance_heading))
+    for label, heading in headings:
         used = heading if heading is not None else edge_heading
         swaths, _engine, used, _note = _generate(
             outer, holes, spacing, used, vehicle_width, 0.0, label

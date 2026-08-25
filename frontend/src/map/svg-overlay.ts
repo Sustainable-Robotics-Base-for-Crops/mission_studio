@@ -62,7 +62,10 @@ export function polygonFeaturesToSvgPath(
             if (!Array.isArray(rings) || !Array.isArray(rings[0])) {
                 return '';
             }
-            return coordinatesToSvgPath(rings[0] as Array<[number, number]>, project, true);
+            return rings
+                .filter((ring): ring is Array<[number, number]> => Array.isArray(ring))
+                .map((ring) => coordinatesToSvgPath(ring, project, true))
+                .join('');
         })
         .filter(Boolean)
         .join('');

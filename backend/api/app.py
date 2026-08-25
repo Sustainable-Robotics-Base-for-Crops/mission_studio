@@ -103,7 +103,10 @@ def _serve_studio_asset(path: str) -> Response | None:
 
 
 def create_app(runtime: EditorRuntime | None = None) -> FastAPI:
+    from backend.farm.catalogue import bind_farm_catalogue
+
     runtime = runtime or EditorRuntime.build(sqlite_path=Settings.sqlite_path())
+    bind_farm_catalogue(runtime)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):

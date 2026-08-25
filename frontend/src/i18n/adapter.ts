@@ -749,10 +749,18 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.coverageStrategy': 'Orientation des passes',
         'tool.coverageStrategyHelp':
             'Le premier côté du polygone sert de référence. « Moins de passes » teste plusieurs angles.',
+        'tool.coverageStrategyHelpWithGuidance':
+            'Le premier côté du polygone sert de référence. S’il existe une ligne de guidage, vous pouvez aussi vous caler dessus — cliquez-la sur la carte ou choisissez-la dans la liste.',
         'tool.coverageStrategy.boustrophedon': 'Suivre le premier côté',
         'tool.coverageStrategy.perpendicular': 'Perpendiculaire au premier côté',
         'tool.coverageStrategy.best_nswath': 'Moins de passes',
+        'tool.coverageStrategy.guidance': 'Parallèle à une ligne de guidage',
         'tool.coverageStrategy.snake': 'Serpentin',
+        'tool.coverageGuidanceLine': 'Ligne de guidage de référence',
+        'tool.coverageGuidanceLineHelp':
+            'Cliquez la ligne sur la carte, ou choisissez-la ici s’il y en a plusieurs.',
+        'tool.coverageGuidanceLineOne': 'Référence : {name}',
+        'tool.coverageGuidanceLine.unnamed': 'Ligne de guidage {n}',
         'tool.headlandWidth': 'Largeur de fourrière',
         'tool.headlandWidthHelp':
             '0 = pas de contour travaillé. La parcelle sert de limite : rangs et pivots laissent la place à l’encombrement de l’outil (plus 15 cm). Une largeur > 0 ajoute une fourrière en contour.',
@@ -1128,7 +1136,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'fields.edit.lasso.entitiesHelp':
             'Rangs de vigne ou d’arbres, planches et lignes A/B dans le lasso. Métadonnées dans l’inspecteur.',
         'fields.edit.lasso.portionsHelp':
-            'Découpe : retire les rangs, planches et lignes A/B qui intersectent le lasso.',
+            'Découpe : retire la portion des rangs, planches et lignes A/B qui se trouve dans le lasso, comme pour une trajectoire.',
         'fields.edit.lasso.empty':
             'Tracez un lasso qui recouvre des rangs, planches ou lignes A/B.',
         'fields.edit.lasso.cut': 'Couper la sélection',
@@ -1173,6 +1181,8 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'fields.history.zone': 'Tracé de la surface',
         'fields.history.obstacle': 'Tracé de l’obstacle',
         'fields.history.trafficNode': 'Point de circulation',
+        'fields.history.lassoCut': 'Découpe par zone',
+        'fields.history.lassoDelete': 'Suppression par zone',
         'fields.history.rows': 'Duplication des rangs',
         'fields.history.beds': 'Duplication des planches',
         'fields.history.pathWidth': 'Largeur du chemin',
@@ -2047,10 +2057,18 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'tool.coverageStrategy': 'Pass heading',
         'tool.coverageStrategyHelp':
             'The first polygon edge is the reference. “Fewer passes” tries several headings.',
+        'tool.coverageStrategyHelpWithGuidance':
+            'The first polygon edge is the reference. If a guidance line exists, you can also align with it — click it on the map or pick it from the list.',
         'tool.coverageStrategy.boustrophedon': 'Follow the first side',
         'tool.coverageStrategy.perpendicular': 'Perpendicular to the first side',
         'tool.coverageStrategy.best_nswath': 'Fewer passes',
+        'tool.coverageStrategy.guidance': 'Parallel to a guidance line',
         'tool.coverageStrategy.snake': 'Snake',
+        'tool.coverageGuidanceLine': 'Reference guidance line',
+        'tool.coverageGuidanceLineHelp':
+            'Click the line on the map, or pick it here when there are several.',
+        'tool.coverageGuidanceLineOne': 'Reference: {name}',
+        'tool.coverageGuidanceLine.unnamed': 'Guidance line {n}',
         'tool.headlandWidth': 'Headland width',
         'tool.headlandWidthHelp':
             '0 = no worked contour. The parcel is the field boundary: rows and pivots leave room for the implement envelope (plus 15 cm). A width > 0 adds a contour headland.',
@@ -2417,7 +2435,7 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'fields.edit.lasso.entitiesHelp':
             'Vine or tree rows, beds and A/B lines inside the lasso. Metadata is in the inspector.',
         'fields.edit.lasso.portionsHelp':
-            'Cut: remove rows, beds and A/B lines that intersect the lasso.',
+            'Cut: remove the part of rows, beds and A/B lines that lies inside the lasso, as with a trajectory.',
         'fields.edit.lasso.empty': 'Draw a lasso over rows, beds or A/B lines.',
         'fields.edit.lasso.cut': 'Cut the selection',
         'fields.edit.lasso.cutConfirm': 'Confirm the cut',
@@ -2459,6 +2477,8 @@ const SHELL_STRINGS: Record<'fr' | 'en', Record<string, string>> = {
         'fields.history.zone': 'Surface drawing',
         'fields.history.obstacle': 'Obstacle drawing',
         'fields.history.trafficNode': 'Traffic point',
+        'fields.history.lassoCut': 'Area cut',
+        'fields.history.lassoDelete': 'Area deletion',
         'fields.history.rows': 'Row duplication',
         'fields.history.beds': 'Bed duplication',
         'fields.history.pathWidth': 'Path width',

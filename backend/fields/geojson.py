@@ -127,12 +127,15 @@ def import_geojson(
             }
         )
     field_name = name or properties.get("name") or "Imported field"
+    raw_id = properties.get("id")
+    preserved_id = raw_id.strip() if isinstance(raw_id, str) and raw_id.strip() else None
     field = repository.create_field(
         name=str(field_name),
         geometry=geometry,
         campaign=properties.get("campaign"),
         provenance=provenance,
         author=author,
+        field_id=preserved_id,
     )
     extra_fields = field_items[1:]
     for index, geometry, properties, _kind_name in extra_fields:
@@ -307,8 +310,11 @@ def export_geojson(field: dict[str, Any]) -> dict[str, Any]:
             "type": "Feature",
             "properties": {
                 "srbc_kind": "field",
+                "kind": "field",
                 "name": field.get("name"),
                 "id": field.get("id"),
+                "campaign": field.get("campaign"),
+                "provenance": field.get("provenance"),
                 "qualified_for_autonomy": field.get("qualified_for_autonomy"),
             },
             "geometry": field.get("geometry"),

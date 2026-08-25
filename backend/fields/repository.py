@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 from backend.db import Database, utc_now
@@ -89,9 +90,26 @@ def _field_row(row: Any, extras: dict[str, Any] | None = None) -> dict[str, Any]
     return data
 
 
+def _safe_field_id(raw: str | None) -> str:
+    """Keep a caller-supplied id when it is a safe token; otherwise mint a UUID."""
+    if raw is None:
+        return uuid.uuid4().hex
+    value = str(raw).strip()
+    if not value or len(value) > 80:
+        return uuid.uuid4().hex
+    if "/" in value or "\\" in value or ".." in value:
+        return uuid.uuid4().hex
+    if not all(char.isalnum() or char in "-_" for char in value):
+        return uuid.uuid4().hex
+    return value
+
+
 class FieldRepository:
     def __init__(self, database: Database):
         self.db = database
+        #: Optional write-through to the farm folder. Tests leave this unset.
+        self.on_persist: Callable[..., None] | None = None
+        self.persist_enabled = True
 
     def list_fields(self) -> list[dict[str, Any]]:
         rows = self.db.execute("SELECT * FROM fields ORDER BY name").fetchall()
@@ -121,8 +139,9 @@ class FieldRepository:
         provenance: dict[str, Any] | None = None,
         crs: str = "EPSG:4326",
         author: str | None = None,
+        field_id: str | None = None,
     ) -> dict[str, Any]:
-        field_id = uuid.uuid4().hex
+        field_id = _safe_field_id(field_id)
         now = utc_now()
         provenance = provenance or {}
         self.db.execute(
@@ -179,7 +198,17 @@ class FieldRepository:
 
     def delete_field(self, field_id: str) -> bool:
         cursor = self.db.execute("DELETE FROM fields WHERE id = ?", (field_id,))
-        return cursor.rowcount > 0
+        deleted = cursor.rowcount > 0
+        if deleted:
+            self._emit_persist(field_id, deleted=True)
+        return deleted
+
+    def clear_fields(self) -> int:
+        """Drop every field. Children follow via ON DELETE CASCADE. No persist."""
+        count_row = self.db.execute("SELECT COUNT(*) AS n FROM fields").fetchone()
+        count = int(count_row["n"] if count_row is not None else 0)
+        self.db.execute("DELETE FROM fields")
+        return count
 
     def list_zones(self, field_id: str) -> list[dict[str, Any]]:
         rows = self.db.execute(
@@ -380,6 +409,7 @@ class FieldRepository:
                 utc_now(),
             ),
         )
+        self._emit_persist(field_id)
         return self._get_landmark(landmark_id)
 
     def update_landmark(
@@ -399,12 +429,15 @@ class FieldRepository:
             "UPDATE landmarks SET name = ?, geometry = ?, radius_m = ? WHERE id = ? AND field_id = ?",
             (name, _dump(geometry), radius_m, landmark_id, field_id),
         )
+        self._emit_persist(field_id)
         return self._get_landmark(landmark_id)
 
     def delete_landmark(self, field_id: str, landmark_id: str) -> bool:
         cursor = self.db.execute(
             "DELETE FROM landmarks WHERE id = ? AND field_id = ?", (landmark_id, field_id)
         )
+        if cursor.rowcount:
+            self._emit_persist(field_id)
         return cursor.rowcount > 0
 
     def list_guidance_lines(self, field_id: str) -> list[dict[str, Any]]:
@@ -915,6 +948,11 @@ class FieldRepository:
         self._snapshot(field_id, author=author)
         self.invalidate_missions(field_id)
 
+    def _emit_persist(self, field_id: str | None, *, deleted: bool = False) -> None:
+        if not self.persist_enabled or self.on_persist is None:
+            return
+        self.on_persist(field_id, deleted=deleted)
+
     def _snapshot(self, field_id: str, author: str | None = None) -> None:
         field = self.get_field(field_id, with_children=True)
         if field is None:
@@ -981,6 +1019,7 @@ class FieldRepository:
                 author,
             ),
         )
+        self._emit_persist(field_id)
 
     def _zone_row(self, row: Any) -> dict[str, Any]:
         return {

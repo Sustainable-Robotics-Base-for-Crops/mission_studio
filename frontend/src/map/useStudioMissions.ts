@@ -82,7 +82,15 @@ export function useStudioMissions(): {
 
     const refresh = useCallback(async () => {
         try {
-            setList(await fetchMissionList());
+            const missions = await fetchMissionList();
+            setList(missions);
+            if (
+                activePathLiveRef.current &&
+                !missions.some((mission) => mission.path === activePathLiveRef.current)
+            ) {
+                setActivePath(null);
+                setDocument(null);
+            }
         } catch (cause: unknown) {
             setError(cause instanceof Error ? cause.message : 'list failed');
         }

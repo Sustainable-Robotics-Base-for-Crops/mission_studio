@@ -5,6 +5,11 @@ import { Input, Select } from '../design-system/Field';
 import { Dialog } from '../design-system/Overlay';
 import type { CoverageStrategy, CoverageVariant } from '../coverage/api';
 
+export interface FillGuidanceOption {
+    id: string;
+    label: string;
+}
+
 interface FillParcelDialogProps {
     open: boolean;
     spacing: string;
@@ -14,8 +19,11 @@ interface FillParcelDialogProps {
     connectTurns: boolean;
     variants: CoverageVariant[];
     variantsLoading: boolean;
+    guidanceLines?: FillGuidanceOption[];
+    guidanceLineId?: string | null;
     onSpacing: (value: string) => void;
     onStrategy: (value: CoverageStrategy) => void;
+    onGuidanceLine?: (id: string) => void;
     onHeadlandWidth: (value: string) => void;
     onConnectTurns: (value: boolean) => void;
     onOpenChange: (open: boolean) => void;
@@ -23,7 +31,7 @@ interface FillParcelDialogProps {
     t: (key: string, params?: Record<string, string | number>) => string;
 }
 
-const STRATEGIES: CoverageStrategy[] = ['boustrophedon', 'perpendicular', 'best_nswath'];
+const BASE_STRATEGIES: CoverageStrategy[] = ['boustrophedon', 'perpendicular', 'best_nswath'];
 
 function formatLength(meters: number): string {
     if (!(meters > 0) || !Number.isFinite(meters)) {
@@ -41,8 +49,11 @@ export function FillParcelDialog({
     connectTurns,
     variants,
     variantsLoading,
+    guidanceLines = [],
+    guidanceLineId = null,
     onSpacing,
     onStrategy,
+    onGuidanceLine,
     onHeadlandWidth,
     onConnectTurns,
     onOpenChange,
@@ -50,7 +61,10 @@ export function FillParcelDialog({
     t,
 }: FillParcelDialogProps): ReactElement {
     const parsed = Number(spacing);
-    const valid = Number.isFinite(parsed) && parsed > 0;
+    const strategies: CoverageStrategy[] =
+        guidanceLines.length > 0 ? [...BASE_STRATEGIES, 'guidance'] : BASE_STRATEGIES;
+    const guidanceReady = strategy !== 'guidance' || Boolean(guidanceLineId);
+    const valid = Number.isFinite(parsed) && parsed > 0 && guidanceReady;
     const headland = Number(headlandWidth);
     const headlandValid =
         headlandWidth.trim() === '' || (Number.isFinite(headland) && headland >= 0);
@@ -95,43 +109,49 @@ export function FillParcelDialog({
                     label={t('tool.coverageStrategy')}
                     value={strategy}
                     onValueChange={(value) => onStrategy(value as CoverageStrategy)}
-                    options={STRATEGIES.map((item) => ({
-                        value: item,
-                        label: t(`tool.coverageStrategy.${item}`),
-                    }))}
-                    help={t('tool.coverageStrategyHelp')}
+                    options={strategies.map((item) => {
+                        const variant = variants.find((entry) => entry.strategy === item);
+                        return {
+                            value: item,
+                            label: t(`tool.coverageStrategy.${item}`),
+                            description:
+                                variant && !variantsLoading
+                                    ? t('tool.coverageVariantMeta', {
+                                          rows: variant.swath_count,
+                                          length: formatLength(variant.length_m),
+                                      })
+                                    : undefined,
+                        };
+                    })}
+                    help={
+                        guidanceLines.length > 0
+                            ? t('tool.coverageStrategyHelpWithGuidance')
+                            : t('tool.coverageStrategyHelp')
+                    }
                 />
+                {guidanceLines.length > 0 && strategy === 'guidance' ? (
+                    guidanceLines.length === 1 ? (
+                        <p className="studio-fill-dialog-hint">
+                            {t('tool.coverageGuidanceLineOne', {
+                                name: guidanceLines[0]?.label ?? '',
+                            })}
+                        </p>
+                    ) : (
+                        <Select
+                            id="studio-coverage-guidance-line"
+                            label={t('tool.coverageGuidanceLine')}
+                            value={guidanceLineId ?? guidanceLines[0]?.id ?? ''}
+                            onValueChange={(value) => onGuidanceLine?.(value)}
+                            options={guidanceLines.map((item) => ({
+                                value: item.id,
+                                label: item.label,
+                            }))}
+                            help={t('tool.coverageGuidanceLineHelp')}
+                        />
+                    )
+                ) : null}
                 {variantsLoading ? (
                     <p className="studio-fill-dialog-hint">{t('tool.coverageVariantsLoading')}</p>
-                ) : variants.length > 0 ? (
-                    <div className="studio-variant-list" role="list">
-                        {variants.map((item) => {
-                            const selected = item.strategy === strategy;
-                            return (
-                                <button
-                                    key={item.strategy}
-                                    type="button"
-                                    role="listitem"
-                                    className={
-                                        selected
-                                            ? 'studio-variant-card is-selected'
-                                            : 'studio-variant-card'
-                                    }
-                                    onClick={() => onStrategy(item.strategy)}
-                                >
-                                    <span className="studio-variant-card-title">
-                                        {t(`tool.coverageStrategy.${item.strategy}`)}
-                                    </span>
-                                    <span className="studio-variant-card-meta">
-                                        {t('tool.coverageVariantMeta', {
-                                            rows: item.swath_count,
-                                            length: formatLength(item.length_m),
-                                        })}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
                 ) : null}
                 <label className="studio-turns-loop" htmlFor="studio-fill-connect-turns">
                     <input

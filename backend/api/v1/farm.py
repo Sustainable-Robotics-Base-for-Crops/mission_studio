@@ -8,6 +8,7 @@ import os
 from fastapi import APIRouter, Request
 
 from backend.api.http import json_from_handler
+from backend.farm.catalogue import sync_farm_catalogue
 from backend.farm.folder_picker import pick_folder
 from backend.farm.index import missions_for_field, reindex
 from backend.farm.layout import crop_pack_for, is_farm, safe_farm_path
@@ -69,6 +70,7 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
             repo().open_farm(root, name)
         except (ValueError, OSError) as reason:
             return bad_request(reason)
+        sync_farm_catalogue(runtime)
         return json_from_handler(200, snapshot())
 
     @router.post("/farm/open-existing")
@@ -83,6 +85,7 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
             repo().open_existing_farm(root)
         except (ValueError, OSError) as reason:
             return bad_request(reason)
+        sync_farm_catalogue(runtime)
         return json_from_handler(200, snapshot())
 
     @router.post("/farm/create")
@@ -100,6 +103,7 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
             repo().create_farm(root, name.strip())
         except (ValueError, OSError) as reason:
             return bad_request(reason)
+        sync_farm_catalogue(runtime)
         return json_from_handler(201, snapshot())
 
     @router.post("/farm/pick-folder")
@@ -188,6 +192,8 @@ def build_farm_router(runtime: EditorRuntime) -> APIRouter:
         root = repo().resolve_root()
         if not root or not is_farm(root):
             return no_farm()
-        return json_from_handler(200, {"ok": True, **reindex(root)})
+        index = reindex(root)
+        catalogue = sync_farm_catalogue(runtime) or {}
+        return json_from_handler(200, {"ok": True, **index, "catalogue": catalogue})
 
     return router

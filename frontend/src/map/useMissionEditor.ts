@@ -76,6 +76,8 @@ import {
     type CoverageStrategy,
     type CoverageVariant,
 } from '../coverage/api';
+import { headingRadFromGuidanceLine, usableGuidanceLines } from '../coverage/guidance-heading';
+import type { FieldGuidanceLine } from '../fields/types';
 import type { DuplicateSide, ExtendDirection } from './SectionEditPanel';
 import { CommandStack, createAutosave } from '../store/commands';
 import { useStudioMissions } from './useStudioMissions';
@@ -90,6 +92,7 @@ export type MissionEditorOptions = {
     vehicleWidthM?: number | null;
     geofenceMarginM?: number | null;
     kinematics?: Kinematics | null;
+    guidanceLines?: FieldGuidanceLine[];
 };
 
 function snapshotDocument(document: AgriDocument | null): string {
@@ -184,6 +187,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     const vehicleWidthM = options.vehicleWidthM;
     const geofenceMarginM = options.geofenceMarginM;
     const kinematics = options.kinematics;
+    const guidanceLines = usableGuidanceLines(options.guidanceLines);
     const missions = useStudioMissions();
     const stackRef = useRef(new CommandStack<AgriDocument | null>());
     const [working, setWorking] = useState<AgriDocument | null>(null);
@@ -204,6 +208,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     const [parcelDialogOpen, setParcelDialogOpen] = useState(false);
     const [rowSpacing, setRowSpacing] = useState(String(DEFAULT_ROW_SPACING_M));
     const [coverageStrategy, setCoverageStrategy] = useState<CoverageStrategy>('boustrophedon');
+    const [coverageGuidanceLineId, setCoverageGuidanceLineId] = useState<string | null>(null);
     const [headlandWidth, setHeadlandWidth] = useState('0');
     const [connectAfterFill, setConnectAfterFill] = useState(true);
     const [coverageVariants, setCoverageVariants] = useState<CoverageVariant[]>([]);
@@ -268,6 +273,10 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     lockedGeofenceRef.current = lockedGeofenceIds;
     extendDirectionRef.current = extendDirection;
     coverageStrategyRef.current = coverageStrategy;
+    const coverageGuidanceLineIdRef = useRef(coverageGuidanceLineId);
+    coverageGuidanceLineIdRef.current = coverageGuidanceLineId;
+    const guidanceLinesRef = useRef(guidanceLines);
+    guidanceLinesRef.current = guidanceLines;
     activePathRef.current = missions.activePath;
     const parcelDialogOpenRef = useRef(false);
     parcelDialogOpenRef.current = parcelDialogOpen;
@@ -336,6 +345,21 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
     }, [kinematics]);
 
     useEffect(() => {
+        if (guidanceLines.length === 0) {
+            if (coverageGuidanceLineId !== null) {
+                setCoverageGuidanceLineId(null);
+            }
+            if (coverageStrategy === 'guidance') {
+                setCoverageStrategy('boustrophedon');
+            }
+            return;
+        }
+        if (!guidanceLines.some((line) => line.id === coverageGuidanceLineId)) {
+            setCoverageGuidanceLineId(guidanceLines[0]?.id ?? null);
+        }
+    }, [coverageGuidanceLineId, coverageStrategy, guidanceLines]);
+
+    useEffect(() => {
         if (!parcelDialogOpen) {
             setCoveragePreview(null);
             setCoverageVariants([]);
@@ -355,6 +379,10 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         let cancelled = false;
         const timer = window.setTimeout(() => {
             setCoverageVariantsLoading(true);
+            const axis = guidanceLinesRef.current.find(
+                (line) => line.id === coverageGuidanceLineIdRef.current,
+            );
+            const guidanceHeading = axis ? headingRadFromGuidanceLine(axis) : null;
             void planCoverage({
                 ring: draftRef.current,
                 origin: { lat: origin.lat, lon: origin.lon },
@@ -365,6 +393,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
                 headland_width_m: headlandM,
                 geofence_margin_m:
                     geofenceMarginM && geofenceMarginM > 0 ? geofenceMarginM : undefined,
+                guidance_heading_rad: guidanceHeading ?? undefined,
             })
                 .then((plan) => {
                     if (cancelled) {
@@ -400,7 +429,14 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
             cancelled = true;
             window.clearTimeout(timer);
         };
-    }, [geofenceMarginM, headlandWidth, parcelDialogOpen, rowSpacing, vehicleWidthM]);
+    }, [
+        coverageGuidanceLineId,
+        geofenceMarginM,
+        headlandWidth,
+        parcelDialogOpen,
+        rowSpacing,
+        vehicleWidthM,
+    ]);
 
     useEffect(() => {
         const plan = coveragePlanRef.current;
@@ -866,6 +902,8 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
                 fallback();
                 return;
             }
+            const axis = guidanceLines.find((line) => line.id === coverageGuidanceLineId);
+            const guidanceHeading = axis ? headingRadFromGuidanceLine(axis) : null;
             void planCoverage({
                 ring: currentDraft,
                 origin: { lat: origin.lat, lon: origin.lon },
@@ -876,6 +914,7 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
                 headland_width_m: Number.isFinite(headlandM) && headlandM > 0 ? headlandM : 0,
                 geofence_margin_m:
                     geofenceMarginM && geofenceMarginM > 0 ? geofenceMarginM : undefined,
+                guidance_heading_rad: guidanceHeading ?? undefined,
             })
                 .then((plan) => {
                     const chosen =
@@ -913,8 +952,10 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         },
         [
             connectAfterFill,
+            coverageGuidanceLineId,
             coverageStrategy,
             geofenceMarginM,
+            guidanceLines,
             headlandWidth,
             kinematics,
             syncButtons,
@@ -2140,6 +2181,9 @@ export function useMissionEditor(options: MissionEditorOptions = {}) {
         setRowSpacing,
         coverageStrategy,
         setCoverageStrategy,
+        coverageGuidanceLineId,
+        setCoverageGuidanceLineId,
+        coverageGuidanceLines: guidanceLines,
         headlandWidth,
         setHeadlandWidth,
         connectAfterFill,

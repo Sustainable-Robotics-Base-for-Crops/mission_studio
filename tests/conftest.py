@@ -82,3 +82,10 @@ def reset_validation_service_cache():
 def isolate_sqlite(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep L5 SQLite out of the repo tree during tests."""
     monkeypatch.setenv("SQLITE_PATH", str(tmp_path / "studio.sqlite"))
+
+
+@pytest.fixture(autouse=True)
+def isolate_farm_state(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the farm pointer out of the developer's app.json (D13-01 rebuild)."""
+    monkeypatch.delenv("FARM_ROOT", raising=False)
+    monkeypatch.setenv("APP_STATE_PATH", str(tmp_path / "farm-state" / "app.json"))

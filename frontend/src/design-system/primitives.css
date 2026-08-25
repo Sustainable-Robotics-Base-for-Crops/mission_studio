@@ -305,6 +305,9 @@
     left: 50%;
     transform: translateX(-50%);
     width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 12vh - 16px);
+    overflow: auto;
+    overscroll-behavior: contain;
     background: var(--surface);
     border-radius: var(--radius-modal);
     box-shadow: var(--shadow-panel);
@@ -427,6 +430,16 @@
     cursor: pointer;
 }
 
+.ds-select-trigger.is-multiline {
+    display: flex;
+    align-items: center;
+    height: auto;
+    min-height: var(--control-h);
+    padding-block: 6px;
+    text-align: left;
+    white-space: normal;
+}
+
 .ds-select-content {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -434,6 +447,7 @@
     box-shadow: var(--shadow-panel);
     z-index: 40;
     padding: 4px;
+    min-width: var(--radix-select-trigger-width);
 }
 
 .ds-select-item {
@@ -441,6 +455,19 @@
     border-radius: var(--radius-control);
     font-size: 14px;
     cursor: pointer;
+}
+
+.ds-select-item-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+}
+
+.ds-select-item-description {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-muted, #4b5563);
 }
 
 .ds-select-item[data-highlighted] {

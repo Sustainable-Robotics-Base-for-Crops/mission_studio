@@ -1,7 +1,7 @@
 import { getDistanceMeters, type LatLng } from '../domain/geometry';
 import type { FieldChildren } from './geojson';
-import { polygonContainsLngLat } from './geojson';
-import type { FieldSummary, FieldZone, GeoJSONLineString, GeoJSONPolygon } from './types';
+import { geometryIntersectsLasso } from './lasso-cut';
+import type { FieldSummary, FieldZone, GeoJSONPolygon } from './types';
 
 export const FIELD_GEOFENCE_KIND = 'autonomy';
 
@@ -40,27 +40,15 @@ export function findGeofenceZone(zones: FieldZone[] | undefined): FieldZone | nu
     return zones?.find((zone) => zone.kind === FIELD_GEOFENCE_KIND) ?? null;
 }
 
-function asLineString(geometry: {
-    type?: string;
-    coordinates?: unknown;
-}): GeoJSONLineString | null {
-    if (geometry.type !== 'LineString' || !Array.isArray(geometry.coordinates)) {
-        return null;
+/** Next unused catalogue row number in a set (the API rejects duplicates). */
+export function nextFreeRowNumber(taken: Iterable<number>): number {
+    let max = 0;
+    for (const value of taken) {
+        if (Number.isFinite(value) && value > max) {
+            max = value;
+        }
     }
-    return { type: 'LineString', coordinates: geometry.coordinates as number[][] };
-}
-
-function asPolygon(geometry: { type?: string; coordinates?: unknown }): GeoJSONPolygon | null {
-    if (geometry.type !== 'Polygon' || !Array.isArray(geometry.coordinates)) {
-        return null;
-    }
-    return { type: 'Polygon', coordinates: geometry.coordinates as number[][][] };
-}
-
-function lineIntersectsRing(line: GeoJSONLineString, ring: GeoJSONPolygon): boolean {
-    return line.coordinates.some((pair) =>
-        polygonContainsLngLat(ring, Number(pair[0]), Number(pair[1])),
-    );
+    return max + 1;
 }
 
 export function lassoHitsInRing(
@@ -75,41 +63,28 @@ export function lassoHitsInRing(
     for (const rowSet of children.row_sets ?? []) {
         const kind = rowSet.kind === 'beds' ? 'planche' : 'rang';
         for (const row of rowSet.rows ?? []) {
-            const asLine = asLineString(row.geometry);
-            const asPoly = asPolygon(row.geometry);
-            if (asLine && lineIntersectsRing(asLine, ring)) {
-                hits.push({
-                    kind: 'row',
-                    fieldId,
-                    rowSetId: row.row_set_id || rowSet.id,
-                    id: row.id,
-                    label: row.name || `${kind} ${row.number}`,
-                });
-            } else if (
-                asPoly?.coordinates[0]?.some((pair) =>
-                    polygonContainsLngLat(ring, Number(pair[0]), Number(pair[1])),
-                )
-            ) {
-                hits.push({
-                    kind: 'row',
-                    fieldId,
-                    rowSetId: row.row_set_id || rowSet.id,
-                    id: row.id,
-                    label: row.name || `${kind} ${row.number}`,
-                });
+            if (!geometryIntersectsLasso(row.geometry, ring)) {
+                continue;
             }
+            hits.push({
+                kind: 'row',
+                fieldId,
+                rowSetId: row.row_set_id || rowSet.id,
+                id: row.id,
+                label: row.name || `${kind} ${row.number}`,
+            });
         }
     }
     for (const line of children.guidance_lines ?? []) {
-        const asLine = asLineString(line.geometry);
-        if (asLine && lineIntersectsRing(asLine, ring)) {
-            hits.push({
-                kind: 'guidance',
-                fieldId,
-                id: line.id,
-                label: line.name || 'Ligne A/B',
-            });
+        if (!geometryIntersectsLasso(line.geometry, ring)) {
+            continue;
         }
+        hits.push({
+            kind: 'guidance',
+            fieldId,
+            id: line.id,
+            label: line.name || 'Ligne A/B',
+        });
     }
     return hits;
 }

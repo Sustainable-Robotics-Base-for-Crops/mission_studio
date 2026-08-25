@@ -182,6 +182,39 @@ def test_engine_status_lists_strategies():
     status = engine_status()
     assert "boustrophedon" in status["strategies"]
     assert "best_nswath" in status["strategies"]
+    assert "guidance" in status["strategies"]
+
+
+def test_guidance_strategy_follows_supplied_heading():
+    heading = math.pi / 2.0
+    planned = plan(
+        {
+            "ring": _square_ring(),
+            "origin": {"lat": ORIGIN_LAT, "lon": ORIGIN_LON},
+            "working_width_m": 5,
+            "strategy": "guidance",
+            "guidance_heading_rad": heading,
+            "variants": True,
+        }
+    )
+    assert planned["srbc_coverage"]["strategy"] == "guidance"
+    assert abs(planned["metrics"]["heading_rad"] - heading) < 1e-6
+    names = [item["strategy"] for item in planned["variants"]]
+    assert names == ["boustrophedon", "perpendicular", "best_nswath", "guidance"]
+
+
+def test_guidance_strategy_requires_a_heading():
+    try:
+        plan(
+            {
+                "ring": _square_ring(),
+                "working_width_m": 5,
+                "strategy": "guidance",
+            }
+        )
+        raise AssertionError("expected ValueError")
+    except ValueError as exc:
+        assert "guidance_heading_rad" in str(exc)
     planned = plan(
         {
             "ring": _square_ring(),

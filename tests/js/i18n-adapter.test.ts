@@ -41,6 +41,7 @@ describe('i18n adapter', () => {
         expect(translate('tool.workingZone', {}, 'en')).toContain('Work area');
         expect(translate('tool.fillParcel', {}, 'fr')).toContain('parcelle');
         expect(translate('tool.coverageStrategy.best_nswath', {}, 'fr')).toContain('passes');
+        expect(translate('tool.coverageStrategy.guidance', {}, 'fr')).toContain('guidage');
         expect(translate('assist.new', {}, 'fr')).toBe('Nouvelle mission');
         expect(translate('assist.step.generate', {}, 'en')).toBe('Generation');
         expect(translate('tree.title', {}, 'fr')).toBe('Arbre de mission');

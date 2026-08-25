@@ -46,6 +46,8 @@ function catalogue(overrides: Partial<Catalogue> = {}): Catalogue {
         applyFollowUp: vi.fn(),
         dismissFollowUp: vi.fn(),
         deleteLassoHits: vi.fn(),
+        cutLassoHits: vi.fn(),
+        lassoOverlay: [],
         deleteGeofence: vi.fn(),
         ...overrides,
     } as unknown as Catalogue;
@@ -184,6 +186,42 @@ describe('FieldsActionPanel — polyline options (CdC §5.2)', () => {
         expect(
             screen.getByRole('button', { name: 'Valider la ligne' }).hasAttribute('disabled'),
         ).toBe(true);
+    });
+});
+
+describe('FieldsActionPanel — lasso portions', () => {
+    it('cuts the selected portions instead of deleting the whole rows', () => {
+        const cutLassoHits = vi.fn();
+        const deleteLassoHits = vi.fn();
+        render(
+            <StudioProviders>
+                <FieldsActionPanel
+                    t={t}
+                    catalogue={catalogue({
+                        editIntent: 'lasso',
+                        lassoHits: [
+                            {
+                                kind: 'row',
+                                fieldId: 'field-1',
+                                rowSetId: 'set-1',
+                                id: 'row-1',
+                                label: 'Vigne 1',
+                            },
+                        ],
+                        cutLassoHits,
+                        deleteLassoHits,
+                    })}
+                    form={form()}
+                    lassoTab="portions"
+                    onLassoTab={vi.fn()}
+                />
+            </StudioProviders>,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Couper la sélection' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmer la coupe' }));
+        expect(cutLassoHits).toHaveBeenCalledTimes(1);
+        expect(deleteLassoHits).not.toHaveBeenCalled();
     });
 });
 

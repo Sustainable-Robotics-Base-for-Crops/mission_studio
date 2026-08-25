@@ -603,7 +603,12 @@ select:focus-visible,
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
     margin-top: 8px;
+    padding-top: 8px;
+    background: var(--surface);
 }
 
 .studio-compare-dialog {
@@ -722,48 +727,6 @@ select:focus-visible,
 .studio-compare-table tr[data-current='true'] td {
     background: var(--surface-selected);
     font-weight: 600;
-}
-
-.studio-variant-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.studio-variant-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border, #d1d5db);
-    border-radius: var(--radius, 8px);
-    background: var(--surface, #fff);
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.studio-variant-card:hover {
-    border-color: var(--primary-700, #1d4ed8);
-}
-
-.studio-variant-card.is-selected {
-    border-color: var(--primary-700, #1d4ed8);
-    background: var(--surface-selected, #eff6ff);
-}
-
-.studio-variant-card-title {
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 20px;
-}
-
-.studio-variant-card-meta {
-    font-size: 12px;
-    line-height: 16px;
-    color: var(--text-muted, #4b5563);
 }
 
 .studio-fill-dialog .ds-btn.is-active {

@@ -113,6 +113,8 @@ export function Input({
 interface SelectOption {
     value: string;
     label: string;
+    /** Extra line (e.g. "24 rang(s) · 742 m"), shown in the closed field and the list. */
+    description?: string;
 }
 
 interface SelectProps {
@@ -134,11 +136,17 @@ export function Select({
     placeholder,
     help,
 }: SelectProps): ReactElement {
+    const hasDescriptions = options.some((option) => Boolean(option.description));
     return (
         <div className="ds-field">
             <FieldLabel id={id} label={label} help={help} />
             <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
-                <SelectPrimitive.Trigger id={id} className="ds-select-trigger">
+                <SelectPrimitive.Trigger
+                    id={id}
+                    className={
+                        hasDescriptions ? 'ds-select-trigger is-multiline' : 'ds-select-trigger'
+                    }
+                >
                     <SelectPrimitive.Value placeholder={placeholder} />
                 </SelectPrimitive.Trigger>
                 <SelectPrimitive.Portal>
@@ -148,10 +156,20 @@ export function Select({
                                 <SelectPrimitive.Item
                                     key={option.value}
                                     value={option.value}
+                                    textValue={option.label}
                                     className="ds-select-item"
                                 >
                                     <SelectPrimitive.ItemText>
-                                        {option.label}
+                                        <span className="ds-select-item-stack">
+                                            <span className="ds-select-item-label">
+                                                {option.label}
+                                            </span>
+                                            {option.description ? (
+                                                <span className="ds-select-item-description">
+                                                    {option.description}
+                                                </span>
+                                            ) : null}
+                                        </span>
                                     </SelectPrimitive.ItemText>
                                 </SelectPrimitive.Item>
                             ))}
