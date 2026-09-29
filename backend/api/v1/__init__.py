@@ -1,4 +1,4 @@
-"""Versioned API: health, jobs, field catalogue, coverage, farm folder."""
+"""Versioned API: health, jobs, field catalogue, coverage, imports, farm folder."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from backend.api.v1.coverage import build_coverage_router
 from backend.api.v1.equipment import build_equipment_router
 from backend.api.v1.farm import build_farm_router
 from backend.api.v1.fields import build_fields_router
+from backend.api.v1.imports import build_imports_router
 from backend.api.v1.jobs import build_jobs_router
 from backend.api.v1.publications import build_publications_router
 from backend.coverage.service import engine_status
@@ -37,5 +38,6 @@ def build_v1_router(runtime: EditorRuntime) -> APIRouter:
     router.include_router(build_equipment_router(runtime))
     router.include_router(build_coverage_router(runtime))
     router.include_router(build_publications_router(runtime))
+    router.include_router(build_imports_router())
     router.include_router(build_farm_router(runtime))
     return router

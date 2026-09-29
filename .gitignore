@@ -53,6 +53,10 @@ firebase-adminsdk*.json
 *-firebase-adminsdk-*.json
 credentials.json
 
+# Formats GPS constructeurs tiers (robots / tracteurs) : collection locale
+# uniquement. Jamais sur GitHub, même en dépôt privé.
+/collect_other_format/
+
 # Fichiers temporaires, logs et données locales de runtime.
 *.log
 logs/
