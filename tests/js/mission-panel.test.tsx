@@ -108,6 +108,7 @@ function panelProps(overrides: Partial<MissionPanelProps> = {}): MissionPanelPro
         t: (key, params) => translate(key, params ?? {}, 'fr'),
         onSelectMission: vi.fn(),
         onLoadFarmMission: vi.fn(),
+        onImportFile: vi.fn(),
         onPublish: vi.fn(),
         publications: emptyPublications,
         vehicles: [],
@@ -153,11 +154,12 @@ describe('MissionPanel (T13.10)', () => {
         expect(screen.getByRole('button', { name: 'À partir de zéro' })).toBeDefined();
         expect(screen.getByRole('button', { name: 'À partir d’une parcelle' })).toBeDefined();
         expect(screen.getByRole('button', { name: 'Avec l’assistant' })).toBeDefined();
+        expect(screen.getByRole('button', { name: 'À partir d’un fichier importé' })).toBeDefined();
         expect(
             screen
                 .getByRole('button', { name: 'À partir d’un fichier importé' })
                 .hasAttribute('disabled'),
-        ).toBe(true);
+        ).toBe(false);
         expect(screen.queryByTestId('mission-assistant-create')).toBeNull();
     });
 

@@ -140,7 +140,7 @@ export function Select({
     return (
         <div className="ds-field">
             <FieldLabel id={id} label={label} help={help} />
-            <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
+            <SelectPrimitive.Root value={value || undefined} onValueChange={onValueChange}>
                 <SelectPrimitive.Trigger
                     id={id}
                     className={

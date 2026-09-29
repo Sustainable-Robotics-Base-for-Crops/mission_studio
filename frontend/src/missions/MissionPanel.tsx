@@ -11,13 +11,14 @@ import {
 import { Button } from '../design-system/Button';
 import { Tabs } from '../design-system/Disclosure';
 import { Input } from '../design-system/Field';
-import { Dialog, Tooltip } from '../design-system/Overlay';
+import { Dialog } from '../design-system/Overlay';
 import type { AgriDocument } from '../domain/agri';
 import { createEmptyDocument } from '../domain/draft';
 import type { VehicleTwin } from '../domain/equipment';
 import { getField } from '../fields/api';
 import type { FieldSummary } from '../fields/types';
 import { composeMissionFromField } from './from-field';
+import { ImportFileButton } from '../map/ImportFileButton';
 import {
     downloadAgriDocument,
     farmMissionFilename,
@@ -42,6 +43,8 @@ export type MissionPanelProps = Omit<MissionAssistantProps, 'view'> & {
     fieldGeofenceInsetCm?: number;
     onTabChange?: (tab: string) => void;
     onSelectField?: (id: string, options?: { fit?: boolean }) => void;
+    onImportFile?: (file: File) => void;
+    importError?: string | null;
 };
 
 function displayName(entry: FarmEntry, fields: FieldSummary[], t: MissionPanelProps['t']): string {
@@ -200,6 +203,8 @@ export function MissionPanel(props: MissionPanelProps): ReactElement {
         fieldGeofenceInsetCm,
         onTabChange,
         onSelectField,
+        onImportFile,
+        importError,
     } = props;
     const advanced = isAdvancedUi(uiMode);
     const [defaultTab, setDefaultTab] = useState('explore');
@@ -459,13 +464,17 @@ export function MissionPanel(props: MissionPanelProps): ReactElement {
                                     >
                                         {t('mission.create.assistant')}
                                     </Button>
-                                    <Tooltip content={t('mission.create.fromFile.comingSoon')}>
-                                        <span className="studio-mission-create-coming">
-                                            <Button type="button" variant="secondary" disabled>
-                                                {t('mission.create.fromFile')}
-                                            </Button>
-                                        </span>
-                                    </Tooltip>
+                                    {onImportFile ? (
+                                        <ImportFileButton
+                                            label={t('mission.create.fromFile')}
+                                            onFile={onImportFile}
+                                            error={importError}
+                                        />
+                                    ) : (
+                                        <Button type="button" variant="secondary" disabled>
+                                            {t('mission.create.fromFile')}
+                                        </Button>
+                                    )}
                                 </section>
                                 {pickingField ? (
                                     <div className="studio-mission-field-picker">

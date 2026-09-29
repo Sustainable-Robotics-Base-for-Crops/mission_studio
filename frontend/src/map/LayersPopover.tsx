@@ -1,7 +1,7 @@
-import { Eye, EyeOff, Layers } from 'lucide-react';
+import { Eye, EyeOff, Layers, Trash2 } from 'lucide-react';
 import type { ReactElement } from 'react';
 
-import { Button } from '../design-system/Button';
+import { Button, IconButton } from '../design-system/Button';
 import { ICON_SIZE, STROKE } from '../design-system/icons';
 import { Popover } from '../design-system/Overlay';
 import {
@@ -10,6 +10,7 @@ import {
     CATALOGUE_ZONE_KINDS,
     type CatalogueOverlayId,
 } from './catalogue-style';
+import type { ImportedLayer } from './imported-layers';
 import { LAYER_CATALOG, MAP_STYLE, type BasemapId, type OverlayId } from './styles';
 
 interface LayersPopoverProps {
@@ -18,6 +19,9 @@ interface LayersPopoverProps {
     onBasemap: (id: BasemapId) => void;
     overlays: Partial<Record<OverlayId, boolean>>;
     onOverlay: (id: OverlayId, visible: boolean) => void;
+    importedLayers?: ImportedLayer[];
+    onImportedVisible?: (id: string, visible: boolean) => void;
+    onImportedRemove?: (id: string) => void;
 }
 
 const BASEMAP_IDS: BasemapId[] = ['plan', 'satellite', 'terrain'];
@@ -28,6 +32,9 @@ export function LayersPopover({
     onBasemap,
     overlays,
     onOverlay,
+    importedLayers = [],
+    onImportedVisible,
+    onImportedRemove,
 }: LayersPopoverProps): ReactElement {
     return (
         <div className="studio-layers-anchor">
@@ -114,6 +121,56 @@ export function LayersPopover({
                             );
                         })}
                     </ul>
+                    {importedLayers.length > 0 ? (
+                        <>
+                            <h3>{t('map.imports')}</h3>
+                            <ul>
+                                {importedLayers.map((layer) => (
+                                    <li key={layer.id} className="studio-layers-import">
+                                        <button
+                                            type="button"
+                                            className="studio-layers-row"
+                                            onClick={() =>
+                                                onImportedVisible?.(layer.id, !layer.visible)
+                                            }
+                                            aria-pressed={layer.visible}
+                                        >
+                                            {layer.visible ? (
+                                                <Eye
+                                                    size={ICON_SIZE.table}
+                                                    strokeWidth={STROKE}
+                                                    aria-hidden
+                                                />
+                                            ) : (
+                                                <EyeOff
+                                                    size={ICON_SIZE.table}
+                                                    strokeWidth={STROKE}
+                                                    aria-hidden
+                                                />
+                                            )}
+                                            <span
+                                                className="studio-layers-swatch"
+                                                style={{ background: MAP_STYLE.imported }}
+                                                aria-hidden="true"
+                                            />
+                                            <span>{layer.name}</span>
+                                        </button>
+                                        <IconButton
+                                            label={t('map.imports.delete')}
+                                            tooltipSide="left"
+                                            onClick={() => onImportedRemove?.(layer.id)}
+                                        >
+                                            <Trash2
+                                                size={ICON_SIZE.table}
+                                                strokeWidth={STROKE}
+                                                aria-hidden
+                                            />
+                                        </IconButton>
+                                    </li>
+                                ))}
+                            </ul>
+                        </>
+                    ) : null}
                     <h3>{t('fields.nav.zones')}</h3>
                     <ul className="studio-layers-legend">
                         {CATALOGUE_ZONE_KINDS.map((kind) => (

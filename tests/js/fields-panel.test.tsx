@@ -59,6 +59,7 @@ function props(overrides: Partial<FieldsPanelProps> = {}): FieldsPanelProps {
             toggleHidden: vi.fn(),
             toggleLocked: vi.fn(),
         } as unknown as FieldsPanelProps['catalogue'],
+        onImportFile: vi.fn(),
         ...overrides,
     };
 }
@@ -82,11 +83,12 @@ describe('FieldsPanel (T13.12)', () => {
         expect(screen.getByRole('button', { name: 'Aucune parcelle sélectionnée' })).toBeDefined();
         expect(screen.getByRole('heading', { name: 'Créer une nouvelle parcelle' })).toBeDefined();
         expect(screen.getByRole('button', { name: 'À partir de la carte' })).toBeDefined();
+        expect(screen.getByRole('button', { name: 'À partir d’un fichier importé' })).toBeDefined();
         expect(
             screen
                 .getByRole('button', { name: 'À partir d’un fichier importé' })
                 .hasAttribute('disabled'),
-        ).toBe(true);
+        ).toBe(false);
         expect(screen.getByText('Champ Nord')).toBeDefined();
         expect(screen.getByText(/ha$/)).toBeDefined();
         expect(fieldNavigationGroups([field])).toEqual([{ id: 'all', fields: [field] }]);
@@ -158,7 +160,7 @@ describe('FieldsPanel (T13.12)', () => {
         expect(screen.getAllByRole('button', { name: 'Verrouiller la géométrie' })).toHaveLength(2);
         expect(
             screen.getByRole('button', { name: 'Importer un fichier' }).hasAttribute('disabled'),
-        ).toBe(true);
+        ).toBe(false);
         expect(
             screen.getByRole('button', { name: 'Exporter la parcelle (GeoJSON)' }),
         ).toBeDefined();

@@ -1,4 +1,5 @@
 import type { MissionGeoJSON } from './agri-to-geojson';
+import type { ImportedLayer } from './imported-layers';
 import type { BasemapId, MapView, OverlayId } from './styles';
 
 export type RowLabelMode = 'off' | 'normal' | 'large';
@@ -48,6 +49,7 @@ export interface MapEngine {
     onDraftVertexDrag(handler: (index: number, lngLat: [number, number]) => void): () => void;
     unproject(clientX: number, clientY: number): [number, number] | null;
     setDragPanEnabled(enabled: boolean): void;
+    setImportedLayers(layers: ImportedLayer[]): void;
 }
 
 export type { BasemapId, MapView, OverlayId };

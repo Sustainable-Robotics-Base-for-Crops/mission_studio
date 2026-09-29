@@ -109,6 +109,11 @@ import { OffsetDialog } from '../map/OffsetDialog';
 import { SectionEditPanel } from '../map/SectionEditPanel';
 import { LayersPopover } from '../map/LayersPopover';
 import { MapCanvas } from '../map/MapCanvas';
+import { useImportedLayers } from '../map/useImportedLayers';
+import { ImportDialog } from '../imports/ImportDialog';
+import { commitFieldImport } from '../imports/commit-field';
+import { fieldPlanFromImport, missionFromImport } from '../imports/convert';
+import { useFileImport } from '../imports/useFileImport';
 import type { PolygonFeatureCollection } from '../map/agri-to-geojson';
 import type { BasemapId, MapView, OverlayId } from '../map/styles';
 import { isTypingTarget, useMissionEditor, type SaveState } from '../map/useMissionEditor';
@@ -460,6 +465,26 @@ export function AppShell(): ReactElement {
         labels: true,
         envelopes: true,
         simulation: true,
+    });
+    const imported = useImportedLayers();
+    const fileImport = useFileImport({
+        onAdd: imported.addCollection,
+        onConvert: async (request, preview) => {
+            if (request.intent === 'mission') {
+                editor.startNewDocument(missionFromImport(preview.collection, request), {
+                    key: 'imports.created.mission',
+                    params: { name: request.name },
+                });
+                return;
+            }
+            const plan = fieldPlanFromImport(preview.collection, request);
+            const fieldId = await commitFieldImport(
+                plan,
+                request.intent === 'field-edit' ? fields.selectedId : null,
+            );
+            await fields.reload();
+            fields.select(fieldId, { fit: true });
+        },
     });
     const onDesignSystem = location.pathname.replace(/\/+$/, '') === DESIGN_SYSTEM_PATH;
     const current = useMemo(() => moduleByPath(location.pathname), [location.pathname]);
@@ -1222,6 +1247,9 @@ export function AppShell(): ReactElement {
                         uiMode={uiMode}
                         tab={fieldsTab}
                         onTabChange={setFieldsTab}
+                        onImportFile={(file) => fileImport.start(file, 'field-create')}
+                        onImportFileEdit={(file) => fileImport.start(file, 'field-edit')}
+                        importError={imported.error ? t(imported.error) : null}
                         onDrawStarted={() => {
                             if (breakpoint === 'review') {
                                 setLeftOpen(false);
@@ -1251,6 +1279,8 @@ export function AppShell(): ReactElement {
                         t={t}
                         overlay={overlayLeft}
                         uiMode={uiMode}
+                        onImportFile={(file) => fileImport.start(file, 'mission')}
+                        importError={imported.error ? t(imported.error) : null}
                         onTabChange={(tab) => {
                             setMissionTab(tab);
                             if (tab !== 'edit' && editor.tool !== 'none') {
@@ -1564,6 +1594,8 @@ export function AppShell(): ReactElement {
                                       }))
                                     : null
                             }
+                            importedLayers={imported.layers}
+                            importedFitKey={imported.fitKey}
                         />
                         {showFieldsToolbar ? (
                             <FieldsEditToolbar
@@ -1687,7 +1719,11 @@ export function AppShell(): ReactElement {
                                     [id]: visible,
                                 }))
                             }
+                            importedLayers={imported.layers}
+                            onImportedVisible={imported.setVisible}
+                            onImportedRemove={imported.remove}
                         />
+                        <ImportDialog t={t} state={fileImport} />
                         <FillParcelDialog
                             t={t}
                             open={editor.parcelDialogOpen}

@@ -21,6 +21,19 @@ describe('i18n adapter', () => {
         );
         expect(translate('nav.fields', {}, 'en')).toBe('Fields');
         expect(translate('map.layers', {}, 'fr')).toBe('Couches');
+        expect(translate('map.imports', {}, 'fr')).toBe('Fichiers importés');
+        expect(translate('map.imports.delete', {}, 'en')).toBe('Remove this overlay');
+        expect(translate('imports.title', {}, 'fr')).toBe('Importer un fichier');
+        expect(translate('imports.confirm', {}, 'en')).toBe('Add as an overlay');
+        expect(translate('imports.kind.coverage_cell', {}, 'fr')).toBe('Empreinte de couverture');
+        expect(translate('imports.reason.naioWorkMap', { version: 4 }, 'fr')).toContain('4');
+        expect(translate('imports.preview', {}, 'fr')).toBe('Aperçu');
+        expect(translate('imports.format.placeholder', {}, 'fr')).toBe('Choisir un formalisme');
+        expect(translate('imports.preview.alt', { count: 340 }, 'fr')).toContain('340');
+        expect(
+            translate('imports.preview.truncated', { shown: 1200, total: 4000 }, 'en'),
+        ).toContain('1200');
+        expect(translate('imports.error.tooLarge', { limit_mb: 8 }, 'en')).toContain('8 MB');
         expect(translate('map.layer.geofence', {}, 'fr')).toBe('Géo-clôture');
         expect(translate('map.layer.geofence', {}, 'en')).toBe('Geofence');
         expect(translate('map.layer.guidance', {}, 'fr')).toBe('Guidage');

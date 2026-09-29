@@ -458,6 +458,8 @@ describe('MAP_STYLE (CdCF §5.2)', () => {
         expect(BASEMAPS.satellite.maxzoom).toBe(19);
         expect(BASEMAPS.plan.maxzoom).toBeLessThanOrEqual(20);
         expect(BASEMAPS.terrain.maxzoom).toBeLessThanOrEqual(17);
+        expect(BASEMAPS.plan.tiles[0]).not.toContain('cartocdn');
+        expect(BASEMAPS.plan.tiles[0]).toContain('World_Light_Gray_Base');
     });
 
     it('paints typed zones from CdCF §5.2', () => {
@@ -612,6 +614,9 @@ describe('map canvas layout', () => {
         expect(source).toContain('draggable: true');
         expect(source).toContain('showCompass: true');
         expect(source).toContain('visualizePitch: true');
+        expect(source).toContain('maxPitch: 75');
+        expect(source).toContain('pitchWithRotate: true');
+        expect(source).toContain('setImportedLayers');
         expect(source).not.toMatch(/if\s*\(\s*!map\?\.isStyleLoaded\(\)\s*\)\s*\{/);
         expect(source).not.toContain("once('load', apply)");
         expect(source).toContain("instance.once('idle', apply)");

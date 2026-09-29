@@ -40,6 +40,10 @@ export const MAP_STYLE = {
     poseImplementLine: COLOR.autonomy,
     poseFootprintWidth: 2,
     poseFootprintFillOpacity: 0.55,
+    /** Session-only imported survey files (not catalogue). */
+    imported: '#C2410C',
+    importedFillOpacity: 0.16,
+    importedPointRadius: 6,
 } as const;
 
 export type BasemapId = 'plan' | 'satellite' | 'terrain';
@@ -50,13 +54,29 @@ export const MAP_MAX_ZOOM = 22;
 
 export const BASEMAPS: Record<
     BasemapId,
-    { tiles: string[]; attribution: string; tileSize: number; maxzoom: number }
+    {
+        tiles: string[];
+        labels?: string[];
+        attribution: string;
+        tileSize: number;
+        maxzoom: number;
+    }
 > = {
     plan: {
-        tiles: ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'],
-        attribution: '© CARTO © OpenStreetMap',
+        /**
+         * Carto `light_all` now watermarks tiles without an API key
+         * (carto.com/basemaps/apikey, 2026). Esri Light Gray stays key-free
+         * and keeps the desaturated plan look.
+         */
+        tiles: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        ],
+        labels: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        ],
+        attribution: '© Esri © OpenStreetMap',
         tileSize: 256,
-        maxzoom: 18,
+        maxzoom: 16,
     },
     satellite: {
         tiles: [

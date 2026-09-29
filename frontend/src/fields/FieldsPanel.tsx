@@ -5,8 +5,9 @@ import { isAdvancedUi, type UiMode } from '../app/farm-api';
 import { Button } from '../design-system/Button';
 import { Input } from '../design-system/Field';
 import { Tabs } from '../design-system/Disclosure';
-import { Dialog, Tooltip } from '../design-system/Overlay';
+import { Dialog } from '../design-system/Overlay';
 import { nextFieldDraftName } from './edit-tools';
+import { ImportFileButton } from '../map/ImportFileButton';
 import { FieldGeometryTree } from './FieldGeometryTree';
 import { FieldRowsGenerator, FieldsImportExport } from './FieldsEditExtras';
 import { polygonAreaM2 } from './geojson';
@@ -24,6 +25,9 @@ export interface FieldsPanelProps {
     uiMode?: UiMode;
     tab?: string;
     onTabChange?: (tab: string) => void;
+    onImportFile?: (file: File) => void;
+    onImportFileEdit?: (file: File) => void;
+    importError?: string | null;
 }
 
 export interface FieldNavigationGroup {
@@ -83,6 +87,9 @@ export function FieldsPanel({
     uiMode,
     tab,
     onTabChange,
+    onImportFile,
+    onImportFileEdit,
+    importError,
 }: FieldsPanelProps): ReactElement {
     const advanced = isAdvancedUi(uiMode);
     const [internalTab, setInternalTab] = useState('explore');
@@ -145,13 +152,17 @@ export function FieldsPanel({
                         <Button type="button" variant="secondary" onClick={startFromMap}>
                             {t('fields.create.fromMap')}
                         </Button>
-                        <Tooltip content={t('fields.create.fromFile.comingSoon')}>
-                            <span className="studio-mission-create-coming">
-                                <Button type="button" variant="secondary" disabled>
-                                    {t('fields.create.fromFile')}
-                                </Button>
-                            </span>
-                        </Tooltip>
+                        {onImportFile ? (
+                            <ImportFileButton
+                                label={t('fields.create.fromFile')}
+                                onFile={onImportFile}
+                                error={importError}
+                            />
+                        ) : (
+                            <Button type="button" variant="secondary" disabled>
+                                {t('fields.create.fromFile')}
+                            </Button>
+                        )}
                     </section>
                     <section
                         className="studio-mission-explore-list"
@@ -183,7 +194,12 @@ export function FieldsPanel({
                     ) : null}
                     <FieldGeometryTree t={t} catalogue={catalogue} />
                     {advanced ? <FieldRowsGenerator t={t} catalogue={catalogue} /> : null}
-                    <FieldsImportExport t={t} catalogue={catalogue} />
+                    <FieldsImportExport
+                        t={t}
+                        catalogue={catalogue}
+                        onImportFile={onImportFileEdit ?? onImportFile}
+                        importError={importError}
+                    />
                 </div>
             ),
         },

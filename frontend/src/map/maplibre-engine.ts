@@ -26,6 +26,7 @@ import {
     catalogueOverlayRank,
 } from './catalogue-style';
 import type { MapEngine, RowLabelMode, SelectionHaloMode } from './engine';
+import { isUsableSurveyCoordinate, type ImportedLayer } from './imported-layers';
 import {
     BASEMAPS,
     initialView,
@@ -111,6 +112,19 @@ function setSourceData(map: MapLibreMap | null, id: string, data: SettableGeoJSO
     return true;
 }
 
+function setImportedSourceData(
+    map: MapLibreMap | null,
+    id: string,
+    data: ImportedLayer['collection'],
+): boolean {
+    const source = map?.getSource(id);
+    if (source?.type !== 'geojson' || typeof (source as GeoJSONSource).setData !== 'function') {
+        return false;
+    }
+    (source as GeoJSONSource).setData(data as GeoJSON.FeatureCollection);
+    return true;
+}
+
 function overlayPolygonCollection(vertices: [number, number][]): MissionGeoJSON['geofence'] {
     if (vertices.length < 3) {
         return emptyPolygonCollection();
@@ -174,6 +188,12 @@ function rasterStyle(): StyleSpecification {
                 attribution: BASEMAPS.plan.attribution,
                 maxzoom: BASEMAPS.plan.maxzoom,
             },
+            'basemap-plan-labels': {
+                type: 'raster',
+                tiles: BASEMAPS.plan.labels ?? BASEMAPS.plan.tiles,
+                tileSize: BASEMAPS.plan.tileSize,
+                maxzoom: BASEMAPS.plan.maxzoom,
+            },
             'basemap-satellite': {
                 type: 'raster',
                 tiles: BASEMAPS.satellite.tiles,
@@ -194,6 +214,12 @@ function rasterStyle(): StyleSpecification {
                 id: 'basemap-plan',
                 type: 'raster',
                 source: 'basemap-plan',
+                paint: { 'raster-resampling': 'linear' },
+            },
+            {
+                id: 'basemap-plan-labels',
+                type: 'raster',
+                source: 'basemap-plan-labels',
                 paint: { 'raster-resampling': 'linear' },
             },
             {
@@ -464,6 +490,8 @@ export function createMapLibreEngine(): MapEngine {
     let basemap: BasemapId = 'plan';
     let lastMission: MissionGeoJSON | null = null;
     let lastCatalogue: MissionGeoJSON['geofence'] | null = null;
+    let lastImported: ImportedLayer[] = [];
+    const importedIds = new Set<string>();
     let lastDraft: [number, number][] = [];
     let lastZone: [number, number][] = [];
     let lastSelectionHalo: SelectionHaloMode = 'yellow';
@@ -510,6 +538,13 @@ export function createMapLibreEngine(): MapEngine {
             if (map.getLayer(`basemap-${id}`)) {
                 map.setLayoutProperty(`basemap-${id}`, 'visibility', visibility);
             }
+        }
+        if (map.getLayer('basemap-plan-labels')) {
+            map.setLayoutProperty(
+                'basemap-plan-labels',
+                'visibility',
+                basemap === 'plan' ? 'visible' : 'none',
+            );
         }
         const haloOn = basemap === 'satellite';
         const trajHalo = haloOn && overlayVisible.trajectories !== false ? 'visible' : 'none';
@@ -919,6 +954,100 @@ export function createMapLibreEngine(): MapEngine {
         removeSvgPathsByPrefix(overlay, 'svg-cat-', kept);
     };
 
+    const paintImportedOverlay = () => {
+        if (!overlay) {
+            return;
+        }
+        const halo = basemap === 'satellite';
+        const kept = new Set<string>();
+        let index = 0;
+        for (const layer of lastImported) {
+            if (!layer.visible) {
+                continue;
+            }
+            for (const feature of layer.collection.features) {
+                const geometry = feature.geometry;
+                if (!geometry) {
+                    continue;
+                }
+                const id = `svg-import-${index}`;
+                const label = String(
+                    feature.properties?.label ?? feature.properties?.name ?? '',
+                ).trim();
+                if (geometry.type === 'Point' && Array.isArray(geometry.coordinates)) {
+                    const lng = Number(geometry.coordinates[0]);
+                    const lat = Number(geometry.coordinates[1]);
+                    if (!isUsableSurveyCoordinate(lng, lat)) {
+                        continue;
+                    }
+                    const projected = projectLngLat(lng, lat);
+                    if (!projected) {
+                        continue;
+                    }
+                    const radius = MAP_STYLE.importedPointRadius;
+                    const d = `M${(projected.x - radius).toFixed(1)} ${projected.y.toFixed(1)} a ${radius} ${radius} 0 1 0 ${(radius * 2).toFixed(1)} 0 a ${radius} ${radius} 0 1 0 ${(-radius * 2).toFixed(1)} 0`;
+                    index += 1;
+                    kept.add(id);
+                    kept.add(`${id}-halo`);
+                    paintSvgPolygon(id, d, MAP_STYLE.imported, {
+                        halo,
+                        fill: MAP_STYLE.imported,
+                        fillOpacity: 1,
+                        strokeWidth: 2,
+                        dataFill: true,
+                    });
+                    if (label && overlayVisible.labels !== false) {
+                        const labelId = `${id}-label`;
+                        kept.add(labelId);
+                        upsertSvgText(
+                            overlay,
+                            labelId,
+                            label,
+                            projected.x,
+                            projected.y - POINT_LABEL_OFFSET_PX,
+                        );
+                    }
+                    continue;
+                }
+                if (geometry.type === 'LineString' && Array.isArray(geometry.coordinates)) {
+                    const d = coordinatesToSvgPath(
+                        geometry.coordinates as Array<[number, number]>,
+                        projectLngLat,
+                    );
+                    if (!d) {
+                        continue;
+                    }
+                    index += 1;
+                    kept.add(id);
+                    kept.add(`${id}-halo`);
+                    paintSvgLine(id, d, MAP_STYLE.imported, 2, undefined, halo);
+                    continue;
+                }
+                if (geometry.type === 'Polygon' && Array.isArray(geometry.coordinates)) {
+                    const rings = geometry.coordinates as number[][][];
+                    const d = rings
+                        .filter((ring): ring is Array<[number, number]> => Array.isArray(ring))
+                        .map((ring) => coordinatesToSvgPath(ring, projectLngLat, true))
+                        .join('');
+                    if (!d) {
+                        continue;
+                    }
+                    index += 1;
+                    kept.add(id);
+                    kept.add(`${id}-halo`);
+                    paintSvgPolygon(id, d, MAP_STYLE.imported, {
+                        halo,
+                        fill: MAP_STYLE.imported,
+                        fillOpacity: MAP_STYLE.importedFillOpacity,
+                        strokeWidth: 2,
+                        dataFill: true,
+                    });
+                }
+            }
+        }
+        removeSvgPathsByPrefix(overlay, 'svg-import-', kept);
+    };
+
     const paintRowLabels = () => {
         const svg = overlay;
         if (!svg) {
@@ -1016,6 +1145,7 @@ export function createMapLibreEngine(): MapEngine {
         }
         paintSvgPolygon('svg-geofence', geofence, MAP_STYLE.geofenceLine, { halo });
         paintCatalogueOverlay();
+        paintImportedOverlay();
         paintSvgPolygon('svg-workable', workable, MAP_STYLE.fillWorkable, { halo });
         paintSvgPolygon('svg-traversable', traversable, MAP_STYLE.transit, {
             halo,
@@ -1146,6 +1276,95 @@ export function createMapLibreEngine(): MapEngine {
         }
     };
 
+    const importedSourceId = (id: string): string => `import-${id}`;
+
+    const stripImportedLayer = (id: string): void => {
+        if (!map) {
+            return;
+        }
+        const sourceId = importedSourceId(id);
+        for (const suffix of ['fill', 'line', 'circle'] as const) {
+            const layerId = `${sourceId}-${suffix}`;
+            if (map.getLayer(layerId)) {
+                map.removeLayer(layerId);
+            }
+        }
+        if (map.getSource(sourceId)) {
+            map.removeSource(sourceId);
+        }
+        importedIds.delete(id);
+    };
+
+    const syncImportedLayers = (): void => {
+        if (!map) {
+            return;
+        }
+        const nextIds = new Set(lastImported.map((layer) => layer.id));
+        for (const id of [...importedIds]) {
+            if (!nextIds.has(id)) {
+                stripImportedLayer(id);
+            }
+        }
+        for (const layer of lastImported) {
+            const sourceId = importedSourceId(layer.id);
+            const visibility = layer.visible ? 'visible' : 'none';
+            if (!map.getSource(sourceId)) {
+                map.addSource(sourceId, {
+                    type: 'geojson',
+                    data: layer.collection as GeoJSON.FeatureCollection,
+                });
+                map.addLayer({
+                    id: `${sourceId}-fill`,
+                    type: 'fill',
+                    source: sourceId,
+                    filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+                    layout: { visibility },
+                    paint: {
+                        'fill-color': MAP_STYLE.imported,
+                        'fill-opacity': MAP_STYLE.importedFillOpacity,
+                    },
+                });
+                map.addLayer({
+                    id: `${sourceId}-line`,
+                    type: 'line',
+                    source: sourceId,
+                    filter: [
+                        'in',
+                        ['geometry-type'],
+                        ['literal', ['LineString', 'MultiLineString', 'Polygon', 'MultiPolygon']],
+                    ],
+                    layout: { visibility, 'line-join': 'round', 'line-cap': 'round' },
+                    paint: {
+                        'line-color': MAP_STYLE.imported,
+                        'line-width': 2,
+                    },
+                });
+                map.addLayer({
+                    id: `${sourceId}-circle`,
+                    type: 'circle',
+                    source: sourceId,
+                    filter: ['in', ['geometry-type'], ['literal', ['Point', 'MultiPoint']]],
+                    layout: { visibility },
+                    paint: {
+                        'circle-radius': MAP_STYLE.importedPointRadius,
+                        'circle-color': MAP_STYLE.imported,
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': '#FFFFFF',
+                    },
+                });
+                importedIds.add(layer.id);
+            } else {
+                setImportedSourceData(map, sourceId, layer.collection);
+                for (const suffix of ['fill', 'line', 'circle'] as const) {
+                    const layerId = `${sourceId}-${suffix}`;
+                    if (map.getLayer(layerId)) {
+                        map.setLayoutProperty(layerId, 'visibility', visibility);
+                    }
+                }
+            }
+        }
+    };
+
     const onStyleReady = (engine: MapEngine) => {
         if (!map) {
             return;
@@ -1160,6 +1379,7 @@ export function createMapLibreEngine(): MapEngine {
         if (lastCatalogue) {
             engine.renderCatalogue(lastCatalogue);
         }
+        syncImportedLayers();
         engine.setDraftVertices(lastDraft);
         engine.setOverlayPolygon(lastZone.length >= 3 ? lastZone : null);
         engine.setSelectionHalo(lastSelectionHalo);
@@ -1211,6 +1431,10 @@ export function createMapLibreEngine(): MapEngine {
                 zoom: camera.zoom,
                 attributionControl: { compact: true },
                 maxZoom: MAP_MAX_ZOOM,
+                maxPitch: 75,
+                pitchWithRotate: true,
+                dragRotate: true,
+                touchPitch: true,
             });
             map = instance;
             overlay = createMapSvgOverlay();
@@ -1291,6 +1515,11 @@ export function createMapLibreEngine(): MapEngine {
         renderCatalogue(collection: MissionGeoJSON['geofence']) {
             lastCatalogue = collection;
             setSourceData(map, SOURCE.catalogue, collection);
+            syncOverlay();
+        },
+        setImportedLayers(layers: ImportedLayer[]) {
+            lastImported = layers;
+            syncImportedLayers();
             syncOverlay();
         },
         fitBounds(bounds: [[number, number], [number, number]] | null) {

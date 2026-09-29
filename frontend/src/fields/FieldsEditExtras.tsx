@@ -2,8 +2,8 @@ import { useEffect, useState, type ReactElement } from 'react';
 
 import { Button } from '../design-system/Button';
 import { Input } from '../design-system/Field';
-import { Tooltip } from '../design-system/Overlay';
 import { DEFAULT_ROW_SPACING_M } from '../domain/coverage';
+import { ImportFileButton } from '../map/ImportFileButton';
 import { DEFAULT_BED_COUNT, DEFAULT_BED_PATH_M, DEFAULT_BED_WIDTH_M } from './rows';
 import type { useFieldCatalogue } from './useFieldCatalogue';
 
@@ -148,20 +148,28 @@ export function FieldRowsGenerator({
 export function FieldsImportExport({
     t,
     catalogue,
+    onImportFile,
+    importError,
 }: {
     t: Translate;
     catalogue: Catalogue;
+    onImportFile?: (file: File) => void;
+    importError?: string | null;
 }): ReactElement {
     return (
         <section className="studio-field-create" aria-labelledby="fields-io-heading">
             <h3 id="fields-io-heading">{t('fields.nav.io')}</h3>
-            <Tooltip content={t('fields.importFile.comingSoon')}>
-                <span className="studio-mission-create-coming">
-                    <Button type="button" variant="secondary" disabled>
-                        {t('fields.importFile')}
-                    </Button>
-                </span>
-            </Tooltip>
+            {onImportFile ? (
+                <ImportFileButton
+                    label={t('fields.importFile')}
+                    onFile={onImportFile}
+                    error={importError}
+                />
+            ) : (
+                <Button type="button" variant="secondary" disabled>
+                    {t('fields.importFile')}
+                </Button>
+            )}
             <Button
                 variant="secondary"
                 disabled={!catalogue.selectedId}

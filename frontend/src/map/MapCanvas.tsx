@@ -6,6 +6,7 @@ import { boundsForFeatureId } from '../fields/geojson';
 import type { CoveragePreview } from '../coverage/api';
 import { agriToGeoJSON, type PolygonFeatureCollection } from './agri-to-geojson';
 import type { MapEngine, RowLabelMode, SelectionHaloMode } from './engine';
+import type { ImportedLayer } from './imported-layers';
 import { createMapLibreEngine } from './maplibre-engine';
 import { PlaceSearch } from './PlaceSearch';
 import {
@@ -64,6 +65,8 @@ interface MapCanvasProps {
     draftHandleCount?: number;
     selectionHalo?: SelectionHaloMode;
     endpointMarkers?: Array<{ lngLat: [number, number]; selected?: boolean }> | null;
+    importedLayers?: ImportedLayer[];
+    importedFitKey?: string | null;
 }
 
 export function MapCanvas({
@@ -105,6 +108,8 @@ export function MapCanvas({
     draftHandleCount,
     selectionHalo = 'yellow',
     endpointMarkers = null,
+    importedLayers = [],
+    importedFitKey = null,
 }: MapCanvasProps): ReactElement {
     const { t } = useI18n();
     const hostRef = useRef<HTMLDivElement>(null);
@@ -132,6 +137,7 @@ export function MapCanvas({
     hitSelectedSectionRef.current = hitSelectedSection;
     const fittedKeyRef = useRef<string | null | undefined>(undefined);
     const fittedCatalogueRef = useRef<string | null | undefined>(undefined);
+    const fittedImportedRef = useRef<string | null>(null);
     const startViewRef = useRef(startView);
     startViewRef.current = startView;
     const onViewReaderRef = useRef(onViewReader);
@@ -248,6 +254,23 @@ export function MapCanvas({
             }
         }
     }, [overlays]);
+
+    useEffect(() => {
+        engineRef.current?.setImportedLayers(importedLayers);
+    }, [importedLayers]);
+
+    useEffect(() => {
+        if (!importedFitKey || importedFitKey === fittedImportedRef.current) {
+            return;
+        }
+        const layerId = importedFitKey.split('#')[0];
+        const layer = importedLayers.find((entry) => entry.id === layerId);
+        if (!layer?.bounds) {
+            return;
+        }
+        engineRef.current?.fitBounds(layer.bounds);
+        fittedImportedRef.current = importedFitKey;
+    }, [importedFitKey, importedLayers]);
 
     useEffect(() => {
         engineRef.current?.setRowLabelMode(rowLabelMode);
