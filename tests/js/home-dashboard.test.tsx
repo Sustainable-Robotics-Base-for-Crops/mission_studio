@@ -221,9 +221,9 @@ describe('home dashboard identity and lists', () => {
         expect(buttons[1].disabled).toBe(true);
     });
 
-    it('warns when the versioned backend is absent instead of failing silently', () => {
+    it('warns when this browser cannot keep a farm instead of failing silently', () => {
         renderHome(farmState({ available: false }));
-        expect(screen.getByRole('status').textContent).toContain('BACKEND_FASTAPI');
+        expect(screen.getByRole('status').textContent).toContain('navigation privée');
     });
 });
 

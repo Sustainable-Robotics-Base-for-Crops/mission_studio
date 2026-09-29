@@ -1,3 +1,9 @@
+/**
+ * Field catalogue of the open farm (L5, L15a). Reads and writes `parcel_map/` on the
+ * visitor's device through the farm session; no server round trip.
+ */
+
+import { currentSession, requireSession } from '../farmstore/session';
 import type {
     FieldDetail,
     FieldDiff,
@@ -18,59 +24,28 @@ import type {
     LandmarkKind,
 } from './types';
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-    return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+function catalogue() {
+    return requireSession().fields;
 }
 
-async function readError(response: Response, fallback: string): Promise<string> {
-    try {
-        const body: unknown = await response.json();
-        const record = asRecord(body);
-        if (typeof record?.error === 'string' && record.error) {
-            return record.error;
-        }
-    } catch {
-        // Keep the HTTP fallback.
+function found<T>(value: T | null, what = 'field'): T {
+    if (value === null) {
+        throw new Error(`${what} not found`);
     }
-    return `${fallback} (${response.status})`;
+    return value;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(path, {
-        ...init,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(init?.headers ?? {}),
-        },
-    });
-    if (!response.ok) {
-        throw new Error(await readError(response, `${init?.method ?? 'GET'} ${path} failed`));
-    }
-    return (await response.json()) as T;
-}
-
+/** `sqlite` keeps its historical name: true when a farm catalogue is open. */
 export async function fetchFieldsHealth(): Promise<{ sqlite: boolean; jobs: boolean } | null> {
-    const response = await fetch('/api/v1/health');
-    if (response.status === 404) {
-        return null;
-    }
-    if (!response.ok) {
-        return null;
-    }
-    const body = asRecord(await response.json());
-    return {
-        sqlite: body?.sqlite === true,
-        jobs: body?.jobs === true,
-    };
+    return { sqlite: currentSession() !== null, jobs: false };
 }
 
 export async function listFields(): Promise<FieldSummary[]> {
-    const body = await request<{ fields: FieldSummary[] }>('/api/v1/fields');
-    return Array.isArray(body.fields) ? body.fields : [];
+    return catalogue().listFields();
 }
 
 export async function getField(id: string): Promise<FieldDetail> {
-    return request<FieldDetail>(`/api/v1/fields/${encodeURIComponent(id)}`);
+    return found(catalogue().getField(id));
 }
 
 export async function createField(payload: {
@@ -79,66 +54,52 @@ export async function createField(payload: {
     campaign?: string;
     provenance?: Record<string, unknown>;
 }): Promise<FieldDetail> {
-    return request<FieldDetail>('/api/v1/fields', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().createField(payload);
 }
 
 export async function patchField(
     id: string,
     payload: Record<string, unknown>,
 ): Promise<FieldDetail> {
-    return request<FieldDetail>(`/api/v1/fields/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().updateField(id, payload);
 }
 
 export async function importGeoJSON(
     geojson: Record<string, unknown>,
     name?: string,
 ): Promise<{ ok: boolean; field?: FieldDetail; errors?: unknown[] }> {
-    return request('/api/v1/fields/import', {
-        method: 'POST',
-        body: JSON.stringify({ format: 'geojson', geojson, name }),
-    });
+    const report = await catalogue().importGeoJSON(geojson, name);
+    if (!report.ok) {
+        throw new Error(String(report.errors[0]?.reason ?? 'import failed'));
+    }
+    return report;
 }
 
 export async function listVersions(id: string): Promise<FieldVersion[]> {
-    const body = await request<{ versions: FieldVersion[] }>(
-        `/api/v1/fields/${encodeURIComponent(id)}/versions`,
-    );
-    return Array.isArray(body.versions) ? body.versions : [];
+    return catalogue().listVersions(id);
 }
 
 export async function diffVersions(id: string, from: number, to: number): Promise<FieldDiff> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/versions/${from}/diff/${to}`);
+    return catalogue().diffVersions(id, from, to);
 }
 
 export async function getImpact(id: string): Promise<FieldImpact> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/impact`);
+    return catalogue().impact(id);
 }
 
 export async function exportField(id: string): Promise<Record<string, unknown>> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/export`);
+    return catalogue().exportField(id);
 }
 
 export async function linkMission(id: string, path: string): Promise<void> {
-    await request(`/api/v1/fields/${encodeURIComponent(id)}/missions`, {
-        method: 'POST',
-        body: JSON.stringify({ path }),
-    });
+    catalogue().linkMission(id, path);
 }
 
 export async function addZone(
     id: string,
     payload: { kind: string; geometry: GeoJSONPolygon; name?: string },
 ): Promise<FieldZone> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/zones`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().addZone(id, payload);
 }
 
 export async function addLandmark(
@@ -150,10 +111,7 @@ export async function addLandmark(
         radius_m?: number | null;
     },
 ): Promise<FieldLandmark> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/landmarks`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().addLandmark(id, payload);
 }
 
 export async function patchLandmark(
@@ -161,27 +119,18 @@ export async function patchLandmark(
     landmarkId: string,
     payload: Record<string, unknown>,
 ): Promise<FieldLandmark> {
-    return request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/landmarks/${encodeURIComponent(landmarkId)}`,
-        { method: 'PATCH', body: JSON.stringify(payload) },
-    );
+    return catalogue().updateLandmark(fieldId, landmarkId, payload);
 }
 
 export async function deleteLandmark(fieldId: string, landmarkId: string): Promise<void> {
-    await request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/landmarks/${encodeURIComponent(landmarkId)}`,
-        { method: 'DELETE' },
-    );
+    await catalogue().deleteLandmark(fieldId, landmarkId);
 }
 
 export async function addObstacle(
     id: string,
     payload: { geometry: GeoJSONPolygon; name?: string; category?: string },
 ): Promise<FieldObstacle> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/obstacles`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().addObstacle(id, payload);
 }
 
 export async function patchZone(
@@ -189,10 +138,7 @@ export async function patchZone(
     zoneId: string,
     payload: Record<string, unknown>,
 ): Promise<FieldZone> {
-    return request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/zones/${encodeURIComponent(zoneId)}`,
-        { method: 'PATCH', body: JSON.stringify(payload) },
-    );
+    return catalogue().updateZone(fieldId, zoneId, payload);
 }
 
 export async function patchObstacle(
@@ -200,38 +146,26 @@ export async function patchObstacle(
     obstacleId: string,
     payload: Record<string, unknown>,
 ): Promise<FieldObstacle> {
-    return request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/obstacles/${encodeURIComponent(obstacleId)}`,
-        { method: 'PATCH', body: JSON.stringify(payload) },
-    );
+    return catalogue().updateObstacle(fieldId, obstacleId, payload);
 }
 
 export async function deleteField(id: string): Promise<void> {
-    await request(`/api/v1/fields/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await catalogue().deleteField(id);
 }
 
 export async function deleteZone(fieldId: string, zoneId: string): Promise<void> {
-    await request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/zones/${encodeURIComponent(zoneId)}`,
-        { method: 'DELETE' },
-    );
+    await catalogue().deleteZone(fieldId, zoneId);
 }
 
 export async function deleteObstacle(fieldId: string, obstacleId: string): Promise<void> {
-    await request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/obstacles/${encodeURIComponent(obstacleId)}`,
-        { method: 'DELETE' },
-    );
+    await catalogue().deleteObstacle(fieldId, obstacleId);
 }
 
 export async function addGuidanceLine(
     id: string,
     payload: { geometry: GeoJSONLineString; name?: string },
 ): Promise<FieldGuidanceLine> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/guidance-lines`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().addGuidanceLine(id, payload);
 }
 
 export async function patchGuidanceLine(
@@ -239,17 +173,11 @@ export async function patchGuidanceLine(
     lineId: string,
     payload: Record<string, unknown>,
 ): Promise<FieldGuidanceLine> {
-    return request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/guidance-lines/${encodeURIComponent(lineId)}`,
-        { method: 'PATCH', body: JSON.stringify(payload) },
-    );
+    return catalogue().updateGuidanceLine(fieldId, lineId, payload);
 }
 
 export async function deleteGuidanceLine(fieldId: string, lineId: string): Promise<void> {
-    await request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/guidance-lines/${encodeURIComponent(lineId)}`,
-        { method: 'DELETE' },
-    );
+    await catalogue().deleteGuidanceLine(fieldId, lineId);
 }
 
 export async function addTrafficWay(
@@ -263,10 +191,7 @@ export async function addTrafficWay(
         width_m?: number | null;
     },
 ): Promise<FieldTrafficWay> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/traffic-ways`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().addTrafficWay(id, payload);
 }
 
 export async function patchTrafficWay(
@@ -274,27 +199,18 @@ export async function patchTrafficWay(
     wayId: string,
     payload: Record<string, unknown>,
 ): Promise<FieldTrafficWay> {
-    return request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/traffic-ways/${encodeURIComponent(wayId)}`,
-        { method: 'PATCH', body: JSON.stringify(payload) },
-    );
+    return catalogue().updateTrafficWay(fieldId, wayId, payload);
 }
 
 export async function deleteTrafficWay(fieldId: string, wayId: string): Promise<void> {
-    await request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/traffic-ways/${encodeURIComponent(wayId)}`,
-        { method: 'DELETE' },
-    );
+    await catalogue().deleteTrafficWay(fieldId, wayId);
 }
 
 export async function addTrafficNode(
     id: string,
     payload: { geometry: GeoJSONPoint; name?: string; kind?: string },
 ): Promise<FieldTrafficNode> {
-    return request(`/api/v1/fields/${encodeURIComponent(id)}/traffic-nodes`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().addTrafficNode(id, payload);
 }
 
 export async function patchTrafficNode(
@@ -302,17 +218,11 @@ export async function patchTrafficNode(
     nodeId: string,
     payload: Record<string, unknown>,
 ): Promise<FieldTrafficNode> {
-    return request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/traffic-nodes/${encodeURIComponent(nodeId)}`,
-        { method: 'PATCH', body: JSON.stringify(payload) },
-    );
+    return catalogue().updateTrafficNode(fieldId, nodeId, payload);
 }
 
 export async function deleteTrafficNode(fieldId: string, nodeId: string): Promise<void> {
-    await request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/traffic-nodes/${encodeURIComponent(nodeId)}`,
-        { method: 'DELETE' },
-    );
+    await catalogue().deleteTrafficNode(fieldId, nodeId);
 }
 
 export async function createRowSet(
@@ -330,17 +240,11 @@ export async function createRowSet(
         width_m?: number | null;
     },
 ): Promise<FieldRowSet> {
-    return request(`/api/v1/fields/${encodeURIComponent(fieldId)}/row-sets`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    return catalogue().createRowSet(fieldId, payload);
 }
 
 export async function deleteRowSet(fieldId: string, setId: string): Promise<void> {
-    await request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/row-sets/${encodeURIComponent(setId)}`,
-        { method: 'DELETE' },
-    );
+    await catalogue().deleteRowSet(fieldId, setId);
 }
 
 export async function addRow(
@@ -352,10 +256,7 @@ export async function addRow(
         name?: string | null;
     },
 ): Promise<FieldRow> {
-    return request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/row-sets/${encodeURIComponent(setId)}/rows`,
-        { method: 'POST', body: JSON.stringify(payload) },
-    );
+    return catalogue().addRow(fieldId, setId, payload);
 }
 
 export async function patchRow(
@@ -363,15 +264,9 @@ export async function patchRow(
     rowId: string,
     payload: Record<string, unknown>,
 ): Promise<FieldRow> {
-    return request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/rows/${encodeURIComponent(rowId)}`,
-        { method: 'PATCH', body: JSON.stringify(payload) },
-    );
+    return catalogue().updateRow(fieldId, rowId, payload);
 }
 
 export async function deleteRow(fieldId: string, rowId: string): Promise<void> {
-    await request(
-        `/api/v1/fields/${encodeURIComponent(fieldId)}/rows/${encodeURIComponent(rowId)}`,
-        { method: 'DELETE' },
-    );
+    await catalogue().deleteRow(fieldId, rowId);
 }

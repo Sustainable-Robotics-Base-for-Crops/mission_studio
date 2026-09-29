@@ -1,9 +1,27 @@
 /**
- * Client for /api/v1/farm (L13). The farm folder is the source of truth.
- *
- * The backend can be absent (legacy http.server without FastAPI). Every call
- * therefore reports "unavailable" explicitly instead of throwing into the UI.
+ * The open farm (L13, L15a). The farm folder is the source of truth and lives on the
+ * visitor's device: a real folder (Chrome / Edge) or the browser's own store. The
+ * server never reads nor writes a farm.
  */
+
+import {
+    browserFarmsSupported,
+    createBrowserFarm,
+    createDeviceFarm,
+    currentSession,
+    deviceFoldersSupported,
+    importBrowserFarm,
+    listRecentFarms,
+    openDeviceFarm,
+    openRecentFarm,
+    pickDeviceFolder,
+    requireSession,
+    snapshotCropPack,
+    type FarmLocation,
+    type FarmRecent,
+} from '../farmstore/session';
+
+export type { FarmLocation, FarmRecent };
 
 export type FarmType = 'market_garden' | 'vineyard' | 'open_field' | 'livestock' | 'mixed';
 export type UiMode = 'basic' | 'advanced';
@@ -65,9 +83,11 @@ export interface FarmCounts {
 
 export interface FarmSnapshot {
     farm: FarmDocument | null;
+    /** Folder or farm name for display. Never an absolute path. */
     root: string | null;
+    location: FarmLocation | null;
     counts: FarmCounts;
-    recent: string[];
+    recent: FarmRecent[];
     cropPack: string | null;
 }
 
@@ -101,127 +121,156 @@ export const EMPTY_COUNTS: FarmCounts = {
 export const EMPTY_SNAPSHOT: FarmSnapshot = {
     farm: null,
     root: null,
+    location: null,
     counts: EMPTY_COUNTS,
     recent: [],
     cropPack: null,
 };
 
-/** Thrown when the server refused the request and said why. */
+/** Raised when a farm operation is refused, with the reason to show. */
 export class FarmError extends Error {}
 
-async function readError(response: Response, fallback: string): Promise<string> {
+async function guarded<T>(run: () => Promise<T>): Promise<T> {
     try {
-        const body: unknown = await response.json();
-        if (body !== null && typeof body === 'object') {
-            const error = (body as { error?: unknown }).error;
-            if (typeof error === 'string' && error) {
-                return error;
-            }
+        return await run();
+    } catch (reason) {
+        if (reason instanceof FarmError) {
+            throw reason;
         }
-    } catch {
-        // Not JSON: fall through to the HTTP status.
+        throw new FarmError(reason instanceof Error ? reason.message : String(reason), {
+            cause: reason,
+        });
     }
-    return `${fallback} (${response.status})`;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(path, {
-        ...init,
-        headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-    });
-    if (!response.ok) {
-        throw new FarmError(await readError(response, `${init?.method ?? 'GET'} ${path} failed`));
-    }
-    return (await response.json()) as T;
-}
-
-/** True when the versioned backend answers, so the farm routes exist. */
+/** True when this browser can hold a farm (a real folder or its own store). */
 export async function fetchFarmAvailable(): Promise<boolean> {
-    try {
-        const response = await fetch('/api/v1/health');
-        return response.ok;
-    } catch {
-        return false;
-    }
+    return browserFarmsSupported() || deviceFoldersSupported();
+}
+
+export function farmFoldersOnDevice(): boolean {
+    return deviceFoldersSupported();
 }
 
 export async function fetchFarm(): Promise<FarmSnapshot> {
-    return request<FarmSnapshot>('/api/v1/farm');
+    const recent = await listRecentFarms().catch(() => []);
+    const session = currentSession();
+    if (!session) {
+        return { ...EMPTY_SNAPSHOT, recent };
+    }
+    const farm = (await session.readFarm()) as FarmDocument | null;
+    return {
+        farm,
+        root: session.location.label,
+        location: session.location,
+        counts: await session.counts(),
+        recent,
+        cropPack: snapshotCropPack(farm as Record<string, unknown> | null),
+    };
 }
 
 export async function updateFarm(patch: Partial<FarmDocument>): Promise<FarmSnapshot> {
-    return request<FarmSnapshot>('/api/v1/farm', {
-        method: 'PUT',
-        body: JSON.stringify(patch),
+    await guarded(() => requireSession().writeFarm(patch as Record<string, unknown>));
+    return fetchFarm();
+}
+
+/** Ask for a folder on this computer and open the farm it holds. Null when cancelled. */
+export async function openFarmFromDevice(): Promise<FarmSnapshot | null> {
+    return guarded(async () => {
+        const handle = await pickDeviceFolder();
+        if (!handle) {
+            return null;
+        }
+        await openDeviceFarm(handle);
+        return fetchFarm();
     });
 }
 
-export async function openFarm(root: string, name?: string): Promise<FarmSnapshot> {
-    return request<FarmSnapshot>('/api/v1/farm/open', {
-        method: 'POST',
-        body: JSON.stringify(name ? { root, name } : { root }),
+/** Ask for an empty folder on this computer and create a farm in it. */
+export async function createFarmOnDevice(name: string): Promise<FarmSnapshot | null> {
+    return guarded(async () => {
+        const handle = await pickDeviceFolder();
+        if (!handle) {
+            return null;
+        }
+        await createDeviceFarm(handle, name);
+        return fetchFarm();
     });
 }
 
-export async function openExistingFarm(root: string): Promise<FarmSnapshot> {
-    return request<FarmSnapshot>('/api/v1/farm/open-existing', {
-        method: 'POST',
-        body: JSON.stringify({ root }),
+export async function createFarmInBrowser(name: string): Promise<FarmSnapshot> {
+    return guarded(async () => {
+        await createBrowserFarm(name);
+        return fetchFarm();
     });
 }
 
-export async function createFarm(root: string, name: string): Promise<FarmSnapshot> {
-    return request<FarmSnapshot>('/api/v1/farm/create', {
-        method: 'POST',
-        body: JSON.stringify({ root, name }),
+export async function openRecent(recent: FarmRecent): Promise<FarmSnapshot> {
+    return guarded(async () => {
+        await openRecentFarm(recent);
+        return fetchFarm();
     });
 }
 
-export async function pickFarmFolder(): Promise<string | null> {
-    const body = await request<{ path?: unknown; cancelled?: unknown }>(
-        '/api/v1/farm/pick-folder',
-        {
-            method: 'POST',
-        },
-    );
-    return typeof body.path === 'string' && body.path ? body.path : null;
+/** A farm archive (.zip) becomes a new farm stored in this browser. */
+export async function importFarmArchive(file: Blob & { name?: string }): Promise<FarmSnapshot> {
+    return guarded(async () => {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const fallback = (file.name ?? 'ferme').replace(/\.zip$/i, '') || 'ferme';
+        await importBrowserFarm(bytes, fallback);
+        return fetchFarm();
+    });
+}
+
+/** Download the open farm as a `.zip`, named after the farm. */
+export async function exportFarmArchive(): Promise<void> {
+    await guarded(async () => {
+        const session = requireSession();
+        const farm = await session.readFarm();
+        const bytes = await session.exportZip();
+        const name = String(farm?.name ?? session.location.label ?? 'ferme')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^A-Za-z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/zip' });
+        const url = URL.createObjectURL(blob);
+        const link = globalThis.document.createElement('a');
+        link.href = url;
+        link.download = `${name || 'ferme'}.zip`;
+        globalThis.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    });
 }
 
 export async function fetchFarmTree(kind?: FarmKind): Promise<FarmTree> {
-    const query = kind ? `?kind=${encodeURIComponent(kind)}` : '';
-    const body = await request<{ tree?: FarmTree }>(`/api/v1/farm/tree${query}`);
-    return body.tree ?? {};
+    return guarded(() => requireSession().tree(kind));
 }
 
 export async function fetchFarmMissionsForField(fieldId: string): Promise<FarmEntry[]> {
-    const query = `?field_id=${encodeURIComponent(fieldId)}`;
-    const body = await request<{ missions?: FarmEntry[] }>(`/api/v1/farm/missions${query}`);
-    return body.missions ?? [];
+    return guarded(() => requireSession().missionsForField(fieldId));
 }
 
 export async function fetchFarmMission(path: string): Promise<unknown> {
-    const query = `?path=${encodeURIComponent(path)}`;
-    const body = await request<{ document: unknown }>(`/api/v1/farm/file${query}`);
-    return body.document;
+    return guarded(() => requireSession().readMission(path));
 }
 
 export async function saveFarmMission(
     path: string,
     document: Record<string, unknown>,
 ): Promise<string> {
-    const body = await request<{ path?: string }>('/api/v1/farm/file', {
-        method: 'PUT',
-        body: JSON.stringify({ path, document }),
-    });
-    return typeof body.path === 'string' && body.path ? body.path : path;
+    await guarded(() => requireSession().writeMission(path, document));
+    return path;
 }
 
 export async function reindexFarm(): Promise<{ errors: number }> {
-    const body = await request<{ errors?: number }>('/api/v1/farm/reindex', { method: 'POST' });
-    return { errors: body.errors ?? 0 };
+    const report = await guarded(() => requireSession().reindex());
+    return { errors: report.errors };
 }
 
-/** Folder name of a root path, for display when the full path is too long. */
+/** Folder name of a root, for display when the full value is too long. */
 export function farmFolderName(root: string | null): string {
     if (!root) {
         return '';

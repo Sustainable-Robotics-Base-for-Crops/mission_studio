@@ -75,15 +75,17 @@ export async function fetchMissionList(): Promise<MissionRef[]> {
     return missionsFromFarmTree(await fetchFarmTree('mission_order'));
 }
 
+/** Studio reads missions from the open farm only; `/app` keeps the server `uploads/`. */
 export async function fetchMissionDocument(path: string): Promise<unknown> {
-    if (isFarmMissionPath(path)) {
-        return fetchFarmMission(path);
+    if (!isFarmMissionPath(path) && !isFarmWorkPath(path)) {
+        throw new Error(`not a mission of the open farm: ${path}`);
     }
-    const response = await fetch(`/api/trajectories/${encodeURIComponent(path)}`);
-    if (!response.ok) {
-        throw new Error(`GET /api/trajectories/${path} failed (${response.status})`);
-    }
-    return response.json();
+    return fetchFarmMission(path);
+}
+
+function isFarmWorkPath(path: string): boolean {
+    const parts = path.split('/').filter(Boolean);
+    return parts.length === 2 && parts[0] === 'work_performed' && /\.json$/i.test(parts[1] ?? '');
 }
 
 export type StorageIdentity = {
@@ -150,19 +152,6 @@ export function toSaveRequest(
     agri.file_type = identity.fileType;
     agri.vehicle_id = identity.vehicleId;
     return { ...agri, filename: identity.filename };
-}
-
-async function readError(response: Response, fallback: string): Promise<string> {
-    try {
-        const body: unknown = await response.json();
-        const record = asRecord(body);
-        if (typeof record?.error === 'string' && record.error) {
-            return record.error;
-        }
-    } catch {
-        // Keep the HTTP fallback when the body is not JSON.
-    }
-    return `${fallback} (${response.status})`;
 }
 
 export function suggestedMissionPath(document: Record<string, unknown>, now = new Date()): string {
@@ -270,42 +259,16 @@ export async function newFarmMissionPath(document: Record<string, unknown>): Pro
     return farmMissionPathFromName(farmMissionFilename(document, existing));
 }
 
+/**
+ * Save into `mission_order/` of the open farm. A legacy `file_type/vehicle/name` path
+ * (from `/app` habits) gets a farm file name instead: the returned path is the truth.
+ */
 export async function saveMissionDocument(
     document: Record<string, unknown>,
     path: string,
 ): Promise<string> {
-    if (isFarmMissionPath(path)) {
-        return saveFarmMission(path, toAgriDocument(document));
-    }
-    const request = toSaveRequest(document, path);
-    if (!request) {
-        throw new Error(`Invalid trajectory path: ${path}`);
-    }
-    const agri = { ...request };
-    delete agri.filename;
-    const validate = await fetch('/api/trajectories/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(agri),
-    });
-    if (!validate.ok) {
-        throw new Error(await readError(validate, 'POST /api/trajectories/validate failed'));
-    }
-    const save = await fetch('/api/trajectories', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Storage-Mode': 'local',
-        },
-        body: JSON.stringify(request),
-    });
-    if (!save.ok) {
-        throw new Error(await readError(save, 'POST /api/trajectories failed'));
-    }
-    const body = asRecord(await save.json());
-    return typeof body?.path === 'string' && body.path
-        ? body.path
-        : `${String(request.file_type)}/${String(request.vehicle_id)}/${String(request.filename)}`;
+    const target = isFarmMissionPath(path) ? path : await newFarmMissionPath(document);
+    return saveFarmMission(target, toAgriDocument(document));
 }
 
 /** Naked Agri v3 download: `filename` is an editor-only key and must not ship. */

@@ -1,5 +1,11 @@
+/**
+ * Mission publications of the open farm (L11, D15-04): immutable versions kept in
+ * `mission_order/.versions/`. No server round trip.
+ */
+
 import type { AgriDocument } from '../domain/agri';
 import type { SimAttestation } from '../domain/publication';
+import { currentSession, requireSession } from '../farmstore/session';
 
 export interface PublicationMobile {
     synced_at: string | null;
@@ -27,52 +33,12 @@ export interface PublicationRecord {
     snapshot?: AgriDocument;
 }
 
-async function readError(response: Response, fallback: string): Promise<string> {
-    try {
-        const body: unknown = await response.json();
-        if (body !== null && typeof body === 'object') {
-            const error = (body as { error?: unknown }).error;
-            if (typeof error === 'string' && error) {
-                return error;
-            }
-        }
-    } catch {
-        // HTTP fallback.
-    }
-    return `${fallback} (${response.status})`;
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(path, {
-        ...init,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(init?.headers ?? {}),
-        },
-    });
-    if (!response.ok) {
-        throw new Error(await readError(response, `${init?.method ?? 'GET'} ${path} failed`));
-    }
-    return (await response.json()) as T;
-}
-
 export async function fetchPublicationHealth(): Promise<boolean> {
-    const response = await fetch('/api/v1/health');
-    if (!response.ok) {
-        return false;
-    }
-    const body: unknown = await response.json();
-    return (
-        body !== null && typeof body === 'object' && (body as { sqlite?: unknown }).sqlite === true
-    );
+    return currentSession() !== null;
 }
 
 export async function listPublications(sourcePath?: string | null): Promise<PublicationRecord[]> {
-    const query = sourcePath ? `?source_path=${encodeURIComponent(sourcePath)}` : '';
-    const body = await request<{ publications?: PublicationRecord[] }>(
-        `/api/v1/publications${query}`,
-    );
-    return Array.isArray(body.publications) ? body.publications : [];
+    return requireSession().publications.list(sourcePath);
 }
 
 export async function createPublication(payload: {
@@ -86,8 +52,9 @@ export async function createPublication(payload: {
     field_id?: string | null;
     combination_id?: string | null;
 }): Promise<PublicationRecord> {
-    return request<PublicationRecord>('/api/v1/publications', {
-        method: 'POST',
-        body: JSON.stringify(payload),
+    return requireSession().publications.create({
+        ...payload,
+        document: payload.document as unknown as Record<string, unknown>,
+        simulation: payload.simulation as unknown as Record<string, unknown>,
     });
 }

@@ -81,7 +81,7 @@ describe('i18n adapter', () => {
         expect(translate('fields.generateRows', {}, 'fr')).toBe('Générer les rangs');
         expect(translate('fields.generateBeds18', {}, 'fr')).toBe('18 planches type');
         expect(translate('fields.typeRow', { number: 3 }, 'fr')).toBe('Rang 3');
-        expect(translate('fields.unavailable', {}, 'en')).toContain('BACKEND_FASTAPI');
+        expect(translate('fields.unavailable', {}, 'en')).toContain('Administration');
         expect(translate('tool.selectPolygon', {}, 'en')).toContain('area');
         expect(translate('tool.deleteZone', {}, 'en')).toContain('Cut');
         expect(translate('tool.saving', {}, 'fr')).toBe('Enregistrement…');

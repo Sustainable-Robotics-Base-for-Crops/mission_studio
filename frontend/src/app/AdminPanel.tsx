@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { CircleCheck, Info, LoaderCircle, TriangleAlert } from 'lucide-react';
 
 import { Banner, Button, Chip, Input, Select } from '../design-system';
 import { SUPPORTED_LANGUAGES } from '../i18n/adapter';
 import {
     DEFAULT_FIELD_GEOFENCE_INSET_CM,
     FARM_TYPES,
-    pickFarmFolder,
+    type FarmRecent,
     type FarmStartView,
     type FarmType,
     type UiMode,
@@ -89,11 +89,11 @@ export function AdminPanel({
     const [speedHigh, setSpeedHigh] = useState(
         String(document?.speed_color_high_kmh ?? DEFAULT_SPEED_HIGH_KMH),
     );
-    const [rootDraft, setRootDraft] = useState('');
     const [newFarmName, setNewFarmName] = useState('');
-    const [pickingFolder, setPickingFolder] = useState(false);
+    const [busy, setBusy] = useState(false);
     const [saveState, setSaveState] = useState<SaveState>('idle');
     const [problem, setProblem] = useState<string | null>(null);
+    const archiveInput = useRef<HTMLInputElement | null>(null);
 
     // Follow a farm switch: the panel shows the farm that is open, not the one typed.
     useEffect(() => {
@@ -128,67 +128,74 @@ export function AdminPanel({
         [farm, t],
     );
 
-    const openRoot = useCallback(
-        async (root: string) => {
-            const trimmed = root.trim();
-            if (!trimmed) {
-                setProblem(t('admin.folder.required'));
-                return;
-            }
+    /** One farm switch at a time; a cancelled folder picker changes nothing. */
+    const switchFarm = useCallback(
+        async (action: () => Promise<unknown>, failure: string) => {
             setProblem(null);
+            setBusy(true);
             setSaveState('saving');
             try {
-                await farm.openExisting(trimmed);
-                setSaveState('saved');
-                setRootDraft('');
-                onFarmChanged?.();
+                const result = await action();
+                setSaveState(result === null ? 'idle' : 'saved');
+                if (result !== null) {
+                    onFarmChanged?.();
+                }
+                return result !== null;
             } catch (reason: unknown) {
                 setSaveState('error');
-                setProblem(reason instanceof Error ? reason.message : t('admin.folder.failed'));
+                setProblem(reason instanceof Error ? reason.message : t(failure));
+                return false;
+            } finally {
+                setBusy(false);
             }
         },
-        [farm, onFarmChanged, t],
+        [onFarmChanged, t],
     );
 
-    const createAtRoot = useCallback(async () => {
-        const root = rootDraft.trim();
-        const farmName = newFarmName.trim();
-        if (!root) {
-            setProblem(t('admin.folder.required'));
-            return;
-        }
-        if (!farmName) {
-            setProblem(t('admin.create.nameRequired'));
-            return;
-        }
-        setProblem(null);
-        setSaveState('saving');
-        try {
-            await farm.create(root, farmName);
-            setSaveState('saved');
-            setRootDraft('');
-            setNewFarmName('');
-            onFarmChanged?.();
-        } catch (reason: unknown) {
-            setSaveState('error');
-            setProblem(reason instanceof Error ? reason.message : t('admin.create.failed'));
-        }
-    }, [farm, newFarmName, onFarmChanged, rootDraft, t]);
-
-    const chooseRoot = useCallback(async () => {
-        setProblem(null);
-        setPickingFolder(true);
-        try {
-            const selected = await pickFarmFolder();
-            if (selected) {
-                setRootDraft(selected);
+    const createFarm = useCallback(
+        async (where: 'device' | 'browser') => {
+            const farmName = newFarmName.trim();
+            if (!farmName) {
+                setProblem(t('admin.create.nameRequired'));
+                return;
             }
+            const created = await switchFarm(
+                () =>
+                    where === 'device'
+                        ? farm.createOnDevice(farmName)
+                        : farm.createInBrowser(farmName),
+                'admin.create.failed',
+            );
+            if (created) {
+                setNewFarmName('');
+            }
+        },
+        [farm, newFarmName, switchFarm, t],
+    );
+
+    const openRecentFarm = useCallback(
+        (recent: FarmRecent) =>
+            void switchFarm(() => farm.openRecent(recent), 'admin.folder.failed'),
+        [farm, switchFarm],
+    );
+
+    const importArchive = useCallback(
+        (file: File | undefined) => {
+            if (file) {
+                void switchFarm(() => farm.importArchive(file), 'admin.archive.failed');
+            }
+        },
+        [farm, switchFarm],
+    );
+
+    const exportArchive = useCallback(async () => {
+        setProblem(null);
+        try {
+            await farm.exportArchive();
         } catch (reason: unknown) {
-            setProblem(reason instanceof Error ? reason.message : t('admin.folder.pickFailed'));
-        } finally {
-            setPickingFolder(false);
+            setProblem(reason instanceof Error ? reason.message : t('admin.archive.failed'));
         }
-    }, [t]);
+    }, [farm, t]);
 
     const reindex = useCallback(async () => {
         setProblem(null);
@@ -298,41 +305,62 @@ export function AdminPanel({
                 <section className="studio-admin-section">
                     <h3>{t('admin.folder')}</h3>
                     <p className="studio-admin-root" title={farm.root ?? undefined}>
-                        {farm.root ?? t('admin.folder.none')}
+                        {farm.location
+                            ? t(`admin.folder.where.${farm.location.kind}`, {
+                                  name: farm.location.label,
+                              })
+                            : t('admin.folder.none')}
                     </p>
-                    <Input
-                        id="admin-farm-root"
-                        label={t('admin.folder.selected')}
-                        placeholder="/Users/moi/fermes/ferme-xy"
-                        value={rootDraft}
-                        onChange={(event) => setRootDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                                void openRoot(rootDraft);
-                            }
-                        }}
-                    />
                     <p className="studio-muted">{t('admin.folder.hint')}</p>
+                    {!farm.deviceFolders ? (
+                        <Banner tone="info" icon={Info}>
+                            {t('admin.folder.browserOnly')}
+                        </Banner>
+                    ) : null}
                     <div className="studio-admin-actions">
+                        {farm.deviceFolders ? (
+                            <Button
+                                variant="secondary"
+                                disabled={!farm.available || busy}
+                                onClick={() =>
+                                    void switchFarm(
+                                        () => farm.openFromDevice(),
+                                        'admin.folder.failed',
+                                    )
+                                }
+                            >
+                                {t('admin.folder.openDevice')}
+                            </Button>
+                        ) : null}
                         <Button
                             variant="secondary"
-                            disabled={!farm.available || pickingFolder}
-                            onClick={() => void chooseRoot()}
+                            disabled={!farm.available || busy}
+                            onClick={() => archiveInput.current?.click()}
                         >
-                            {pickingFolder
-                                ? t('admin.folder.picking')
-                                : t('admin.folder.pickAction')}
+                            {t('admin.archive.import')}
+                        </Button>
+                        <input
+                            ref={archiveInput}
+                            type="file"
+                            accept=".zip,application/zip"
+                            hidden
+                            data-testid="admin-archive-input"
+                            onChange={(event) => {
+                                importArchive(event.target.files?.[0]);
+                                event.target.value = '';
+                            }}
+                        />
+                        <Button
+                            variant="secondary"
+                            disabled={!farm.farm || busy}
+                            title={t('admin.archive.hint')}
+                            onClick={() => void exportArchive()}
+                        >
+                            {t('admin.archive.export')}
                         </Button>
                         <Button
                             variant="secondary"
-                            disabled={!farm.available || rootDraft.trim().length === 0}
-                            onClick={() => void openRoot(rootDraft)}
-                        >
-                            {t('admin.folder.openAction')}
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            disabled={!farm.available || !farm.root}
+                            disabled={!farm.farm || busy}
                             title={t('admin.index.hint')}
                             onClick={() => void reindex()}
                         >
@@ -348,39 +376,57 @@ export function AdminPanel({
                             onChange={(event) => setNewFarmName(event.target.value)}
                             onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
-                                    void createAtRoot();
+                                    void createFarm(farm.deviceFolders ? 'device' : 'browser');
                                 }
                             }}
                         />
-                        <Button
-                            variant="primary"
-                            disabled={
-                                !farm.available ||
-                                !rootDraft.trim() ||
-                                !newFarmName.trim() ||
-                                pickingFolder
-                            }
-                            onClick={() => void createAtRoot()}
-                        >
-                            {t('admin.create.action')}
-                        </Button>
+                        <div className="studio-admin-actions">
+                            {farm.deviceFolders ? (
+                                <Button
+                                    variant="primary"
+                                    disabled={!farm.available || !newFarmName.trim() || busy}
+                                    onClick={() => void createFarm('device')}
+                                >
+                                    {t('admin.create.onDevice')}
+                                </Button>
+                            ) : null}
+                            <Button
+                                variant={farm.deviceFolders ? 'secondary' : 'primary'}
+                                disabled={!farm.available || !newFarmName.trim() || busy}
+                                onClick={() => void createFarm('browser')}
+                            >
+                                {t('admin.create.inBrowser')}
+                            </Button>
+                        </div>
                         <p className="studio-muted">{t('admin.create.hint')}</p>
                     </div>
                     {farm.recent.length > 0 ? (
                         <>
                             <h4>{t('admin.folder.recent')}</h4>
                             <ul className="studio-admin-recent">
-                                {farm.recent.map((root) => (
-                                    <li key={root}>
-                                        <button
-                                            type="button"
-                                            className={root === farm.root ? 'is-active' : undefined}
-                                            onClick={() => void openRoot(root)}
-                                        >
-                                            {root}
-                                        </button>
-                                    </li>
-                                ))}
+                                {farm.recent.map((recent) => {
+                                    const active =
+                                        recent.kind === farm.location?.kind &&
+                                        recent.id === farm.location?.id;
+                                    return (
+                                        <li key={`${recent.kind}:${recent.id}`}>
+                                            <button
+                                                type="button"
+                                                className={active ? 'is-active' : undefined}
+                                                disabled={busy}
+                                                onClick={() => openRecentFarm(recent)}
+                                            >
+                                                {recent.label}
+                                                <span className="studio-muted">
+                                                    {' · '}
+                                                    {recent.needsPermission
+                                                        ? t('admin.folder.recent.permission')
+                                                        : t(`admin.folder.recent.${recent.kind}`)}
+                                                </span>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         </>
                     ) : null}
