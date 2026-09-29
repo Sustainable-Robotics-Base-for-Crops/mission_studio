@@ -1,0 +1,18 @@
+{
+  "schema": "srbc.equipment/2",
+  "kind": "implement",
+  "id": "hoe-120",
+  "name": "Binage 1,20 m",
+  "manufacturer": "SABI AGRI",
+  "implement_kind": "tool",
+  "physical_width_m": 1.2,
+  "working_width_m": 1.2,
+  "length_m": 0.35,
+  "offset_x_m": -0.4,
+  "offset_y_m": 0,
+  "work_point_x_m": -0.4,
+  "work_point_y_m": 0,
+  "drawbar_length_m": null,
+  "sections": null,
+  "visual": null
+}

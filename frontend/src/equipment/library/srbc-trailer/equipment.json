@@ -1,0 +1,18 @@
+{
+  "schema": "srbc.equipment/2",
+  "kind": "combination",
+  "id": "srbc-trailer",
+  "name": "SRBC + remorque",
+  "vehicle": "srbc:srbc-001",
+  "implement": "srbc:trailer-140",
+  "odd": {
+    "approved": true,
+    "max_slope_pct": 15,
+    "weather": "any",
+    "visibility": "day",
+    "crop": "any",
+    "localization": "rtk_required",
+    "connectivity_required": false,
+    "soil_note": ""
+  }
+}

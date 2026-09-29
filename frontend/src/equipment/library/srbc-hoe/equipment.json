@@ -1,0 +1,18 @@
+{
+  "schema": "srbc.equipment/2",
+  "kind": "combination",
+  "id": "srbc-hoe",
+  "name": "SRBC + binage",
+  "vehicle": "srbc:srbc-001",
+  "implement": "srbc:hoe-120",
+  "odd": {
+    "approved": true,
+    "max_slope_pct": 15,
+    "weather": "any",
+    "visibility": "day",
+    "crop": "any",
+    "localization": "rtk_required",
+    "connectivity_required": false,
+    "soil_note": ""
+  }
+}
