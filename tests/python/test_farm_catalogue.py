@@ -102,7 +102,9 @@ def test_api_new_farm_hides_previous_catalogue_and_writes_parcel_map(tmp_path, m
     )
     assert created.status_code == 201
     field_id = created.json()["id"]
-    parcel_files = [name for name in os.listdir(os.path.join(first, "parcel_map")) if name.endswith(".geojson")]
+    parcel_files = [
+        name for name in os.listdir(os.path.join(first, "parcel_map")) if name.endswith(".geojson")
+    ]
     assert len(parcel_files) == 1
     assert field_id in parcel_files[0]
 
@@ -110,7 +112,9 @@ def test_api_new_farm_hides_previous_catalogue_and_writes_parcel_map(tmp_path, m
     listed = client.get("/api/v1/fields")
     assert listed.status_code == 200
     assert listed.json()["fields"] == []
-    assert [name for name in os.listdir(os.path.join(second, "parcel_map")) if name.endswith(".geojson")] == []
+    assert [
+        name for name in os.listdir(os.path.join(second, "parcel_map")) if name.endswith(".geojson")
+    ] == []
 
     client.post("/api/v1/farm/open-existing", json={"root": first})
     restored = client.get("/api/v1/fields").json()["fields"]
@@ -129,4 +133,6 @@ def test_delete_field_removes_the_geojson(tmp_path, monkeypatch):
 
     deleted = client.delete(f"/api/v1/fields/{field_id}")
     assert deleted.status_code == 200
-    assert [name for name in os.listdir(os.path.join(root, "parcel_map")) if name.endswith(".geojson")] == []
+    assert [
+        name for name in os.listdir(os.path.join(root, "parcel_map")) if name.endswith(".geojson")
+    ] == []

@@ -19,12 +19,23 @@ function line(id: string, coordinates: number[][]): FieldGuidanceLine {
 
 describe('headingRadFromLineString', () => {
     it('reads east as heading 0 and north as +π/2', () => {
-        expect(headingRadFromLineString({ type: 'LineString', coordinates: [[3, 45], [3.001, 45]] })).toBeCloseTo(
-            0,
-            2,
-        );
         expect(
-            headingRadFromLineString({ type: 'LineString', coordinates: [[3, 45], [3, 45.001]] }),
+            headingRadFromLineString({
+                type: 'LineString',
+                coordinates: [
+                    [3, 45],
+                    [3.001, 45],
+                ],
+            }),
+        ).toBeCloseTo(0, 2);
+        expect(
+            headingRadFromLineString({
+                type: 'LineString',
+                coordinates: [
+                    [3, 45],
+                    [3, 45.001],
+                ],
+            }),
         ).toBeCloseTo(Math.PI / 2, 2);
     });
 

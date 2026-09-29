@@ -37,6 +37,8 @@ export function headingRadFromGuidanceLine(line: FieldGuidanceLine): number | nu
     return headingRadFromLineString(line.geometry);
 }
 
-export function usableGuidanceLines(lines: readonly FieldGuidanceLine[] | undefined): FieldGuidanceLine[] {
+export function usableGuidanceLines(
+    lines: readonly FieldGuidanceLine[] | undefined,
+): FieldGuidanceLine[] {
     return (lines ?? []).filter((line) => headingRadFromGuidanceLine(line) != null);
 }

@@ -162,7 +162,11 @@ def test_geojson_import_keeps_field_id(tmp_path):
             "features": [
                 {
                     "type": "Feature",
-                    "properties": {"name": "Santenay", "srbc_kind": "field", "id": "field-santenay"},
+                    "properties": {
+                        "name": "Santenay",
+                        "srbc_kind": "field",
+                        "id": "field-santenay",
+                    },
                     "geometry": SQUARE,
                 }
             ],

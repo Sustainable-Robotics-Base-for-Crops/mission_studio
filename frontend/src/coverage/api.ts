@@ -1,11 +1,7 @@
 import type { AgriSection } from '../domain/agri';
 
 export type CoverageStrategy =
-    | 'boustrophedon'
-    | 'snake'
-    | 'perpendicular'
-    | 'best_nswath'
-    | 'guidance';
+    'boustrophedon' | 'snake' | 'perpendicular' | 'best_nswath' | 'guidance';
 
 export interface CoveragePlanRequest {
     ring?: Array<{ lat: number; lng: number }>;
