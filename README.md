@@ -93,6 +93,7 @@ mission_studio/
     api/                  # FastAPI app, legacy /api/trajectories, /api/v1
     db/                   # SQLite connection and schema
     fields/               # Field / zone / obstacle / guidance-line catalogue
+    imports/              # Third-party file adapters (Naïo, Raven, GeoJSON, SHP)
     jobs/                 # Local job queue (echo worker)
     data/                 # studio.sqlite when FastAPI is on (gitignored)
     config/               # .env configuration loading
@@ -107,6 +108,7 @@ mission_studio/
     templates/            # Jinja templates
     uploads/              # Local trajectory storage
   docs/
+    IMPORTS.md            # Third-party imports + object-creation plan
     PLUGINS.md            # Plugin system reference
   public/
     css/
@@ -298,8 +300,12 @@ sequenceDiagram
 | `GET` | `/api/v1/equipment/combinations/{id}` | Combination + envelope + `srbc_equipment` snapshot. |
 | `GET` | `/api/v1/coverage/engine` | Planner in use (`fields2cover` or `parallel_fallback`). |
 | `POST` | `/api/v1/coverage/plan` | Polygon or catalogue `row_set` → Agri `row_line` (L8a). |
+| `GET` | `/api/v1/imports/adapters` | Third-party dialects Studio can read (L14). |
+| `POST` | `/api/v1/imports/preview` | Vendor file → recognised figures + overlay collection. |
 
 The field catalogue and equipment twins live in SQLite. Agri v3 files under `backend/uploads/` remain the robot export. See `docs/AGRI_FORMAT_EVOLUTION.md` for `metadata` conventions (no schema v4).
+
+Imported vendor files (Naïo work maps, Raven job exports, plain GeoJSON or shapefiles) become session overlays only: nothing is written to the catalogue or to the farm folder. See `docs/IMPORTS.md`, including the plan for creating objects from an import in a later lot.
 
 Storage parameters:
 
