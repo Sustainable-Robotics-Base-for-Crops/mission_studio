@@ -21,6 +21,9 @@ export default defineConfig({
             '/css': 'http://127.0.0.1:3000',
         },
     },
+    worker: {
+        format: 'es',
+    },
     build: {
         outDir: path.resolve(__dirname, '../public/studio'),
         emptyOutDir: true,

@@ -5,9 +5,11 @@ import {
     NavigationControl,
     Popup,
     ScaleControl,
+    setWorkerUrl,
     type FilterSpecification,
     type StyleSpecification,
 } from 'maplibre-gl';
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 import {
     emptyLineCollection,
@@ -49,6 +51,9 @@ import {
     upsertSvgPath,
     upsertSvgText,
 } from './svg-overlay';
+
+// MapLibre otherwise looks for its worker next to its own module, a file the Studio bundle does not ship.
+setWorkerUrl(mapWorkerUrl);
 
 const SOURCE = {
     work: 'mission-work',
