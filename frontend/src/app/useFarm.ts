@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { onSessionChange, restoreLastFarm } from '../farmstore/session';
+import { onSessionChange } from '../farmstore/session';
 import {
     EMPTY_SNAPSHOT,
     createFarmInBrowser,
@@ -26,7 +26,7 @@ import {
  *
  * Mounted once in AppShell and passed down, so the dashboard, the administration
  * panel and the explorers never disagree about which farm is open. The farm lives on
- * the visitor's device; the previous one is reopened when the browser allows it.
+ * the visitor's device; `main.tsx` reopens the previous one before the first render.
  */
 export function useFarm() {
     const [available, setAvailable] = useState(false);
@@ -35,7 +35,6 @@ export function useFarm() {
     const [snapshot, setSnapshot] = useState<FarmSnapshot>(EMPTY_SNAPSHOT);
     const [missions, setMissions] = useState<FarmEntry[]>([]);
     const [work, setWork] = useState<FarmEntry[]>([]);
-    const restored = useRef(false);
 
     const reload = useCallback(async () => {
         const ok = await fetchFarmAvailable();
@@ -46,10 +45,6 @@ export function useFarm() {
             setWork([]);
             setLoading(false);
             return;
-        }
-        if (!restored.current) {
-            restored.current = true;
-            await restoreLastFarm();
         }
         const next = await fetchFarm();
         setSnapshot(next);

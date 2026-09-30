@@ -9,6 +9,7 @@ import './styles/shell.css';
 
 import { AppShell } from './app/AppShell';
 import { StudioProviders } from './design-system/Providers';
+import { restoreLastFarm } from './farmstore/session';
 import { ensureNativeBridges } from './native/bridges';
 import { ensurePluginShim } from './plugins/shim';
 
@@ -19,13 +20,17 @@ const rootElement = document.getElementById('root');
 if (!rootElement) {
     throw new Error('Mission Studio mount point #root is missing');
 }
+const mountPoint = rootElement;
 
-createRoot(rootElement).render(
-    <StrictMode>
-        <StudioProviders>
-            <BrowserRouter basename="/studio">
-                <AppShell />
-            </BrowserRouter>
-        </StudioProviders>
-    </StrictMode>,
-);
+// Every module reads the open farm on mount: reopen the previous one before rendering.
+void restoreLastFarm().finally(() => {
+    createRoot(mountPoint).render(
+        <StrictMode>
+            <StudioProviders>
+                <BrowserRouter basename="/studio">
+                    <AppShell />
+                </BrowserRouter>
+            </StudioProviders>
+        </StrictMode>,
+    );
+});
