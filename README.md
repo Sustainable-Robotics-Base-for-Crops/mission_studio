@@ -11,8 +11,8 @@ Mission Studio is not a branch of [`trajectory_editor`](https://github.com/Susta
 
 ## Authors and credits
 
-- **Mission Studio** (`/studio`: React shell, MapLibre map, farm folder, parcels, equipment twin, coverage, expert editor, simulation, publication, imports, and the test suite) is designed and developed by **Alexandre PREVAULT-OSMANI** ([@Alexandre-PO](https://github.com/Alexandre-PO)), SABI AGRI.
-- The **compact editor and server core** it was built on (`/app`, `server.py`, `backend/` core, plugin system, `public/js`, `public/css`) come from [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor), started in 2026 by the SABI AGRI team ([@florianSabi](https://github.com/florianSabi) and colleagues). The first commit of this repository imports that code; its detailed history lives in `trajectory_editor`.
+- [@Alexandre-PO](https://github.com/Alexandre-PO) designed and developed **Mission Studio** (`/studio`: React shell, MapLibre map, farm folder, parcels, equipment twin, coverage, expert editor, simulation, publication, imports, and the test suite).
+- [@florianSabi](https://github.com/florianSabi) wrote the **compact editor and server core** Mission Studio is built on (`/app`, `server.py`, `backend/` core, plugin system, `public/js`, `public/css`), originally developed in [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor); Nicolas (SABI AGRI) contributed to it. The first commit of this repository imports that code; its detailed history lives in `trajectory_editor`.
 - Coverage planning optionally uses [Fields2Cover](https://github.com/Fields2Cover/Fields2Cover) (BSD-3-Clause), see [`NOTICE`](NOTICE).
 
 ## Contributing
