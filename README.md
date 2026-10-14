@@ -2,10 +2,22 @@
 
 Web application for planning agricultural missions on the SRBC robot (JSON Agri v3): farm folder, parcels, equipment twin, coverage planning, expert path editor, geometric simulation and versioned publication.
 
+<p align="center">
+  <img src="docs/images/studio-fill-parcel.jpg" alt="Mission Studio filling a parcel with parallel rows and headlands on a satellite map" width="900">
+  <br>
+  <em>Fill a parcel: working width, headland and pass orientation; rows and turns are generated and previewed on the map.</em>
+</p>
+
 > **Project status: working prototype for field trials and personal use, not yet a product for mass distribution.**
 > The full mission chain runs and is covered by automated tests, but several features still need polishing, and the interface, the user experience, the upsell and the farmers' day-to-day workflow have to be validated through a wider field deployment. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) and the [open issues](https://github.com/Sustainable-Robotics-Base-for-Crops/mission_studio/issues).
 >
 > **Statut (FR) :** prototype fonctionnel pour des essais terrain et un usage personnel. Certaines fonctionnalités restent à parfaire ; un déploiement plus large auprès d'agriculteurs est nécessaire pour valider l'IHM, l'expérience utilisateur, l'offre commerciale et le parcours métier avant une diffusion massive.
+
+<p align="center">
+  <img src="docs/images/studio-simulation.jpg" alt="Mission Studio simulation results: numbered passes, kinematic, collision, coverage and ODD checks" width="900">
+  <br>
+  <em>Simulate before publishing: numbered passes and pivots, kinematic, collision, coverage and operating-domain (ODD) checks, mission timeline.</em>
+</p>
 
 Mission Studio is not a branch of [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor): that repository stays the compact editor (`/app`). Mission Studio grew far enough to live in its own repo; it still ships the compact editor at `/app` for compatibility.
 
