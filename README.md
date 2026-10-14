@@ -1,35 +1,24 @@
 # Mission Studio
 
-Web application for planning agricultural missions on the SRBC robot (JSON Agri v3): farm folder, parcels, equipment twin, coverage planning, expert path editor, geometric simulation and versioned publication.
+Mission Studio is the mission planner for SRBC, the field robot built by SABI AGRI. Draw or import your parcels, choose the machine and the tool, let the studio lay out rows and turns, check everything in simulation, then send the robot a JSON Agri v3 file.
 
 <p align="center">
-  <img src="docs/images/studio-fill-parcel.jpg" alt="Mission Studio filling a parcel with parallel rows and headlands on a satellite map" width="900">
+  <img src="docs/images/studio-fill-parcel.jpg" alt="Filling a parcel with rows and headlands on a satellite map" width="900">
   <br>
-  <em>Fill a parcel: working width, headland and pass orientation; rows and turns are generated and previewed on the map.</em>
+  <em>Filling a parcel: set the working width and the headland, and the rows are drawn for you.</em>
 </p>
 
-> **Project status: working prototype for field trials and personal use, not yet a product for mass distribution.**
-> The full mission chain runs and is covered by automated tests, but several features still need polishing, and the interface, the user experience, the upsell and the farmers' day-to-day workflow have to be validated through a wider field deployment. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) and the [open issues](https://github.com/Sustainable-Robotics-Base-for-Crops/mission_studio/issues).
->
-> **Statut (FR) :** prototype fonctionnel pour des essais terrain et un usage personnel. Certaines fonctionnalités restent à parfaire ; un déploiement plus large auprès d'agriculteurs est nécessaire pour valider l'IHM, l'expérience utilisateur, l'offre commerciale et le parcours métier avant une diffusion massive.
+## Project status
+
+We use Mission Studio in our own field trials. The next step is a wider rollout: some features still need finishing, and we want to test the interface and the daily workflow with many more farmers, and learn which paid services they would find worth it. Details are in [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md), and the [issues](https://github.com/Sustainable-Robotics-Base-for-Crops/mission_studio/issues) list what comes next.
+
+En français : Mission Studio sert aujourd'hui à nos propres essais au champ. La prochaine étape est un déploiement plus large : finir certaines fonctions, tester l'interface et le parcours au quotidien chez beaucoup plus d'agriculteurs, et voir quels services payants les intéressent vraiment.
 
 <p align="center">
-  <img src="docs/images/studio-simulation.jpg" alt="Mission Studio simulation results: numbered passes, kinematic, collision, coverage and ODD checks" width="900">
+  <img src="docs/images/studio-simulation.jpg" alt="Simulation results with numbered passes and the list of checks" width="900">
   <br>
-  <em>Simulate before publishing: numbered passes and pivots, kinematic, collision, coverage and operating-domain (ODD) checks, mission timeline.</em>
+  <em>Simulation: each pass is numbered, and the mission is checked against the parcel, the machine and its limits before it reaches the robot.</em>
 </p>
-
-Mission Studio is not a branch of [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor): that repository stays the compact editor (`/app`). Mission Studio grew far enough to live in its own repo; it still ships the compact editor at `/app` for compatibility.
-
-## Authors and credits
-
-- [@Alexandre-PO](https://github.com/Alexandre-PO) designed and developed **Mission Studio** (`/studio`: React shell, MapLibre map, farm folder, parcels, equipment twin, coverage, expert editor, simulation, publication, imports, and the test suite).
-- [@florianSabi](https://github.com/florianSabi) wrote the **compact editor and server core** Mission Studio is built on (`/app`, `server.py`, `backend/` core, plugin system, `public/js`, `public/css`), originally developed in [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor); Nicolas (SABI AGRI) contributed to it. The first commit of this repository imports that code; its detailed history lives in `trajectory_editor`.
-- Coverage planning optionally uses [Fields2Cover](https://github.com/Fields2Cover/Fields2Cover) (BSD-3-Clause), see [`NOTICE`](NOTICE).
-
-## Contributing
-
-Feedback from farmers, integrators and robot makers is the most useful contribution at this stage: open an issue describing your farm, crop and machine, and what blocked you. Code contributions are welcome through pull requests; run `./scripts/check.sh` before opening one. This project is licensed under the [Apache License 2.0](LICENSE).
 
 ## Quick start
 
@@ -44,15 +33,32 @@ BACKEND_FASTAPI=true python server.py
 # http://localhost:3000/studio
 ```
 
-Mission Studio is meant to run on your own machine. The public-server mode (no state written on the server, rate limits, restricted CORS) is not finished: do not expose this server on the Internet as is.
+For now, run it on your own computer. Putting it on a public server will need some hardening first.
+
+## Contributing
+
+Field feedback is the most useful thing you can send us right now. Open an issue with your crop, your machine and the point where you got stuck. Pull requests are welcome as well; please run `./scripts/check.sh` before opening one. The code is released under the [Apache License 2.0](LICENSE).
+
+## Authors
+
+- [@Alexandre-PO](https://github.com/Alexandre-PO): Mission Studio.
+- [@florianSabi](https://github.com/florianSabi): the original trajectory editor and the server Mission Studio is built on, with contributions from Nicolas.
+
+Coverage planning can use [Fields2Cover](https://github.com/Fields2Cover/Fields2Cover) (BSD-3-Clause), see [`NOTICE`](NOTICE).
+
+## History
+
+Mission Studio grew out of [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor), the first SRBC trajectory editor. The studio interface is at `/studio`, and the original editor is still available at `/app`. `trajectory_editor` continues as a separate, lighter project, with its full commit history.
 
 The rest of this README describes the shared public core (HTTP API, plugins, legacy `/app`). Auth, cloud storage, and other deployment-specific integrations stay out of this package: they load at startup through the plugin system.
 
 ## Table Of Contents
 
-- [Authors and credits](#authors-and-credits)
-- [Contributing](#contributing)
+- [Project status](#project-status)
 - [Quick start](#quick-start)
+- [Contributing](#contributing)
+- [Authors](#authors)
+- [History](#history)
 - [Package Role](#package-role)
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
