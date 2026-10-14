@@ -1,23 +1,46 @@
 # Mission Studio
 
-Web application for planning agricultural missions on the SRBC robot (JSON Agri v3).
+Web application for planning agricultural missions on the SRBC robot (JSON Agri v3): farm folder, parcels, equipment twin, coverage planning, expert path editor, geometric simulation and versioned publication.
 
-This repository is **private** while colleagues review it. It is not a branch of [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor): that public core stays the compact editor (`/app`). Mission Studio grew far enough (parcels, equipment twin, coverage, expert editor) to live in its own repo.
+> **Project status: working prototype for field trials and personal use, not yet a product for mass distribution.**
+> The full mission chain runs and is covered by automated tests, but several features still need polishing, and the interface, the user experience, the upsell and the farmers' day-to-day workflow have to be validated through a wider field deployment. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) and the [open issues](https://github.com/Sustainable-Robotics-Base-for-Crops/mission_studio/issues).
+>
+> **Statut (FR) :** prototype fonctionnel pour des essais terrain et un usage personnel. Certaines fonctionnalités restent à parfaire ; un déploiement plus large auprès d'agriculteurs est nécessaire pour valider l'IHM, l'expérience utilisateur, l'offre commerciale et le parcours métier avant une diffusion massive.
 
-Run locally:
+Mission Studio is not a branch of [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor): that repository stays the compact editor (`/app`). Mission Studio grew far enough to live in its own repo; it still ships the compact editor at `/app` for compatibility.
+
+## Authors and credits
+
+- **Mission Studio** (`/studio`: React shell, MapLibre map, farm folder, parcels, equipment twin, coverage, expert editor, simulation, publication, imports, and the test suite) is designed and developed by **Alexandre PREVAULT-OSMANI** ([@Alexandre-PO](https://github.com/Alexandre-PO)), SABI AGRI.
+- The **compact editor and server core** it was built on (`/app`, `server.py`, `backend/` core, plugin system, `public/js`, `public/css`) come from [`trajectory_editor`](https://github.com/Sustainable-Robotics-Base-for-Crops/trajectory_editor), started in 2026 by the SABI AGRI team ([@florianSabi](https://github.com/florianSabi) and colleagues). The first commit of this repository imports that code; its detailed history lives in `trajectory_editor`.
+- Coverage planning optionally uses [Fields2Cover](https://github.com/Fields2Cover/Fields2Cover) (BSD-3-Clause), see [`NOTICE`](NOTICE).
+
+## Contributing
+
+Feedback from farmers, integrators and robot makers is the most useful contribution at this stage: open an issue describing your farm, crop and machine, and what blocked you. Code contributions are welcome through pull requests; run `./scripts/check.sh` before opening one. This project is licensed under the [Apache License 2.0](LICENSE).
+
+## Quick start
+
+Run locally (Python ≥ 3.12, Node 22):
 
 ```bash
 cd mission_studio
-source .venv/bin/activate   # Python ≥ 3.12
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+npm ci && npm run build     # rebuild after frontend changes
 BACKEND_FASTAPI=true python server.py
 # http://localhost:3000/studio
-npm run build               # after frontend changes
 ```
+
+Mission Studio is meant to run on your own machine. The public-server mode (no state written on the server, rate limits, restricted CORS) is not finished: do not expose this server on the Internet as is.
 
 The rest of this README describes the shared public core (HTTP API, plugins, legacy `/app`). Auth, cloud storage, and other deployment-specific integrations stay out of this package: they load at startup through the plugin system.
 
 ## Table Of Contents
 
+- [Authors and credits](#authors-and-credits)
+- [Contributing](#contributing)
+- [Quick start](#quick-start)
 - [Package Role](#package-role)
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)

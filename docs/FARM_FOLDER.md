@@ -196,5 +196,5 @@ Attention : `.studio/index.sqlite` n’est pas `backend/data/studio.sqlite`. Cet
 base (schéma 7) appartient au catalogue et à la file de tâches de l’application ; elle
 n’est ni portable avec la ferme ni source de vérité pour son dossier.
 
-État produit au 24/08/2026 : [`AUDIT_MISSION_STUDIO_2026-08-24.md`](AUDIT_MISSION_STUDIO_2026-08-24.md).
+État du projet : [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 Recette L13 du 20/08 : [`L13_ACCEPTANCE_REPORT.md`](L13_ACCEPTANCE_REPORT.md) (parcelle alors à 4 onglets).

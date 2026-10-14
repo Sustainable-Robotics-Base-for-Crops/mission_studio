@@ -1,8 +1,7 @@
 # Design system — Mission Studio
 
-Normative source: CdCF UX §4
-(`Robot_SRBC/.../cahier_des_charges_ux_editeur_missions_agricoles.md`).
-The live catalogue is `/studio/design-system`. Tokens live in
+Normative source: the SRBC UX specification for agricultural mission editors
+(§4, kept outside this repository). The live catalogue is `/studio/design-system`. Tokens live in
 `frontend/src/design-system/tokens.ts` and `tokens.css`.
 
 This system applies to the React shell (`/studio`). The Leaflet editor
